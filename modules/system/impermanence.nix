@@ -135,8 +135,11 @@ in {
             mv /btrfs_tmp/root "/btrfs_tmp/old_roots/$timestamp"
         fi
 
+        # `local IFS` keeps the split scoped to this function. Assigned
+        # globally it survived the first call and silently changed how every
+        # later word split behaved, including the retention loop below.
         delete_subvolume_recursively() {
-            IFS=$'\n'
+            local IFS=$'\n'
             for i in $(btrfs subvolume list -o "$1" | cut -f 9- -d ' '); do
                 delete_subvolume_recursively "/btrfs_tmp/$i"
             done
@@ -151,13 +154,17 @@ in {
         # - Only delete entries that are actually btrfs subvolumes, and a stray
         #   file or directory in old_roots is skipped (deleting the unknown is
         #   never the right move in a boot script) and must not fail the boot.
-        for i in $(find /btrfs_tmp/old_roots/ -mindepth 1 -maxdepth 1 -mtime +${toString cfg.retentionDays}); do
+        #
+        # Null-delimited so an entry name containing whitespace is one entry.
+        # The names are generated timestamps today, and a boot script that
+        # deletes subvolumes should not depend on that staying true.
+        while IFS= read -r -d ''' i; do
             if btrfs subvolume show "$i" > /dev/null 2>&1; then
                 delete_subvolume_recursively "$i"
             else
                 echo "impermanence: skipping non-subvolume '$i' in old_roots" >&2
             fi
-        done
+        done < <(find /btrfs_tmp/old_roots/ -mindepth 1 -maxdepth 1 -mtime +${toString cfg.retentionDays} -print0)
 
         btrfs subvolume create /btrfs_tmp/root
 
