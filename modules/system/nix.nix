@@ -2,6 +2,7 @@
 # Nix daemon settings, substituters and garbage collection
 {
   config,
+  options,
   lib,
   pkgs,
   ...
@@ -22,8 +23,18 @@ in {
 
     allowUnfree = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Allow unfree packages. A policy decision, not a capability. Hosts with free-software-only requirements set this to false.";
+      # Defaults to false because this is licensing policy and a module library
+      # has no standing to decide it for a consumer. Hosts that want unfree
+      # packages say so, which also makes the choice visible in their own
+      # configuration rather than inherited from an import.
+      default = false;
+      description = ''
+        Allow unfree packages, by writing nixpkgs.config.allowUnfree. A policy
+        decision, not a capability, so it defaults to false and hosts opt in.
+        Hosts that instantiate nixpkgs themselves must set the policy on that
+        instance instead, since nixpkgs.config is ignored when nixpkgs.pkgs is
+        defined.
+      '';
     };
 
     trustedUsers = lib.mkOption {
@@ -138,6 +149,25 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # nixpkgs.config is ignored outright when a consumer supplies its own
+    # nixpkgs instance through nixpkgs.pkgs (the NixOS test framework and
+    # nixops both do). Writing the policy there would then be a silent no-op,
+    # so fail loudly and make the consumer set it on the instance they own.
+    assertions = [
+      {
+        assertion =
+          !options.nixpkgs.pkgs.isDefined
+          || (pkgs.config.allowUnfree or false) == cfg.allowUnfree;
+        message = ''
+          othrys.system.nix.allowUnfree is ${lib.boolToString cfg.allowUnfree} but
+          nixpkgs.pkgs is defined externally, where nixpkgs.config is ignored, and
+          that instance has allowUnfree = ${lib.boolToString (pkgs.config.allowUnfree or false)}.
+          Set allowUnfree on the nixpkgs instance you pass in, or drop nixpkgs.pkgs
+          and let this module configure nixpkgs.
+        '';
+      }
+    ];
+
     # No mkDefault here, since nixpkgs.config is untyped attrs and override objects
     # would leak through to pkgs.config verbatim. The othrys option IS the
     # override mechanism.
