@@ -48,6 +48,11 @@
       othrys.system.nix = {
         enable = true;
         stateVersion = "26.05";
+        # The matrix proves every module evaluates with its defaults, which is
+        # a separate question from licensing policy. Some modules wrap unfree
+        # packages (the NVIDIA driver is unfreeRedistributable), so both bases
+        # opt in and a host decides for itself.
+        allowUnfree = true;
       };
     }
   ];
@@ -56,6 +61,7 @@
     {
       othrys.system.stylix.enable = true;
       othrys.desktop.compositors.hyprland.enable = true;
+      othrys.system.nix.allowUnfree = true;
     }
   ];
 

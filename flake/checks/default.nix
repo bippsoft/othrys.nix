@@ -344,6 +344,8 @@
           # Pins two failure classes, an unfree package inside home-manager
           # (needs useGlobalPkgs to see nixpkgs.config.allowUnfree) and a
           # cross-module HM dereference (vscode reads nixvim's package).
+          # allowUnfree is opt-in, so a host wanting claude-code says so.
+          othrys.system.nix.allowUnfree = true;
           othrys.apps.ai.claude-code.enable = true;
           othrys.apps.nixvim.enable = true;
           othrys.apps.vscode.enable = true;
