@@ -20,6 +20,11 @@
   alertmanagerPort = 9093;
   bridgePort = 8489;
 
+  # Runtime-only auth fragment for the alertmanager-ntfy bridge, rendered from
+  # notify.tokenFile at boot (see the config block below).
+  bridgeAuthDir = "othrys-alerting";
+  bridgeAuthFile = "/run/${bridgeAuthDir}/ntfy-auth.yml";
+
   starterGroups = [
     {
       name = "othrys";
@@ -157,6 +162,34 @@ in {
           notification.topic = notifyCfg.topic;
         };
       };
+
+      # The token goes through extraConfigFiles rather than settings, since
+      # settings is rendered into the store. Upstream loads these with
+      # LoadCredential, so the file is read by PID 1 and never reaches the
+      # bridge's own filesystem view.
+      extraConfigFiles = lib.mkIf (notifyCfg.tokenFile != null) [bridgeAuthFile];
+    };
+
+    # notify.tokenFile holds the bare token while the bridge wants a one-key
+    # YAML document, so render it into /run at boot. printf is a shell builtin,
+    # so the token is never an argv of a separate process.
+    systemd.services.othrys-alerting-ntfy-auth = lib.mkIf (internalDelivery && notifyCfg.tokenFile != null) {
+      description = "Render the ntfy bridge auth config from the notify token.";
+      before = ["alertmanager-ntfy.service"];
+      requiredBy = ["alertmanager-ntfy.service"];
+      unitConfig.ConditionPathExists = notifyCfg.tokenFile;
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        UMask = "0077";
+        RuntimeDirectory = bridgeAuthDir;
+        RuntimeDirectoryMode = "0700";
+        RuntimeDirectoryPreserve = true;
+      };
+      script = ''
+        printf 'ntfy:\n  auth:\n    token: "%s"\n' \
+          "$(cat ${lib.escapeShellArg notifyCfg.tokenFile})" > ${bridgeAuthFile}
+      '';
     };
   };
 }
