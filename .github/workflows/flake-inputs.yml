@@ -5,7 +5,11 @@ on:
     paths: [flake.lock, flake.nix]
   pull_request:
     paths: [flake.lock, flake.nix]
-  # Weekly run catches advisories disclosed against pins that haven't changed.
+  # flake-checker validates the health of the nixpkgs pins themselves, meaning
+  # the branch they track, how far behind they are, and whether the release is
+  # still supported. It does not scan for security advisories, and nothing in
+  # this pipeline does. The weekly run exists because a pin that has not
+  # changed still ages out of support on its own.
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
