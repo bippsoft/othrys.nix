@@ -44,6 +44,10 @@
     niri = {
       url = "github:sodiboo/niri-flake";
       inputs.nixpkgs.follows = "nixpkgs";
+      # nixpkgs-stable is deliberately left unfollowed. niri-flake builds its
+      # stable package set against it, and pointing it at unstable defeats
+      # what the separate pin exists for. It is the second-largest node in the
+      # lock after hyprland's nixpkgs and it stays on purpose.
     };
 
     # Noctalia Wayland desktop shell (bar/launcher/notifications/lock/...).
@@ -68,23 +72,27 @@
     # Impermanence, opt-in state persistence
     impermanence = {
       url = "github:nix-community/impermanence";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Nixvim - Neovim configuration with Nix modules
     nixvim = {
       url = "github:nix-community/nixvim";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
     };
 
     # Stylix - System-wide theming using base16
     stylix = {
       url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
     };
 
     # nixos-hardware - Hardware-specific configurations and optimizations
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Git hooks for pre-commit validation
