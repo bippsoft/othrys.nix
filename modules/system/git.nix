@@ -64,7 +64,10 @@ in {
             };
 
             init.defaultBranch = cfg.defaultBranch;
-            pull.rebase = false;
+            # A preference rather than a requirement, so mkDefault lets a
+            # consumer set pull.rebase = true without lib.mkForce (the same
+            # rule modules/services/ssh.nix states for its hardened settings).
+            pull.rebase = lib.mkDefault false;
             core.editor = config.othrys.system.defaultEditor;
 
             alias = cfg.aliases;
