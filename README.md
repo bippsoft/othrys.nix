@@ -59,7 +59,11 @@ with NAT and an NFQUEUE hook, while you name the interfaces and subnets.
           othrys.system.user.name = "alice";
           othrys.system.users = {
             enable = true;
-            initialPassword = "changeme";
+            # A runtime path from your secrets provider. Nothing reaches the
+            # Nix store. To bootstrap a host before secrets decrypt, set
+            # initialHashedPassword to a `mkpasswd -m yescrypt` hash instead,
+            # and move to passwordFile once the provider is up.
+            passwordFile = "/run/secrets/users/alice/password";
           };
           othrys.system.nix = {
             enable = true;

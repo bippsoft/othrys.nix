@@ -117,7 +117,8 @@
       imports = [bootBase];
       othrys.system.users = {
         enable = true;
-        initialPassword = "changeme";
+        # Bootstrap hash for "changeme", generated with mkpasswd -m yescrypt.
+        initialHashedPassword = "$y$j9T$aiZuvauf85ZjB04z3seyG0$OKYG9I1g.vAp5IA48MlGzaVoB15gqWIL.k7lSni8fe8";
       };
       othrys.system.nix = {
         enable = true;
@@ -297,7 +298,8 @@
           othrys.system.users = {
             enable = true;
             homeManager.enable = false;
-            initialPassword = "changeme";
+            # Bootstrap hash for "changeme", generated with mkpasswd -m yescrypt.
+            initialHashedPassword = "$y$j9T$aiZuvauf85ZjB04z3seyG0$OKYG9I1g.vAp5IA48MlGzaVoB15gqWIL.k7lSni8fe8";
           };
         }
         serverModules

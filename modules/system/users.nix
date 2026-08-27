@@ -37,17 +37,42 @@ in {
       description = "Default shell for the user.";
     };
 
-    initialPassword = lib.mkOption {
+    initialHashedPassword = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
-      description = "Initial password for bootstrap (cleared after first login).";
+      example = "$y$j9T$...";
+      description = ''
+        Hashed password used to bootstrap the account on first boot, for the
+        window before a secrets provider is available. Generate one with
+        `mkpasswd -m yescrypt`.
+
+        The hash is written into the world-readable Nix store and stays there
+        for the life of every generation that references it, so treat it as
+        public and offline-crackable. It is a bootstrap mechanism, and NixOS
+        does not clear or expire it. Move the host to passwordFile once secrets
+        decrypt on boot.
+      '';
     };
 
     passwordFile = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
       example = lib.literalExpression "config.sops.secrets.\"users/alice/password\".path";
-      description = "Path to file containing hashed password (injected by host config).";
+      description = "Path to a runtime file holding the hashed password, injected by the host configuration. The preferred form, since nothing reaches the store.";
+    };
+
+    mutableUsers = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        users.mutableUsers. False keeps accounts fully declarative, so passwd
+        and useradd changes do not survive a rebuild. Set it to true on a host
+        where accounts are managed outside Nix.
+
+        This is stated rather than inferred. It was previously derived from
+        whether passwordFile happened to be null, which flipped a security
+        property as a side effect of an unrelated option.
+      '';
     };
 
     extraGroups = lib.mkOption {
@@ -61,8 +86,8 @@ in {
     # Fail loudly rather than create a passwordless/locked account on first boot.
     assertions = [
       {
-        assertion = cfg.passwordFile != null || cfg.initialPassword != null;
-        message = "othrys.system.users: set passwordFile or initialPassword, or the '${username}' account is created with no password.";
+        assertion = cfg.passwordFile != null || cfg.initialHashedPassword != null;
+        message = "othrys.system.users: set passwordFile or initialHashedPassword, or the '${username}' account is created with no password.";
       }
     ];
 
@@ -75,13 +100,12 @@ in {
 
       shell = cfg.defaultShell;
 
-      # Use injected password file, or fall back to initial password for bootstrap
+      # Use the injected password file, or fall back to the bootstrap hash.
       hashedPasswordFile = cfg.passwordFile;
-      initialPassword = lib.mkIf (cfg.passwordFile == null) cfg.initialPassword;
+      initialHashedPassword = lib.mkIf (cfg.passwordFile == null) cfg.initialHashedPassword;
     };
 
-    # Lock down user management when using password file
-    users.mutableUsers = cfg.passwordFile == null;
+    users.mutableUsers = cfg.mutableUsers;
 
     # Essential system and recovery packages, kept minimal since user CLI
     # tools go to home-manager.

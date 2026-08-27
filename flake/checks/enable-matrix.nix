@@ -96,7 +96,7 @@
     "othrys.system.bootloader.enable" # conflicts with the matrix base's GRUB fixture
     "othrys.system.disko.enable" # requires device
     "othrys.system.impermanence.enable" # requires disko
-    "othrys.system.users.enable" # requires initialPassword or passwordFile
+    "othrys.system.users.enable" # requires initialHashedPassword or passwordFile
     "othrys.services.notify.enable" # requires url (or a local ntfy server)
     "othrys.services.alerting.enable" # requires a datasource (VM or monitoring)
     "othrys.services.grafana.enable" # requires secretKeyFile

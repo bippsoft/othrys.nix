@@ -48,7 +48,8 @@ pkgs.testers.runNixOSTest {
     othrys.system.user.name = "alice";
     othrys.system.users = {
       enable = true;
-      initialPassword = "test";
+      # Bootstrap hash for "test", generated with mkpasswd -m yescrypt.
+      initialHashedPassword = "$y$j9T$Z7b2.WMjThgzBelkR7Y4e.$1ujsmGNTPfFJODKtqFoneFmQXMuhH3kv8xVQaP0BK93";
       defaultShell = pkgs.zsh;
     };
     othrys.system.git = {
