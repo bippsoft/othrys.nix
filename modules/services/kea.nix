@@ -4,7 +4,7 @@
 # options are identity and come from the fleet via `settings`, which is
 # deep-merged over the defaults.
 #
-# Since Kea 2.6 (NixOS 24.11) every subnet entry needs a unique mandatory
+# Since Kea 2.6 every subnet entry needs a unique mandatory
 # `id`, e.g. `subnet4 = [{ id = 1; subnet = "10.0.0.0/24"; ... }]`.
 {
   config,

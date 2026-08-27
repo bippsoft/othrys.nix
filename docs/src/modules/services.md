@@ -98,7 +98,7 @@ othrys.services.router = {
 ## Suricata
 
 [Suricata](https://suricata.io/) IDS/IPS, wrapping the upstream
-`services.suricata` (NixOS 24.11+). Two inline deliveries via `mode`:
+`services.suricata`. Two inline deliveries via `mode`:
 
 - **`nfqueue`** (default) keeps the box an L3 router/NAT, since an nftables `queue`
   rule (the router/firewall module's job) hands packets to Suricata, which the
