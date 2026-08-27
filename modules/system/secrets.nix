@@ -18,6 +18,36 @@
   # the standard locations. Pointing at the persist root unconditionally
   # would leave non-impermanence hosts with no decryption key at boot.
   persistPrefix = lib.optionalString impermanenceEnabled config.othrys.system.impermanence.persistRoot;
+
+  # othrys declares no `secrets` input of its own. A consuming flake may add
+  # one, and when it does this module reads `secretFiles` from it. The contract
+  # is documented on the option below and in the README.
+  #
+  # The read used to be `inputs.secrets.secretFiles or {}`, which swallowed a
+  # typo'd input name and a malformed attribute alike, leaving hosts to fail
+  # much later with a missing sops file. Absent stays an empty default, while
+  # present-but-wrong fails here and says what is wrong.
+  secretsInput =
+    if !(inputs ? secrets)
+    then {}
+    else if !(inputs.secrets ? secretFiles)
+    then
+      throw ''
+        othrys.system.secrets: the `secrets` flake input exists but exposes no
+        `secretFiles` output. othrys expects an attrset of names to encrypted
+        sops files, for example { common = ./common.yaml; }. Add the output, or
+        remove the input and set othrys.system.secrets.secretFiles consumers
+        need by hand.
+      ''
+    else if !(builtins.isAttrs inputs.secrets.secretFiles)
+    then
+      throw ''
+        othrys.system.secrets: the `secrets` flake input exposes `secretFiles`
+        but it is a ${builtins.typeOf inputs.secrets.secretFiles} rather than an
+        attrset. othrys expects an attrset of names to encrypted sops files, for
+        example { common = ./common.yaml; }.
+      ''
+    else inputs.secrets.secretFiles;
 in {
   # ANCHOR: secrets-options
   options.othrys.system.secrets = {
@@ -28,9 +58,20 @@ in {
       # Deliberately lib.types.path. These are ENCRYPTED sops files from the
       # secrets input, read at evaluation, so the store is where they belong.
       type = lib.types.attrsOf lib.types.path;
-      default = inputs.secrets.secretFiles or {};
+      default = secretsInput;
+      defaultText = lib.literalExpression "inputs.secrets.secretFiles, or {} when no secrets input is declared";
       readOnly = true;
-      description = "Available secret files from the secrets repository.";
+      description = ''
+        Encrypted sops files, read from an optional `secrets` flake input in
+        the consuming flake. othrys declares no such input itself.
+
+        The contract is that when a consumer declares an input named `secrets`,
+        it exposes `secretFiles` as an attrset of names to encrypted files, for
+        example `{ common = ./common.yaml; host-atlas = ./atlas.yaml; }`.
+        Declaring no `secrets` input is fine and leaves this empty. Declaring
+        one that does not match the shape is an evaluation error rather than a
+        silently empty attrset.
+      '';
     };
 
     ageIdentityStubs = lib.mkOption {

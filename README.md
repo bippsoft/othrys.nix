@@ -85,7 +85,7 @@ dereference `inputs.<name>` directly.
 
 ## Forewarnings
 
-Four properties of this library surprise first-time consumers. Each one fails
+Five properties of this library surprise first-time consumers. Each one fails
 loudly at evaluation rather than silently at runtime, so knowing them up front
 saves a round of decoding error messages.
 
@@ -111,6 +111,14 @@ all five even when the matching othrys feature is off.
 **Enabling a module configures the capability, not the machine.** Anything
 identity-shaped, meaning disk IDs, interface names, domains, monitor descriptors
 and keys, ships null or neutral and arrives from your configuration.
+
+**An input named `secrets` is read if you declare one.** othrys declares no such
+input. When your flake does, `othrys.system.secrets.secretFiles` reads
+`inputs.secrets.secretFiles`, which must be an attrset of names to encrypted
+sops files such as `{ common = ./common.yaml; }`. Declaring no `secrets` input
+is entirely fine and leaves the option empty. Declaring one that does not match
+that shape fails at evaluation rather than resolving to an empty attrset, since
+a typo'd input name used to surface much later as a missing sops file.
 
 ## What is in here
 
