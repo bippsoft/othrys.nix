@@ -114,7 +114,9 @@ in {
     systemd.tmpfiles.rules =
       ["d ${cfg.persistRoot}/home 0755 root root -"]
       ++ lib.optionals usersEnabled [
-        "d ${cfg.persistRoot}/home/${username} 0700 ${username} users -"
+        # The group comes from the account rather than a literal "users", since
+        # a host is free to give its primary user a different primary group.
+        "d ${cfg.persistRoot}/home/${username} 0700 ${username} ${config.users.users.${username}.group} -"
       ];
 
     # ANCHOR: boot-wipe-script
