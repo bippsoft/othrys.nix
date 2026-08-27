@@ -70,6 +70,9 @@ with NAT and an NFQUEUE hook, while you name the interfaces and subnets.
             # Mandatory. The release this host was first installed at, never
             # bumped afterwards.
             stateVersion = "26.05";
+            # Licensing is your policy, so it defaults to false. Most desktops
+            # want it, and a host that installs no unfree package can omit it.
+            allowUnfree = true;
           };
           othrys.system.locale.enable = true;
           othrys.desktop.compositors.hyprland.enable = true;
@@ -82,6 +85,13 @@ with NAT and an NFQUEUE hook, while you name the interfaces and subnets.
 
 `inputs` must reach the modules through `specialArgs`. Several modules
 dereference `inputs.<name>` directly.
+
+Two options in that example are mandatory and have no defaults, and the
+remaining `othrys.*` lines are the host saying what it wants. Passwords arrive
+as a runtime path from a secrets provider rather than as a string, since a
+string in a module is a string in the world-readable Nix store. To bring a host
+up before its provider decrypts anything, set `initialHashedPassword` to a
+`mkpasswd -m yescrypt` hash and move to `passwordFile` afterwards.
 
 ## Forewarnings
 
