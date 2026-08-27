@@ -24,7 +24,7 @@ in {
       };
 
       extraEngines = lib.mkOption {
-        type = lib.types.attrsOf lib.types.attrs;
+        type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
         default = {};
         description = "Custom search engines merged over the curated Nix/NixOS set.";
         example = lib.literalExpression ''
@@ -39,7 +39,7 @@ in {
     };
 
     extraExtensions = lib.mkOption {
-      type = lib.types.attrsOf lib.types.attrs;
+      type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
       default = {};
       description = "Extension policies merged over the curated set (sidebery, bitwarden, ublock, violentmonkey).";
       example = lib.literalExpression ''

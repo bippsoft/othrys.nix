@@ -166,7 +166,7 @@ in {
     };
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra config.yaml settings, deep-merged over (and overriding) the generated config.";
     };
@@ -271,7 +271,7 @@ in {
       };
 
       settings = lib.mkOption {
-        type = lib.types.attrs;
+        type = lib.types.attrsOf lib.types.anything;
         default = {};
         description = "Extra Headplane settings, deep-merged over (and overriding) the generated config.";
       };

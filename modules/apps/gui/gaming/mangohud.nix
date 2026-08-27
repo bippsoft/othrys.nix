@@ -23,7 +23,7 @@ in {
     };
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "MangoHud settings merged over (and overriding) the curated defaults.";
       example = lib.literalExpression ''

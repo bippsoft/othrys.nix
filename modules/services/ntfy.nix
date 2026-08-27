@@ -44,7 +44,7 @@ in {
     };
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra services.ntfy-sh settings (server.yml), merged over the generated config.";
     };

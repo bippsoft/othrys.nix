@@ -66,7 +66,7 @@ in {
     };
 
     scrapeConfigs = lib.mkOption {
-      type = lib.types.listOf lib.types.attrs;
+      type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
       default = [];
       example = lib.literalExpression ''
         [

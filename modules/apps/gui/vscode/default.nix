@@ -23,7 +23,7 @@ in {
     };
 
     userSettings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Additional user settings to merge.";
     };

@@ -48,7 +48,7 @@ in {
     };
 
     extraSettings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra per-provider inadyn settings merged into the provider block.";
     };

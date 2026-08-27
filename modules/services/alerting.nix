@@ -91,7 +91,7 @@ in {
     };
 
     ruleGroups = lib.mkOption {
-      type = lib.types.listOf lib.types.attrs;
+      type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
       default = [];
       description = "Additional Prometheus-style rule groups appended to the starter set.";
     };

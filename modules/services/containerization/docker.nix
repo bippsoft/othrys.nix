@@ -87,7 +87,7 @@ in {
 
     daemon = {
       settings = lib.mkOption {
-        type = lib.types.attrs;
+        type = lib.types.attrsOf lib.types.anything;
         default = {};
         description = "Additional Docker daemon settings (merged with defaults).";
         example = lib.literalExpression ''
