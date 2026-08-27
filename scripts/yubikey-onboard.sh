@@ -830,10 +830,12 @@ phase_summary() {
   fi
   echo ""
 
-  # Age Key File (one per YubiKey, using the primary key's identity for sops-nix)
-  echo -e "${BOLD}# othrys.system.secrets.ageKeyFile (primary YubiKey)${NC}"
+  # Age identity stub (one per YubiKey, using the primary key's identity for
+  # sops-nix). The YubiKey plugin stub carries no key material, so it is safe
+  # in the store, unlike a raw AGE-SECRET-KEY.
+  echo -e "${BOLD}# othrys.system.secrets.ageIdentityStubs (primary YubiKey)${NC}"
   if [[ -n ${AGE_FULL_OUTPUTS[0]} ]]; then
-    echo "ageKeyFile = ''"
+    echo "ageIdentityStubs = ''"
     echo "${AGE_FULL_OUTPUTS[0]}" | grep "^#" | sed 's/^/  /'
     echo "  ${AGE_IDENTITIES[0]}"
     echo "'';"

@@ -19,6 +19,25 @@ declare and its CI stubs out.
 {{#include ../../../modules/system/secrets.nix:secrets-options}}
 ```
 
+## The manual-editing identity
+
+Editing an encrypted file by hand needs an age identity that sops can find, and
+there are two options for supplying one. They differ in where the identity ends
+up, which is the whole of the choice.
+
+`ageIdentityStubs` takes the identity inline and writes it to
+`~/.config/sops/age/keys.txt`. Home Manager renders that content into the Nix
+store, where it is world-readable and stays readable for the life of every
+generation referencing it. That is acceptable for an `age-plugin-yubikey` stub,
+which names a token rather than carrying a key, since the private key never
+leaves the hardware and the stub is useless without it. An assertion rejects
+content containing `AGE-SECRET-KEY`, because a raw age identity pasted here
+would publish the sops master key to every user on the host.
+
+`ageIdentityFile` takes a runtime path instead and points `SOPS_AGE_KEY_FILE`
+straight at it. No file is generated and nothing is copied, so this is the form
+to use whenever the identity is itself secret.
+
 ## Host Configuration
 
 Secrets are declared in host configs (not in modules) using `othrys.system.secrets` for infrastructure and `sops.secrets.*` for individual secret declarations. See [Host Configuration](../architecture/host-configuration.md) for a real example.
@@ -44,7 +63,7 @@ just yubikey-onboard
 just yubikey-onboard -- --from-backup /mnt/usb/yubikey-backup
 ```
 
-The script generates the `ageKeyFile` value and age recipient needed for the host configs and `.sops.yaml`. When provisioning multiple YubiKeys for redundancy, add all age recipients to `.sops.yaml`. See the [YubiKey Onboarding guide](../guides/yubikey-onboard.md) for the full workflow.
+The script generates the `ageIdentityStubs` value and age recipient needed for the host configs and `.sops.yaml`. When provisioning multiple YubiKeys for redundancy, add all age recipients to `.sops.yaml`. See the [YubiKey Onboarding guide](../guides/yubikey-onboard.md) for the full workflow.
 
 ## Key Rotation
 
@@ -52,7 +71,7 @@ A YubiKey backs four independent credential surfaces. Rotation means updating ea
 
 | Surface | Where it's declared | Rotated with |
 |---------|--------------------|--------------|
-| **age / sops** identity | `othrys.system.secrets.ageKeyFile` (host) + recipients in `.sops.yaml` (secrets repo) | `sops updatekeys` |
+| **age / sops** identity | `othrys.system.secrets.ageIdentityStubs` (host) + recipients in `.sops.yaml` (secrets repo) | `sops updatekeys` |
 | **LUKS** root unlock | `othrys.system.disko.luks.fido2.enable` (FIDO2 keyslot on the device) | `just luks-enroll` / `systemd-cryptenroll --wipe-slot` |
 | **SSH** (GPG auth) | `othrys.services.security.yubikey.sshKeygrips` (host) | edit list + rebuild |
 | **U2F** login/sudo | `othrys.services.security.yubikey.u2fMappings.<user>` (host) | edit list + rebuild |
@@ -85,6 +104,6 @@ Do this from a machine that still has a working key. Order matters. Re-encryptin
    sudo systemd-cryptenroll "$backing"                 # identify the FIDO2 slot
    sudo systemd-cryptenroll --wipe-slot=<n> "$backing" # or --wipe-slot=fido2 to drop all FIDO2 slots and re-enroll survivors
    ```
-1. **Config**: delete the key's `sshKeygrips` entry, its `u2fMappings.<user>` credential, and its `ageKeyFile` block if it was the manual-edit identity. Ensure at least one surviving key remains in each list (the `u2fMappings` assertion blocks a login lockout).
+1. **Config**: delete the key's `sshKeygrips` entry, its `u2fMappings.<user>` credential, and its `ageIdentityStubs` block if it was the manual-edit identity. Ensure at least one surviving key remains in each list (the `u2fMappings` assertion blocks a login lockout).
 1. **Rotate exposed secrets**: anything the lost key could decrypt is potentially compromised. Regenerate user/boot passwords and any service credentials, re-encrypt, and `just switch` every host.
 1. Confirm the revoked key is rejected (SSH, sudo, and, after a reboot, LUKS unlock).

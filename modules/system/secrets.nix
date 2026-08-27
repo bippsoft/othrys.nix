@@ -8,6 +8,7 @@
   inputs,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   username = config.othrys.system.user.name;
   hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.system.secrets;
@@ -32,15 +33,62 @@ in {
       description = "Available secret files from the secrets repository.";
     };
 
-    ageKeyFile = lib.mkOption {
+    ageIdentityStubs = lib.mkOption {
       type = lib.types.nullOr lib.types.lines;
       default = null;
-      description = "Age identity for manual sops editing (e.g., YubiKey plugin line).";
+      example = ''
+        #recipient: age1yubikey1qw3na0f9example...
+        AGE-PLUGIN-YUBIKEY-1EXAMPLE...
+      '';
+      description = ''
+        Age identity lines for manual sops editing, written to
+        `~/.config/sops/age/keys.txt`.
+
+        The content becomes a world-readable Nix store path, so this option is
+        safe only for identities that hold no key material on their own. An
+        age-plugin-yubikey stub qualifies, since the private key never leaves
+        the token and the stub is only a pointer to it. A raw
+        `AGE-SECRET-KEY-1...` does not, and an assertion rejects one. Use
+        ageIdentityFile for anything secret.
+      '';
+    };
+
+    ageIdentityFile = lib.mkOption {
+      type = lib.types.nullOr othrysTypes.secretPath;
+      default = null;
+      example = "/run/secrets/sops/age-identity";
+      description = ''
+        Runtime path to an age identity file, pointed at by SOPS_AGE_KEY_FILE
+        for manual sops editing. The required form for an identity that
+        contains key material, since the file is read from the secrets provider
+        at use time and nothing is copied into the store.
+      '';
     };
   };
   # ANCHOR_END: secrets-options
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion =
+          cfg.ageIdentityStubs
+          == null
+          || !lib.hasInfix "AGE-SECRET-KEY" cfg.ageIdentityStubs;
+        message = ''
+          othrys.system.secrets.ageIdentityStubs contains an AGE-SECRET-KEY
+          identity. That content is written verbatim into a world-readable Nix
+          store path, exposing the sops master identity to every user on the
+          host and to anything that reads the store. Put the identity behind
+          your secrets provider and set ageIdentityFile to its runtime path
+          instead.
+        '';
+      }
+      {
+        assertion = cfg.ageIdentityStubs == null || cfg.ageIdentityFile == null;
+        message = "othrys.system.secrets: set ageIdentityStubs or ageIdentityFile, not both. They both claim SOPS_AGE_KEY_FILE.";
+      }
+    ];
+
     # Configure sops-nix decryption paths (persisted across the root wipe on
     # impermanence hosts, standard FHS locations otherwise)
     sops.age = {
@@ -55,10 +103,18 @@ in {
     # User config for manual sops editing (YubiKey, etc.). Guarded at the
     # attrset level, since a leaf-level mkIf would still materialize the HM user on
     # headless hosts (see modules/system/nix.nix).
-    home-manager.users = lib.mkIf (hmEnabled && cfg.ageKeyFile != null) {
+    #
+    # The file form points SOPS_AGE_KEY_FILE straight at the provider path, so
+    # no identity file is generated and no copy of it exists in the store.
+    home-manager.users = lib.mkIf (hmEnabled && (cfg.ageIdentityStubs != null || cfg.ageIdentityFile != null)) {
       ${username} = {
-        home.file.".config/sops/age/keys.txt".text = cfg.ageKeyFile;
-        home.sessionVariables.SOPS_AGE_KEY_FILE = "$HOME/.config/sops/age/keys.txt";
+        home.file.".config/sops/age/keys.txt" = lib.mkIf (cfg.ageIdentityStubs != null) {
+          text = cfg.ageIdentityStubs;
+        };
+        home.sessionVariables.SOPS_AGE_KEY_FILE =
+          if cfg.ageIdentityFile != null
+          then cfg.ageIdentityFile
+          else "$HOME/.config/sops/age/keys.txt";
       };
     };
   };
