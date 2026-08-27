@@ -66,13 +66,17 @@ ci: lint
     @echo "All CI checks passed!"
 
 # Run linters (format check, statix, deadnix)
+#
+# statix and deadnix come from the dev shell rather than `nix run nixpkgs#...`,
+# which resolves through the flake registry instead of flake.lock and can run a
+# different version locally than CI and the pre-commit hook do.
 lint:
     @echo "Checking formatting..."
     nix fmt -- --ci
     @echo "Running statix..."
-    nix run nixpkgs#statix -- check .
+    nix develop -c statix check .
     @echo "Running deadnix..."
-    nix run nixpkgs#deadnix -- --fail .
+    nix develop -c deadnix --fail .
 
 # Tag a release (vX.Y.Z) after the full check suite passes
 release version:
