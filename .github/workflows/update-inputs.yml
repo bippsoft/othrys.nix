@@ -1,0 +1,35 @@
+name: Update Inputs
+# Weekly `nix flake update` as a PR. The PR title carries the "chore(flake)"
+# prefix, which build.yml uses to run the EXTENDED check tier (full-tree
+# evals, enable matrix, VM tests) on the update instead of just CORE, since input
+# bumps are exactly the changes that break deep surfaces.
+#
+# PRs opened with the default GITHUB_TOKEN do not trigger workflows on
+# their own; the run is attached when the PR is first interacted with (or
+# configure a PAT in the `token` input to trigger immediately).
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+jobs:
+  update:
+    name: Update flake inputs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@4eea0b33e3d1f02ecfe37cf16e7204c424009606 # v3
+      - name: Update flake.lock and open PR
+        uses: DeterminateSystems/update-flake-lock@834c491b2ece4de0bbd00d85214bb5e83b4da5c6 # v28
+        with:
+          commit-msg: "chore(flake): update inputs"
+          pr-title: "chore(flake): update inputs"
+          pr-labels: |
+            automated
+            dependencies

@@ -1,0 +1,29 @@
+system: "base24"
+name: "Oxocarbon Quintessential Light"
+author: "Shaunsingh (Original), IBM (Palette), Synthesized for Stylix"
+variant: "light"
+palette:
+  base00: "ffffff" # White (Background)
+  base01: "f4f4f4" # IBM Gray 10 (Darker Bg)
+  base02: "e0e0e0" # IBM Gray 20 (Selection)
+  base03: "a8a8a8" # IBM Gray 40 (Comments)
+  base04: "6f6f6f" # IBM Gray 60 (Darker Fg)
+  base05: "161616" # IBM Gray 100 (Default Fg)
+  base06: "262626" # IBM Gray 90 (Lighter Fg)
+  base07: "161616" # IBM Gray 100 (Dark Bg)
+  base08: "da1e28" # IBM Red 60 (Red)
+  base09: "ba4e00" # IBM Orange 60 (Orange)
+  base0A: "b28600" # IBM Yellow 50 (Yellow)
+  base0B: "198038" # IBM Green 60 (Green)
+  base0C: "005d5d" # IBM Teal 70 (Cyan/Teal)
+  base0D: "0f62fe" # IBM Blue 60 (Blue)
+  base0E: "8a3ffc" # IBM Purple 60 (Purple)
+  base0F: "d12771" # IBM Magenta 60 (Magenta)
+  base10: "8d8d8d" # Bright Black (Gray 50)
+  base11: "fa4d56" # Bright Red (Red 50)
+  base12: "24a148" # Bright Green (Green 50)
+  base13: "d2a106" # Bright Yellow (Yellow 40)
+  base14: "4589ff" # Bright Blue (Blue 50)
+  base15: "a56eff" # Bright Purple (Purple 50)
+  base16: "009d9a" # Bright Cyan (Teal 50)
+  base17: "161616" # Bright White (Black)

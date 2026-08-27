@@ -1,0 +1,26 @@
+name: Flake Inputs
+on:
+  push:
+    branches: [main]
+    paths: [flake.lock, flake.nix]
+  pull_request:
+    paths: [flake.lock, flake.nix]
+  # Weekly run catches advisories disclosed against pins that haven't changed.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  flake-inputs:
+    name: Check Flake Inputs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@4eea0b33e3d1f02ecfe37cf16e7204c424009606 # v3
+      - name: Check flake inputs
+        uses: DeterminateSystems/flake-checker-action@3164002371bc90729c68af0e24d5aacf20d7c9f6 # v12

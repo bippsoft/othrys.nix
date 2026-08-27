@@ -1,0 +1,11 @@
+# statix.toml - Statix linter configuration
+# https://github.com/nerdypepper/statix
+
+# Disabled lints
+disabled = [
+  # W20: "Avoid repeated keys in attribute sets"
+  # Disabled because flat attribute style (othrys.system.locale.enable = true)
+  # is idiomatic for NixOS configurations and improves readability
+  # with section headers and checklist-style declarations.
+  "repeated_keys",
+]

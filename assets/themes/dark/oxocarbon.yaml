@@ -1,0 +1,29 @@
+system: "base24"
+name: "Oxocarbon Quintessential Dark"
+author: "Shaunsingh (Original), IBM (Palette), Synthesized for Stylix"
+variant: "dark"
+palette:
+  base00: "161616" # IBM Gray 100 (Background)
+  base01: "262626" # IBM Gray 90 (Lighter Bg)
+  base02: "393939" # IBM Gray 80 (Selection)
+  base03: "525252" # IBM Gray 70 (Comments)
+  base04: "6f6f6f" # IBM Gray 60 (Dark Fg)
+  base05: "f4f4f4" # IBM Gray 10 (Default Fg)
+  base06: "ffffff" # White (Light Fg)
+  base07: "e0e0e0" # IBM Gray 20 (Light Bg)
+  base08: "fa4d56" # IBM Red 50 (Red)
+  base09: "ff832b" # IBM Orange 40 (Orange)
+  base0A: "f1c21b" # IBM Yellow 30 (Yellow)
+  base0B: "42be65" # IBM Green 40 (Green)
+  base0C: "3ddbd9" # IBM Teal 30 (Cyan/Teal)
+  base0D: "4589ff" # IBM Blue 50 (Blue)
+  base0E: "be95ff" # IBM Purple 40 (Purple)
+  base0F: "ff7eb6" # IBM Magenta 40 (Magenta)
+  base10: "525252" # Bright Black (Gray 70)
+  base11: "ff8389" # Bright Red (Red 40)
+  base12: "6fdc8c" # Bright Green (Green 30)
+  base13: "fddc69" # Bright Yellow (Yellow 20)
+  base14: "78a9ff" # Bright Blue (Blue 40)
+  base15: "d4bbff" # Bright Purple (Purple 30)
+  base16: "08bdba" # Bright Cyan (Teal 40)
+  base17: "ffffff" # Bright White

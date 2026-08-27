@@ -1,0 +1,83 @@
+/* ============================================================================ */
+/* OXOCARBON DARK THEME - USER CONTENT STYLES */
+/* ============================================================================ */
+/* Styles applied to web page content */
+/* This file is managed declaratively via Home Manager */
+
+/* ============================================================================ */
+/* CUSTOM PAGE CONTENT STYLING */
+/* ============================================================================ */
+
+/* ============================================================================ */
+/* NEW TAB PAGE - FORCE SOLID BACKGROUND (NO IMAGES) */
+/* ============================================================================ */
+/* Remove all background images from new tab page and use solid base color */
+
+@-moz-document url("about:home"), url("about:newtab") {
+  /* Main page background - use theme background color */
+  body,
+  #root,
+  .outer-wrapper,
+  .personalize-button-wrapper {
+    background-color: var(--theme-bg) !important;
+    background-image: none !important;
+  }
+
+  /* Activity stream container */
+  .activity-stream {
+    background: var(--theme-bg) !important;
+    background-image: none !important;
+  }
+
+  /* Discovery stream backgrounds */
+  .discovery-stream,
+  .ds-outer-wrapper-breakpoint-override {
+    background: var(--theme-bg) !important;
+    background-image: none !important;
+  }
+
+  /* Wallpaper elements - force hide */
+  .wallpaper,
+  .wallpaper-wrapper,
+  [class*="wallpaper"],
+  [class*="background-image"] {
+    display: none !important;
+    background-image: none !important;
+  }
+
+  /* Search wrapper background */
+  .search-wrapper,
+  .search-inner-wrapper {
+    background-color: transparent !important;
+    background-image: none !important;
+  }
+
+  /* Top sites and sections */
+  .top-sites,
+  .sections-list {
+    background-color: transparent !important;
+  }
+}
+
+/* ============================================================================ */
+/* CUSTOM SITE STYLING EXAMPLES */
+/* ============================================================================ */
+
+/* Example: Dark mode for specific sites that don't support it natively */
+/*
+@-moz-document domain("example.com") {
+  body {
+    background-color: var(--theme-bg) !important;
+    color: var(--theme-fg) !important;
+  }
+}
+*/
+
+/* Example: Remove distracting elements from specific sites */
+/*
+@-moz-document domain("youtube.com") {
+  #related {
+    display: none !important;
+  }
+}
+*/

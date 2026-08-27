@@ -1,0 +1,19 @@
+[book]
+title = "othrys.nix"
+description = "NixOS configuration documentation"
+authors = ["bippsoft"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+git-repository-url = "https://github.com/bippsoft/othrys.nix"
+edit-url-template = "https://github.com/bippsoft/othrys.nix/edit/main/docs/{path}"
+default-theme = "coal"
+preferred-dark-theme = "coal"
+
+[output.html.fold]
+enable = true
+level = 1

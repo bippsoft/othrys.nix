@@ -1,0 +1,185 @@
+/* ============================================================================ */
+/* FLOORP BROWSER CUSTOM THEME */
+/* ============================================================================ */
+/* Custom CSS for Floorp's Fluent UI design system */
+/* Colors are dynamically injected from Stylix base16 theme */
+/* This file is managed declaratively via Home Manager */
+/* Do not edit manually - changes will be overwritten */
+
+/* ============================================================================ */
+/* COLOR VARIABLES */
+/* ============================================================================ */
+/* Base16 color variables are injected from Nix at build time */
+/* The actual values come from your active Stylix theme (YAML-based) */
+
+/* ============================================================================ */
+/* HORIZONTAL TAB BAR STYLING */
+/* ============================================================================ */
+
+/* Tab bar background */
+#TabsToolbar {
+  background-color: var(--theme-bg) !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+}
+
+/* Individual tabs */
+.tabbrowser-tab {
+  background-color: var(--theme-bg-alt) !important;
+  color: var(--theme-comment) !important;
+  border-radius: 4px 4px 0 0 !important;
+  margin: 0 2px !important;
+  border: none !important;
+}
+
+/* Active tab */
+.tabbrowser-tab[selected="true"] {
+  background-color: var(--theme-selection) !important;
+  color: var(--theme-fg) !important;
+  border-bottom: 2px solid var(--theme-blue) !important;
+}
+
+/* Tab hover */
+.tabbrowser-tab:hover {
+  background-color: var(--theme-selection) !important;
+  color: var(--theme-fg-light) !important;
+}
+
+/* Tab close button */
+.tab-close-button {
+  color: var(--theme-comment) !important;
+}
+
+.tab-close-button:hover {
+  background-color: var(--theme-red) !important;
+  color: var(--theme-fg) !important;
+  border-radius: 4px !important;
+}
+
+/* New tab button */
+#tabs-newtab-button {
+  background-color: var(--theme-bg-alt) !important;
+  color: var(--theme-blue) !important;
+  border-radius: 4px !important;
+}
+
+#tabs-newtab-button:hover {
+  background-color: var(--theme-selection) !important;
+}
+
+/* ============================================================================ */
+/* FLUENT ACRYLIC EFFECT */
+/* ============================================================================ */
+
+#navigator-toolbox {
+  backdrop-filter: blur(20px) saturate(125%) !important;
+  background-color: var(--theme-bg-transparent) !important;
+  border: none !important;
+}
+
+/* ============================================================================ */
+/* ROUNDED CORNERS */
+/* ============================================================================ */
+
+browser,
+#tabbrowser-tabpanels {
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+/* ============================================================================ */
+/* SIDEBAR STYLING */
+/* ============================================================================ */
+/* Hidden by default, but styled when shown */
+
+#sidebar-box {
+  background-color: var(--theme-bg) !important;
+  border-right: 1px solid var(--theme-border) !important;
+}
+
+#sidebar-header {
+  background-color: var(--theme-bg-alt) !important;
+  color: var(--theme-fg) !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+}
+
+/* ============================================================================ */
+/* TOOLBAR AND BUTTON STYLING */
+/* ============================================================================ */
+
+/* Toolbar buttons */
+toolbarbutton {
+  border-radius: 4px !important;
+  transition: background-color var(--theme-animation-duration)
+    var(--theme-animation-easing) !important;
+  color: var(--theme-fg) !important;
+}
+
+toolbarbutton:hover {
+  background-color: var(--theme-selection) !important;
+}
+
+toolbarbutton:active {
+  background-color: var(--theme-selection-bright) !important;
+}
+
+/* URL bar */
+#urlbar {
+  background-color: var(--theme-bg-alt) !important;
+  color: var(--theme-fg) !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 4px !important;
+}
+
+#urlbar:focus-within {
+  background-color: var(--theme-selection) !important;
+  border-color: var(--theme-blue) !important;
+}
+
+/* Search bar */
+#searchbar {
+  background-color: var(--theme-bg-alt) !important;
+  color: var(--theme-fg) !important;
+  border: 1px solid var(--theme-border) !important;
+}
+
+/* ============================================================================ */
+/* CONTEXT MENUS AND POPUPS */
+/* ============================================================================ */
+
+menupopup,
+panel {
+  background-color: var(--theme-bg-alt) !important;
+  color: var(--theme-fg) !important;
+  border: 1px solid var(--theme-border) !important;
+}
+
+menuitem:hover,
+menu:hover {
+  background-color: var(--theme-selection) !important;
+  color: var(--theme-blue) !important;
+}
+
+/* ============================================================================ */
+/* SCROLLBARS */
+/* ============================================================================ */
+
+scrollbar {
+  background-color: var(--theme-bg) !important;
+}
+
+scrollbar thumb {
+  background-color: var(--theme-surface) !important;
+  border-radius: 4px !important;
+}
+
+scrollbar thumb:hover {
+  background-color: var(--theme-border) !important;
+}
+
+/* ============================================================================ */
+/* FONT APPLICATION */
+/* ============================================================================ */
+
+* {
+  font-family: var(--theme-font-family) !important;
+}

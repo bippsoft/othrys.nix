@@ -1,0 +1,121 @@
+name: Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  # CORE tier, fast and small closures. Runs on every PR/push/dispatch. This is
+  # the gate that must be green to merge: it proves a functioning host builds
+  # and that the impermanence (persistence) invariant holds, plus lint + docs.
+  core:
+    name: Core checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Reclaim disk space
+        uses: wimpysworld/nothing-but-nix@687c797a730352432950c707ab493fcc951818d7 # v10
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@4eea0b33e3d1f02ecfe37cf16e7204c424009606 # v3
+        with:
+          # Retry flaky substitutions, then fall back to building from source.
+          extra-conf: |
+            fallback = true
+            download-attempts = 10
+      - name: Setup Cachix
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+        with:
+          name: othrys-nix
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          extraPullNames: nix-community, hyprland
+          pushFilter: '(-source$|-man$|\.tar\.gz$|\.xz$)'
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+        continue-on-error: true
+      - name: Build core checks
+        run: |
+          nix build --no-link --print-build-logs \
+            '.#checks.x86_64-linux.pre-commit-check' \
+            '.#checks.x86_64-linux.docs' \
+            '.#checks.x86_64-linux.eval-host-min' \
+            '.#checks.x86_64-linux.eval-host-headless' \
+            '.#checks.x86_64-linux.eval-host-server' \
+            '.#checks.x86_64-linux.eval-host-anonymous' \
+            '.#checks.x86_64-linux.eval-host-server-account' \
+            '.#checks.x86_64-linux.impermanence-test'
+  # EXTENDED tier, heavy (full-tree eval + enable matrix + runtime
+  # integration VM). Skipped on ordinary PRs to keep feedback fast; runs on
+  # push to main, manual dispatch, and on input-update PRs (title prefix
+  # "chore(flake)", see update-inputs.yml) since input bumps are exactly the
+  # changes that break deep surfaces. Run locally any time with
+  # `nix flake check` (which builds every check regardless of tier).
+  extended:
+    name: Extended checks
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' || startsWith(github.event.pull_request.title, 'chore(flake)') }}
+    # One runner per check: each gets a whole machine, one failure re-runs alone.
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - eval-default
+          - eval-host-desktop
+          - eval-host-desktop-niri
+          - enable-matrix
+          - restic-test
+          - headscale-test
+          - crowdsec-test
+          - integration-test
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Reclaim disk space
+        uses: wimpysworld/nothing-but-nix@687c797a730352432950c707ab493fcc951818d7 # v10
+      - name: Grow swap to 8G
+        run: |
+          # The runner image already runs swap on /swapfile; replace it.
+          sudo swapoff -a
+          sudo rm -f /swapfile /mnt/swapfile
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          swapon --show
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@4eea0b33e3d1f02ecfe37cf16e7204c424009606 # v3
+        with:
+          # Retry flaky substitutions, then fall back to building from source.
+          extra-conf: |
+            fallback = true
+            download-attempts = 10
+      - name: Setup Cachix
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+        with:
+          name: othrys-nix
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          extraPullNames: nix-community, hyprland
+          pushFilter: '(-source$|-man$|\.tar\.gz$|\.xz$)'
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+        continue-on-error: true
+      - name: Build ${{ matrix.check }}
+        run: |
+          nix build --no-link --print-build-logs \
+            '.#checks.x86_64-linux.${{ matrix.check }}'
+  # Single status for branch protection. A skipped extended tier (ordinary
+  # PRs) counts as pass.
+  extended-ok:
+    name: Extended verdict
+    runs-on: ubuntu-latest
+    needs: extended
+    if: ${{ always() }}
+    steps:
+      - name: Verdict
+        run: |
+          result='${{ needs.extended.result }}'
+          [ "$result" = "success" ] || [ "$result" = "skipped" ] || {
+            echo "extended matrix result: $result"
+            exit 1
+          }
