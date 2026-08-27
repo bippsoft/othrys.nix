@@ -78,11 +78,17 @@ lint:
     @echo "Running deadnix..."
     nix develop -c deadnix --fail .
 
-# Tag a release (vX.Y.Z) after the full check suite passes
-release version:
+# Cut a release: commitizen derives the version from conventional commits since
+# the last tag, writes CHANGELOG.md, commits it and tags vX.Y.Z. Pass a bump
+# explicitly (major/minor/patch) to override what it infers.
+release bump="":
     #!/usr/bin/env bash
     set -euo pipefail
-    [[ "{{version}}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like v0.4.0"; exit 1; }
     just ci
-    git tag -a "{{version}}" -m "othrys.nix {{version}}"
-    echo "Tagged {{version}}, publish with: git push origin {{version}}"
+    if [[ -n "{{bump}}" ]]; then
+        nix develop -c cz bump --increment "{{bump}}" --changelog
+    else
+        nix develop -c cz bump --changelog
+    fi
+    tag="$(git describe --tags --abbrev=0)"
+    echo "Tagged $tag, publish with: git push origin main \"$tag\""
