@@ -171,7 +171,7 @@ Prints all values ready to paste into the NixOS host configurations:
 
 - `sshKeygrips`, GPG keygrip for SSH authentication (shared across all keys)
 - `u2fMappings`, one U2F credential per YubiKey
-- `ageKeyFile`, age identity block for sops-nix (primary key)
+- `ageIdentityStubs`, age identity block for sops-nix (primary key)
 - Git signing key fingerprint
 - SSH public key for GitHub/servers
 - age recipients for all provisioned keys (add all to `.sops.yaml` for redundancy)
