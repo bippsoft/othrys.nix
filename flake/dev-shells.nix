@@ -35,6 +35,7 @@
           # Git
           git
           gh
+          commitizen # `just release` bumps and writes CHANGELOG.md with this
 
           # Nix utilities
           nix-tree

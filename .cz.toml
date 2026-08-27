@@ -1,4 +1,11 @@
 [tool.commitizen]
 name = "cz_conventional_commits"
+# Tags are the single source of truth for the version. Nothing in the tree
+# writes a version string, and the docs derivation derives its own from the
+# flake revision, so there is nothing here for a bump to keep in sync.
 version_provider = "scm"
 tag_format = "v$version"
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
+# 0.x, so a breaking change bumps the minor rather than the major.
+major_version_zero = true

@@ -19,7 +19,10 @@
     else
       pkgs.stdenv.mkDerivation {
         pname = "othrys-docs";
-        version = "0.1.0";
+        # Derived from the flake source rather than written out, so it cannot
+        # disagree with what was actually built. A dirty or path-copied source
+        # has no revision, hence the fallback.
+        version = othrysSelf.shortRev or othrysSelf.dirtyShortRev or "dev";
         src = othrysSelf;
         nativeBuildInputs = [pkgs.mdbook];
         buildPhase = "mdbook build docs/";
