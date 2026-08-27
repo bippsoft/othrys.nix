@@ -115,21 +115,14 @@
   };
   # ANCHOR_END: inputs
 
-  # All outputs defined using flake-parts framework
   outputs = inputs @ {flake-parts, ...}:
     flake-parts.lib.mkFlake {inherit inputs;} {
-      # Define which systems this flake supports
-      # flake-parts will automatically evaluate perSystem for each of these
-      systems = [
-        "x86_64-linux"
-        # Add more systems if needed:
-        # "aarch64-linux"   # ARM64 Linux (Raspberry Pi, etc.)
-        # "x86_64-darwin"   # Intel macOS
-        # "aarch64-darwin"  # Apple Silicon macOS
-      ];
+      # x86_64-linux only. Nothing here is architecture-specific in principle,
+      # and no other system has ever been built or tested, so the list says
+      # what is true rather than what is aspirational. Additional systems go
+      # here, and perSystem is evaluated once for each.
+      systems = ["x86_64-linux"];
 
-      # Import modular flake-parts modules
-      # Each module defines specific outputs (nixosConfigurations, devShells, etc.)
       # ANCHOR: imports
       imports = [
         inputs.treefmt-nix.flakeModule
@@ -142,28 +135,5 @@
         ./flake/checks # CI/CD checks
       ];
       # ANCHOR_END: imports
-
-      # Additional per-system outputs can be defined here
-      # This is evaluated once for each system in the systems list
-      #
-      # Available arguments:
-      # - config: Current perSystem configuration
-      # - self': System-specific access to this flake's outputs
-      # - inputs': System-specific access to input flake outputs
-      # - pkgs: Nixpkgs for the current system
-      # - system: Current system string (e.g., "x86_64-linux")
-      #
-      # perSystem = { config, self', inputs', pkgs, system, ... }: {
-      #   # Additional packages, apps, or other per-system outputs
-      # };
-
-      # Additional top-level flake attributes can be defined here
-      # These are not system-specific
-      #
-      # flake = {
-      #   # Examples:
-      #   # nixosModules.myModule = import ./modules/my-module.nix;
-      #   # overlays.default = import ./overlays;
-      # };
     };
 }
