@@ -21,13 +21,26 @@
       dhcp = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Enable DHCPv4 on this interface.";
+        description = ''
+          Enable DHCPv4 on this interface, by setting systemd-networkd's
+          `DHCP = "ipv4"`.
+
+          This governs IPv4 alone. Turning it off does not make the interface
+          statically addressed, since `ipv6` independently controls Router
+          Advertisements and leaves the interface with SLAAC addresses. An
+          interface with no automatic addressing at all needs `dhcp = false`
+          and `ipv6 = false` together.
+        '';
       };
 
       ipv6 = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Accept IPv6 Router Advertisements.";
+        description = ''
+          Accept IPv6 Router Advertisements, which is how the interface picks
+          up SLAAC addresses and a default route. Independent of `dhcp`, which
+          covers IPv4 only.
+        '';
       };
 
       address = lib.mkOption {
