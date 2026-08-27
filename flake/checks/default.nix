@@ -119,7 +119,10 @@
         enable = true;
         initialPassword = "changeme";
       };
-      othrys.system.nix.enable = true;
+      othrys.system.nix = {
+        enable = true;
+        stateVersion = "26.05";
+      };
       othrys.system.git = {
         enable = true;
         name = "alice";
@@ -241,7 +244,12 @@
       # user assertions. See modules/system/nix.nix.
       eval-host-headless = mkHostEval "othrys-eval-host-headless" [
         bootBase
-        {othrys.system.nix.enable = true;}
+        {
+          othrys.system.nix = {
+            enable = true;
+            stateVersion = "26.05";
+          };
+        }
       ];
 
       # Server contract, named variant. A headless host with a declared user
@@ -250,7 +258,12 @@
       # users.enable guard (materialized home-manager users, phantom accounts).
       eval-host-server = mkHostEval "othrys-eval-host-server" [
         bootBase
-        {othrys.system.nix.enable = true;}
+        {
+          othrys.system.nix = {
+            enable = true;
+            stateVersion = "26.05";
+          };
+        }
         serverModules
       ];
 
@@ -260,7 +273,12 @@
       # identity to exist.
       eval-host-anonymous = mkHostEval "othrys-eval-host-anonymous" [
         bootCore
-        {othrys.system.nix.enable = true;}
+        {
+          othrys.system.nix = {
+            enable = true;
+            stateVersion = "26.05";
+          };
+        }
         serverModules
       ];
 
@@ -272,7 +290,10 @@
       eval-host-server-account = mkHostEval "othrys-eval-host-server-account" [
         bootBase
         {
-          othrys.system.nix.enable = true;
+          othrys.system.nix = {
+            enable = true;
+            stateVersion = "26.05";
+          };
           othrys.system.users = {
             enable = true;
             homeManager.enable = false;
