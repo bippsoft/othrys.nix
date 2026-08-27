@@ -19,6 +19,25 @@ Security modules under `othrys.services.security.*`. Located in `modules/service
 - **SSH keygrips**: Specific GPG keygrips for SSH authentication
 - **age-plugin-yubikey**: For manual sops secret editing
 
+### What the U2F factor actually proves
+
+By default pam_u2f is inserted with the `sufficient` control, which means a
+touch on an enrolled key satisfies `login` and `sudo` on its own. No password
+is asked for. That is authentication by possession alone, so whoever holds the
+token can become root, and a token left in a laptop is a token in somebody
+else's hand.
+
+The default is convenience, and it is a reasonable one for a personal
+workstation where the token lives on a keyring. It is the wrong default for a
+machine that is left unattended, or one where the physical threat is the one
+worth defending against.
+
+`othrys.services.security.yubikey.u2fRequirePassword` switches the control to
+`required`, so the password and the touch must both succeed and the key becomes
+a second factor rather than a replacement for the first. Enrol and test a key
+before turning it on, since a host with a required U2F factor and no working
+key cannot be logged into.
+
 ### Options
 
 ```nix
