@@ -28,6 +28,9 @@ under **System Infrastructure**, and the rest are summarized here.
 - **User identity**: modules read `config.othrys.system.user.name`. It is a
   required option with no default and no `username` specialArg fallback, so set it
   per host. See the consumer contract in the repository `CLAUDE.md`.
+- **State version**: `othrys.system.nix.stateVersion` is likewise required with
+  no default. It records the release a host was first installed at, so the
+  library cannot supply one on the host's behalf.
 - **Identity-neutral defaults**: `locale.timezone` defaults to `UTC` and
   `nix.nh.flake` defaults to `null`; set them per host. These are examples of
   the library's "sane, non-personal defaults" policy.

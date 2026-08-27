@@ -44,7 +44,12 @@
 
   headlessBase = [
     bootBase
-    {othrys.system.nix.enable = true;}
+    {
+      othrys.system.nix = {
+        enable = true;
+        stateVersion = "26.05";
+      };
+    }
   ];
   desktopBase = [
     functioningHost

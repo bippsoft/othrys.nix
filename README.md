@@ -61,7 +61,12 @@ with NAT and an NFQUEUE hook, while you name the interfaces and subnets.
             enable = true;
             initialPassword = "changeme";
           };
-          othrys.system.nix.enable = true;
+          othrys.system.nix = {
+            enable = true;
+            # Mandatory. The release this host was first installed at, never
+            # bumped afterwards.
+            stateVersion = "26.05";
+          };
           othrys.system.locale.enable = true;
           othrys.desktop.compositors.hyprland.enable = true;
         }
@@ -84,7 +89,9 @@ saves a round of decoding error messages.
 specialArg. Hosts name their user through `othrys.system.user.name`, which has
 no default and is read lazily, so a headless host that enables no per-user
 feature omits it entirely. Enabling a per-user feature without setting it is a
-hard evaluation error.
+hard evaluation error. `othrys.system.nix.stateVersion` is mandatory on the same
+terms, since the release a host was installed at is host identity and the
+library has no business guessing it.
 
 **Per-user state sits behind two guards, applied at the attrset level.** Account
 writes require `othrys.system.users.enable`, and Home Manager writes require

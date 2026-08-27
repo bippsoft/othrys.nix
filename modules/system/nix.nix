@@ -39,8 +39,19 @@ in {
 
     stateVersion = lib.mkOption {
       type = lib.types.str;
-      default = "24.11";
-      description = "NixOS and home-manager state version.";
+      # Required: no default, mirroring othrys.system.user.name. stateVersion is
+      # host identity rather than a library concern. A default would stamp every
+      # consumer who forgets the option with whichever release this file happened
+      # to name, and silently disagree with a host that sets system.stateVersion
+      # itself. An unset value fails with the module system's "used but not
+      # defined" error.
+      example = "26.05";
+      description = ''
+        NixOS and home-manager state version, recording the release a host was
+        first installed at. It governs the defaults of stateful services and is
+        not a version to keep current, so set it once at install and leave it.
+        This option is mandatory.
+      '';
     };
 
     gc = {
