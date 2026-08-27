@@ -57,8 +57,9 @@ in {
     secretKeyFile = lib.mkOption {
       type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
+      defaultText = lib.literalMD "none, and an assertion rejects an unset value once the module is enabled";
       example = lib.literalExpression ''config.sops.secrets."grafana/secret-key".path'';
-      description = "Path to a runtime file holding Grafana's secret_key (encrypts stored credentials, so generate a random string). Required, since upstream no longer ships a default. Use a secrets-provider path.";
+      description = "Path to a runtime file holding Grafana's secret_key (encrypts stored credentials, so generate a random string). Must be set when this module is enabled, since upstream no longer ships a default. Use a secrets-provider path.";
     };
 
     extraDatasources = lib.mkOption {

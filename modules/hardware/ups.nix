@@ -35,7 +35,7 @@ in {
     passwordFile = lib.mkOption {
       type = othrysTypes.secretPath;
       example = lib.literalExpression ''config.sops.secrets."ups/password".path'';
-      description = "Path to a runtime file holding the NUT monitor password (a secrets-provider path). Required.";
+      description = "Path to a runtime file holding the NUT monitor password (a secrets-provider path). Mandatory, with no default.";
     };
   };
   # ANCHOR_END: ups-options

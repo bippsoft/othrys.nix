@@ -18,15 +18,17 @@ in {
     provider = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
+      defaultText = lib.literalMD "none, and an assertion rejects an unset value once the module is enabled";
       example = "cloudflare.com";
-      description = "DDNS provider name as inadyn knows it (see inadyn.conf(5)). Required.";
+      description = "DDNS provider name as inadyn knows it (see inadyn.conf(5)). Must be set when this module is enabled.";
     };
 
     hostnames = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [];
+      defaultText = lib.literalMD "none, and an assertion rejects an empty list once the module is enabled";
       example = ["home.example.com"];
-      description = "Hostnames to keep updated. Identity-shaped, set from the consuming host. Required.";
+      description = "Hostnames to keep updated. Identity-shaped, set from the consuming host. Must be non-empty when this module is enabled.";
     };
 
     username = lib.mkOption {
@@ -39,11 +41,13 @@ in {
     credentialsFile = lib.mkOption {
       type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
+      defaultText = lib.literalMD "none, and an assertion rejects an unset value once the module is enabled";
       example = lib.literalExpression ''config.sops.secrets."ddns/credentials".path'';
       description = ''
         Path to a runtime file included into the provider block, since inadyn.conf
         syntax, typically a single `password = <token>` line. A
-        secrets-provider path; never inline the token. Required.
+        secrets-provider path; never inline the token. Must be set when this
+        module is enabled.
       '';
     };
 

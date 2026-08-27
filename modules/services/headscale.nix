@@ -96,7 +96,8 @@ in {
       type = lib.types.str;
       example = "https://headscale.example.com";
       description = ''
-        Public URL clients register against (settings.server_url). Required.
+        Public URL clients register against (settings.server_url). Mandatory, with
+        no default.
         Must resolve to this host (typically via a TLS-terminating reverse proxy)
         and must differ from the MagicDNS `baseDomain`.
       '';
