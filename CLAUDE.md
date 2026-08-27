@@ -13,6 +13,8 @@ governed by [AI_POLICY.md](AI_POLICY.md).
 
 Changing any of these breaks consuming flakes.
 
+<!-- ANCHOR: consumer-contract -->
+
 1. **No `username` module argument.** Read the primary user from
    `config.othrys.system.user.name`. The option has no default.
 1. **Guard every per-user write.** Account writes behind
@@ -23,7 +25,13 @@ Changing any of these breaks consuming flakes.
    even when the matching othrys feature is off.
 1. **specialArgs carry `inputs` only.** Not `username`, not `hostname`.
 
-`flake/checks/` encodes all four. See CONTRIBUTING.md for the reasoning.
+<!-- ANCHOR_END: consumer-contract -->
+
+`flake/checks/` encodes all four. CONTRIBUTING.md is the canonical copy and
+carries the reasoning. The block above is a deliberate duplicate, kept inline
+because an agent reads this file automatically and would otherwise have to be
+told to go and fetch the contract. A `contract-mirror` pre-commit hook diffs
+the two anchored regions, so the copies cannot drift apart silently.
 
 ## Public Hygiene (CRITICAL)
 
