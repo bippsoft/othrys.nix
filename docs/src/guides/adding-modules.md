@@ -68,11 +68,12 @@ imports = [
 
 ### 4. Enable in the Consuming Flake
 
-In a profile if the setting is fleet-wide or role-wide, in a host config if it is
-host-specific:
+Modules stay inert until a consuming flake turns them on. Where the enable goes
+is that flake's business, whether in a shared profile imported by several hosts
+or in one host's own configuration:
 
 ```nix
-# fleet/profiles/{role}.nix or fleet/hosts/{hostname}/default.nix
+# e.g. hosts/<hostname>/default.nix in your flake
 othrys.{category}.{name}.enable = true;
 ```
 
@@ -82,13 +83,9 @@ othrys.{category}.{name}.enable = true;
 just check
 ```
 
-Host builds happen in the consuming fleet repository:
-
-```bash
-just build <hostname>
-just diff <hostname>
-just test <hostname>
-```
+That is the whole of what this repository can verify, since it holds no hosts.
+Building an actual machine happens in the flake that consumes this one, against
+its own host definitions.
 
 ## Conventions
 

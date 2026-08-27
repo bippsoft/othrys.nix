@@ -43,7 +43,6 @@ _: {
         "*.jpg"
         "*.ico"
         "*.woff2"
-        "*.dhall" # no dhall formatter configured
         ".envrc" # direnv stub: no shebang, triggers shellcheck SC2148
         ".envrc.local"
         "assets/**"
