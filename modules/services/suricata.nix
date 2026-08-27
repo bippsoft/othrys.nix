@@ -1,5 +1,5 @@
 # modules/services/suricata.nix
-# Suricata IDS/IPS, wrapping the upstream services.suricata (NixOS 24.11+).
+# Suricata IDS/IPS, wrapping the upstream services.suricata.
 #
 # Two inline deliveries:
 #   - nfqueue:     packets reach Suricata via an nftables `queue` rule, so the

@@ -42,8 +42,8 @@ pkgs.testers.runNixOSTest {
     # The test framework sets nixpkgs.pkgs, so we can't also enable
     # othrys.system.nix (it sets nixpkgs.config). Its eval is covered by
     # eval-default, so here we set the state versions it would provide.
-    system.stateVersion = "24.11";
-    home-manager.users.alice.home.stateVersion = "24.11";
+    system.stateVersion = "26.05";
+    home-manager.users.alice.home.stateVersion = "26.05";
 
     othrys.system.user.name = "alice";
     othrys.system.users = {
