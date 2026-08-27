@@ -10,10 +10,10 @@
 _: {
   perSystem = _: {
     treefmt = {
-      # Anchor on the git dir rather than flake.nix, since during the monorepo phase the
-      # flake lives in othrys.nix/ but formatting must cover the whole tree
-      # (fleet/ included). Still correct post-split, since both repos are git roots.
-      projectRootFile = ".git/config";
+      # Anchor on the lockfile. `.git/config` looked equivalent and is not, since
+      # in a `git worktree` checkout `.git` is a file rather than a directory and
+      # treefmt then finds no root at all.
+      projectRootFile = "flake.lock";
 
       programs = {
         alejandra.enable = true; # Nix
