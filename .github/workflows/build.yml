@@ -47,16 +47,39 @@ jobs:
             '.#checks.x86_64-linux.eval-host-anonymous' \
             '.#checks.x86_64-linux.eval-host-server-account' \
             '.#checks.x86_64-linux.impermanence-test'
+  # Decides whether a pull request touches the flake definition or its lock.
+  # The extended tier used to key on the PR title alone, so retitling a
+  # dependency bump silently skipped every VM test. The paths answer the
+  # question structurally, and cannot be retitled away.
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    outputs:
+      flake: ${{ steps.filter.outputs.flake }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+        id: filter
+        with:
+          filters: |
+            flake:
+              - 'flake.nix'
+              - 'flake.lock'
   # EXTENDED tier, heavy (full-tree eval + enable matrix + runtime
   # integration VM). Skipped on ordinary PRs to keep feedback fast; runs on
-  # push to main, manual dispatch, and on input-update PRs (title prefix
-  # "chore(flake)", see update-inputs.yml) since input bumps are exactly the
-  # changes that break deep surfaces. Run locally any time with
-  # `nix flake check` (which builds every check regardless of tier).
+  # push to main, manual dispatch, and on any PR that touches flake.nix or
+  # flake.lock, since input changes are exactly what breaks deep surfaces. The
+  # "chore(flake)" title prefix (see update-inputs.yml) still triggers it too,
+  # so that contract is unchanged. Run locally any time with `nix flake check`
+  # (which builds every check regardless of tier).
   extended:
     name: Extended checks
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'pull_request' || startsWith(github.event.pull_request.title, 'chore(flake)') }}
+    needs: [changes]
+    # `needs` on a skipped job would skip this one too, so the condition
+    # restates that non-PR events always run.
+    if: ${{ always() && (github.event_name != 'pull_request' || needs.changes.outputs.flake == 'true' || startsWith(github.event.pull_request.title, 'chore(flake)')) }}
     # One runner per check: each gets a whole machine, one failure re-runs alone.
     strategy:
       fail-fast: false
