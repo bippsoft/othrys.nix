@@ -1,21 +1,24 @@
 # modules/apps/cli/ai/mcp/github.nix
-# GitHub MCP server via HTTP - uses {env:GITHUB_PAT} for runtime secret resolution
+# GitHub MCP server, run locally over stdio with a file-backed PAT
 {
   config,
   lib,
+  pkgs,
   ...
 }: let
   username = config.othrys.system.user.name;
   cfg = config.othrys.apps.ai.mcp.github;
   secretPath = config.sops.secrets.${cfg.secret.path}.path;
-  # Dynamic (read at shell start), so home.sessionVariables can't carry it;
-  # bound once here and wired into each shell's init below.
-  githubPatExport = ''
-    [ -r "${secretPath}" ] && export GITHUB_PAT="$(< "${secretPath}")"
-  '';
 in {
   options.othrys.apps.ai.mcp.github = {
     enable = lib.mkEnableOption "GitHub MCP server";
+
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = pkgs.github-mcp-server;
+      defaultText = lib.literalExpression "pkgs.github-mcp-server";
+      description = "GitHub MCP server package run over stdio.";
+    };
 
     secret = {
       path = lib.mkOption {
@@ -50,17 +53,17 @@ in {
     };
 
     home-manager.users.${username} = {
-      # Register the server with an env var placeholder, resolved at runtime by MCP clients
+      # A local stdio server rather than the hosted HTTP endpoint, because
+      # programs.mcp only accepts file-backed env on local servers. Upstream
+      # turns the file reference into a wrapper that reads the sops path at
+      # launch and execs the server, so the token exists only in that
+      # process. The previous form exported it at shell init, where every
+      # child of every interactive shell inherited it.
       programs.mcp.servers.github = {
-        url = "https://api.githubcopilot.com/mcp/";
-        headers = {
-          Authorization = "Bearer {env:GITHUB_PAT}";
-        };
+        command = lib.getExe cfg.package;
+        args = ["stdio"];
+        env.GITHUB_PERSONAL_ACCESS_TOKEN.file = secretPath;
       };
-
-      # Export GITHUB_PAT from the sops secret file in shell init
-      programs.zsh.initContent = githubPatExport;
-      programs.bash.initExtra = githubPatExport;
     };
   };
 }
