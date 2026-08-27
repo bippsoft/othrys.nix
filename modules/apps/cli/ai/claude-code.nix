@@ -24,6 +24,17 @@ in {
     };
 
     permissions = {
+      defaultMode = lib.mkOption {
+        type = lib.types.enum ["default" "acceptEdits" "plan" "bypassPermissions"];
+        default = "default";
+        description = ''
+          Claude Code's permission mode. "default" prompts before each edit.
+          "acceptEdits" applies file writes without asking, in whichever
+          repository the session was started from, so it is opt-in per host
+          rather than a library default.
+        '';
+      };
+
       extraAllow = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [];
@@ -87,6 +98,18 @@ in {
         enableMcpIntegration = true;
 
         settings = {
+          # These lists are ergonomics, not a security boundary. The boundary
+          # is whether the repository is trusted, since a rule matches a
+          # command string and a string has endless spellings: `rm -rf` is
+          # denied while `rm -fr` is not, `sudo` is denied while `pkexec` is
+          # not, and `Read(./.env)` is denied while `cat .env` runs as Bash.
+          # Nothing here contains a hostile repository, so the deny list only
+          # keeps an honest agent from a careless mistake.
+          #
+          # `just` is deliberately absent from the allow-list. A justfile
+          # recipe is arbitrary shell, so allowing it hands any repository
+          # unreviewed execution. Hosts that want it back set
+          # permissions.extraAllow.
           permissions = {
             allow =
               [
@@ -97,7 +120,6 @@ in {
                 "Bash(git log:*)"
                 "Bash(nix fmt:*)"
                 "Bash(nix eval:*)"
-                "Bash(just:*)"
                 "Bash(mkdir:*)"
                 "Bash(find:*)"
                 # Each MCP server module contributes its own read-only tool
@@ -116,7 +138,7 @@ in {
               ++ cfg.permissions.extraDeny;
 
             additionalDirectories = [];
-            defaultMode = "acceptEdits";
+            inherit (cfg.permissions) defaultMode;
           };
 
           hooks = {
