@@ -6,11 +6,18 @@ change is signaled.
 
 ## The consumer contract
 
-The load-bearing surfaces are listed in the repository's consumer contract
-(see [Host Configuration](./host-configuration.md)): the `othrys.*` option
-namespaces, the specialArgs expectations, the required upstream module
-imports, and the declared input names that fleets `follows`-pin. Changing any
-of these is a breaking change.
+Four properties hold across every module, and changing any of them is a
+breaking change. `flake/checks/` encodes all four, so a violation fails
+evaluation rather than reaching a consumer.
+
+<!-- Included from CONTRIBUTING.md, which is the canonical copy. -->
+
+{{#include ../../../CONTRIBUTING.md:consumer-contract}}
+
+Alongside those, the `othrys.*` option namespaces themselves and the declared
+input names that consuming flakes `follows`-pin are load-bearing. See
+[Host Configuration](./host-configuration.md) for what a consumer writes, and
+`CONTRIBUTING.md` for the reasoning behind each rule.
 
 ## Option deprecation
 

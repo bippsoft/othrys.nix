@@ -131,6 +131,30 @@
       };
     };
 
+    # CONTRIBUTING.md holds the canonical consumer contract, and CLAUDE.md keeps
+    # an inline copy because an agent reads that file automatically. Duplication
+    # is only dangerous when the copies can disagree unnoticed, so this diffs the
+    # two anchored regions and turns the duplicate into an enforced mirror.
+    # Run from a repository root.
+    contractMirror = pkgs.writeShellApplication {
+      name = "contract-mirror";
+      runtimeInputs = [pkgs.gnused pkgs.diffutils];
+      text = ''
+        extract() {
+          sed -n '/ANCHOR: consumer-contract/,/ANCHOR_END: consumer-contract/p' "$1" |
+            sed '1d;$d' | sed '/^[[:space:]]*$/d'
+        }
+
+        if ! diff -u \
+          --label CONTRIBUTING.md <(extract CONTRIBUTING.md) \
+          --label CLAUDE.md <(extract CLAUDE.md); then
+          echo "contract-mirror: the consumer-contract blocks have drifted." >&2
+          echo "CONTRIBUTING.md is canonical. Copy its block into CLAUDE.md." >&2
+          exit 1
+        fi
+      '';
+    };
+
     # Comment and docs hygiene: the Comments and Anchors conventions from
     # CONTRIBUTING.md, plus docs page and link integrity. Run from a repository root.
     commentHygiene = pkgs.writeShellApplication {
@@ -407,6 +431,12 @@
             enable = true;
             name = "comment-hygiene";
             entry = "${commentHygiene}/bin/comment-hygiene";
+            pass_filenames = false;
+          };
+          contract-mirror = {
+            enable = true;
+            name = "contract-mirror";
+            entry = "${contractMirror}/bin/contract-mirror";
             pass_filenames = false;
           };
         };

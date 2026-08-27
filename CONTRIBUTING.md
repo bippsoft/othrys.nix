@@ -2,6 +2,52 @@
 
 Guide for adding modules, fixing issues and maintaining this library.
 
+## Consumer Contract
+
+Four properties hold across every module here, and changing any of them breaks
+consuming flakes. `flake/checks/` encodes all four, so a violation fails
+evaluation rather than waiting to surprise somebody.
+
+<!-- ANCHOR: consumer-contract -->
+
+1. **No `username` module argument.** Read the primary user from
+   `config.othrys.system.user.name`. The option has no default.
+1. **Guard every per-user write.** Account writes behind
+   `othrys.system.users.enable`, Home Manager writes behind
+   `othrys.system.users.homeManaged`, both at the attrset level, never on a leaf.
+1. **`nixosModules.default` writes into upstream namespaces.** Consumers must
+   also import `home-manager`, `disko`, `stylix`, `sops-nix` and `impermanence`,
+   even when the matching othrys feature is off.
+1. **specialArgs carry `inputs` only.** Not `username`, not `hostname`.
+
+<!-- ANCHOR_END: consumer-contract -->
+
+The reasoning behind each, which the mirrored copies leave out:
+
+**The user is an option because a module argument is invisible.** A `username`
+specialArg is a coupling nothing declares and nothing checks, so a module can
+read it without any consumer knowing the module needs it. An option appears in
+the generated reference, fails loudly when unset, and can be read lazily, which
+is what lets a headless host omit it entirely.
+
+**The guards wrap attrsets because a leaf-level `mkIf` is not a guard.** Writing
+`home-manager.users.<name>.foo = lib.mkIf cond bar` still materializes
+`home-manager.users.<name>`, which makes Home Manager reference the user's home
+directory and trips NixOS's own user assertions on a host with no such account.
+The condition has to sit above the attribute path, not inside it. Account
+creation and environment management are also separate concerns, which is why
+there are two guards rather than one: a server may want a login account without
+Home Manager owning its dotfiles.
+
+**The upstream imports are unconditional because `mkIf` does not defer option
+existence.** Writing into an undeclared option namespace fails at evaluation
+whether or not the write is conditional, so importing home-manager only when a
+Home Manager feature is enabled does not work. Consumers import all five.
+
+**specialArgs stay minimal because they are the one part of the interface the
+module system cannot type.** Every additional specialArg is an undeclared
+requirement a consumer discovers by hitting an error.
+
 ## Module Pattern
 
 All modules follow the `othrys.*` namespace convention:
