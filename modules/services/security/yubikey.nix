@@ -16,6 +16,15 @@
   # Generate sshcontrol file content
   sshcontrolContent = lib.concatStringsSep "\n" cfg.sshKeygrips;
 
+  # PAM stanza shared by the login and sudo services.
+  u2fPam = {
+    enable = true;
+    control =
+      if cfg.u2fRequirePassword
+      then "required"
+      else "sufficient";
+  };
+
   # Generate U2F mappings file content
   u2fMappingsContent = lib.concatStringsSep "\n" (
     lib.mapAttrsToList (user: keys: "${user}:${lib.concatStringsSep ":" keys}") cfg.u2fMappings
@@ -47,6 +56,27 @@ in {
       type = lib.types.str;
       default = "pam://yubi";
       description = "U2F origin for cross-machine portability.";
+    };
+
+    u2fRequirePassword = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Require a password in addition to the touch, rather than accepting the
+        touch alone.
+
+        pam_u2f is inserted as `sufficient` by default, which means a touch on
+        an enrolled key satisfies login and sudo with no password. That is
+        single-factor authentication by possession. Whoever holds the token
+        holds root, and a token left in a laptop is a token in someone's hand.
+        The tradeoff is deliberate, since it is also what makes the key
+        convenient.
+
+        Setting this to true switches the control to `required`, so both the
+        password and the touch must succeed. Enrol and test a key before
+        turning it on, because a host with no working key and a required U2F
+        factor cannot be logged into.
+      '';
     };
 
     # GPG/SSH options
@@ -111,10 +141,12 @@ in {
       };
     };
 
-    # Enable U2F for sudo and login
+    # Enable U2F for sudo and login. The control decides whether the touch
+    # replaces the password ("sufficient", possession alone) or is demanded
+    # alongside it ("required", two factors). See u2fRequirePassword.
     security.pam.services = lib.mkIf (cfg.u2fMappings != {}) {
-      login.u2fAuth = true;
-      sudo.u2fAuth = true;
+      login.u2f = u2fPam;
+      sudo.u2f = u2fPam;
     };
 
     services.pcscd.enable = true;
