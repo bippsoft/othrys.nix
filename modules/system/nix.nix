@@ -7,6 +7,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   username = config.othrys.system.user.name;
   cfg = config.othrys.system.nix;
   # Shell snippet that loads the Cachix push token into the current process
@@ -140,7 +141,7 @@ in {
       };
 
       authTokenFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression "config.sops.secrets.\"system/cachix/auth-token\".path";
         description = "Path to file containing Cachix auth token for pushing.";

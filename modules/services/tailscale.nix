@@ -5,6 +5,7 @@
   lib,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.tailscale;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -13,7 +14,7 @@ in {
     enable = lib.mkEnableOption "Tailscale VPN mesh networking";
 
     authKeyFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       description = "Path to auth key file for automatic registration.";
     };

@@ -8,6 +8,7 @@
   lib,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.ddns;
 in {
   # ANCHOR: ddns-options
@@ -36,7 +37,7 @@ in {
     };
 
     credentialsFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression ''config.sops.secrets."ddns/credentials".path'';
       description = ''

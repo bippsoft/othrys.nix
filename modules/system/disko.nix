@@ -22,6 +22,7 @@
   lib,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.system.disko;
 in {
   # ANCHOR: disko-options
@@ -69,7 +70,7 @@ in {
       };
 
       passwordFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         description = ''
           Path to a file containing the LUKS passphrase used when disko first

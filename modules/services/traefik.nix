@@ -5,6 +5,7 @@
   lib,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.traefik;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -120,7 +121,7 @@ in {
     };
 
     environmentFiles = lib.mkOption {
-      type = lib.types.listOf lib.types.path;
+      type = lib.types.listOf othrysTypes.secretPath;
       default = [];
       example = lib.literalExpression ''[ config.sops.secrets."traefik/env".path ]'';
       description = ''

@@ -6,6 +6,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   username = config.othrys.system.user.name;
   cfg = config.othrys.system.users;
 in {
@@ -55,7 +56,7 @@ in {
     };
 
     passwordFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression "config.sops.secrets.\"users/alice/password\".path";
       description = "Path to a runtime file holding the hashed password, injected by the host configuration. The preferred form, since nothing reaches the store.";

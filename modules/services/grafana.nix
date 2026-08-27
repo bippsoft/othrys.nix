@@ -10,6 +10,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.grafana;
   monitoringCfg = config.othrys.services.monitoring;
   vmCfg = config.othrys.services.victoriametrics;
@@ -47,14 +48,14 @@ in {
     };
 
     adminPasswordFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression ''config.sops.secrets."grafana/admin-password".path'';
       description = "Path to a runtime file holding the admin password (a secrets-provider path). Null keeps Grafana's initial-setup default.";
     };
 
     secretKeyFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression ''config.sops.secrets."grafana/secret-key".path'';
       description = "Path to a runtime file holding Grafana's secret_key (encrypts stored credentials, so generate a random string). Required, since upstream no longer ships a default. Use a secrets-provider path.";

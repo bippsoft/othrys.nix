@@ -15,6 +15,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.notify;
   ntfyCfg = config.othrys.services.ntfy;
 
@@ -60,7 +61,7 @@ in {
     };
 
     tokenFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression ''config.sops.secrets."notify/token".path'';
       description = "Path to a runtime file holding an ntfy access token (a secrets-provider path). Null sends unauthenticated.";

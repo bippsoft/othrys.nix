@@ -24,6 +24,7 @@
   lib,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.headscale;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -157,7 +158,7 @@ in {
       };
 
       clientSecretFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression ''config.sops.secrets."headscale/oidc-secret".path'';
         description = "Path to a runtime file holding the OIDC client secret (a secrets-provider path). Never inline the secret.";
@@ -199,7 +200,7 @@ in {
       };
 
       apiKeyFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression ''config.sops.secrets."headscale/headplane-apikey".path'';
         description = ''
@@ -214,7 +215,7 @@ in {
       };
 
       cookieSecretFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression ''config.sops.secrets."headscale/headplane-cookie".path'';
         description = "Path to a runtime file holding the cookie-signing secret (a random string). Required when the UI is enabled. Use a secrets-provider path.";
@@ -231,7 +232,7 @@ in {
         enable = lib.mkEnableOption "the Headplane agent integration (richer per-node data: OS, version). Off by default to keep the surface small";
 
         preAuthKeyFile = lib.mkOption {
-          type = lib.types.nullOr lib.types.path;
+          type = lib.types.nullOr othrysTypes.secretPath;
           default = null;
           example = lib.literalExpression ''config.sops.secrets."headscale/headplane-preauth".path'';
           description = "Path to a runtime file holding a Headscale pre-auth key the agent joins the tailnet with. Required when the agent is enabled. Use a secrets-provider path.";
@@ -256,7 +257,7 @@ in {
         };
 
         clientSecretFile = lib.mkOption {
-          type = lib.types.nullOr lib.types.path;
+          type = lib.types.nullOr othrysTypes.secretPath;
           default = null;
           example = lib.literalExpression ''config.sops.secrets."headscale/headplane-oidc".path'';
           description = "Path to a runtime file holding Headplane's OIDC client secret. Never inline the secret.";
