@@ -12,7 +12,7 @@ in {
     enable = lib.mkEnableOption "gamemode configuration for gaming optimization";
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {
         general = {
           softrealtime = "auto";

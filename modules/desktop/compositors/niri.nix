@@ -115,7 +115,7 @@ in {
     enable = lib.mkEnableOption "Niri scrollable-tiling Wayland compositor";
 
     outputs = lib.mkOption {
-      type = lib.types.attrsOf lib.types.attrs;
+      type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
       default = {};
       example = lib.literalExpression ''
         {
@@ -192,7 +192,7 @@ in {
     };
 
     extraBinds = lib.mkOption {
-      type = lib.types.attrsOf lib.types.attrs;
+      type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
       default = {};
       example = lib.literalExpression ''
         {
@@ -215,7 +215,7 @@ in {
     };
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra programs.niri.settings, merged over the generated config (use lib.mkForce to override an already-set leaf).";
     };

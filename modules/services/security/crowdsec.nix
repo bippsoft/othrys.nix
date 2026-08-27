@@ -42,7 +42,7 @@ in {
     };
 
     acquisitions = lib.mkOption {
-      type = lib.types.listOf lib.types.attrs;
+      type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
       default = [
         {
           source = "journalctl";
@@ -50,7 +50,12 @@ in {
           labels.type = "syslog";
         }
       ];
-      description = "Log sources CrowdSec parses (see the CrowdSec data-sources docs).";
+      description = ''
+        Log sources CrowdSec parses (see the CrowdSec data-sources docs).
+        Setting this replaces the curated default outright, including the sshd
+        journal source, so list every source the host should watch rather than
+        only the ones being added.
+      '';
     };
 
     autoUpdate = lib.mkOption {

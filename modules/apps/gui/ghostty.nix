@@ -89,7 +89,7 @@ in {
 
     # Extra settings passthrough
     extraSettings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       example = {
         bold-is-bright = false;

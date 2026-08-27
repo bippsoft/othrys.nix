@@ -178,7 +178,7 @@ in {
     };
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra suricata.yaml settings, deep-merged over (and overriding) the generated config, e.g. threading/affinity, outputs, mpm-algo.";
       example = lib.literalExpression ''

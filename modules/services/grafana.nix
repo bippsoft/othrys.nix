@@ -62,7 +62,7 @@ in {
     };
 
     extraDatasources = lib.mkOption {
-      type = lib.types.listOf lib.types.attrs;
+      type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
       default = [];
       description = "Datasources provisioned in addition to the auto-detected othrys metrics stores.";
     };

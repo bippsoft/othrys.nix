@@ -394,13 +394,13 @@ in {
     };
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra noctalia config.toml settings, deep-merged over (and overriding) the generated config. Validated at build time by upstream's module.";
     };
 
     customPalettes = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Additional custom palettes written to noctalia/palettes/<name>.json.";
     };

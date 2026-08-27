@@ -15,7 +15,7 @@ in {
     enable = lib.mkEnableOption "Vesktop Discord client";
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra Vesktop settings.json values, merged over the module defaults (override any default by re-declaring its key).";
       example = lib.literalExpression "{ startMinimized = true; }";

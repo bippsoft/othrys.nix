@@ -21,7 +21,7 @@ in {
     };
 
     settings = lib.mkOption {
-      type = lib.types.attrsOf lib.types.attrs;
+      type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
       default = {};
       description = "Additional SSH client config blocks, merged with module defaults and written to ~/.ssh/config. Keys are literal OpenSSH directive names.";
       example = lib.literalExpression ''

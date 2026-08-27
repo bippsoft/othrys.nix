@@ -87,7 +87,7 @@ in {
     };
 
     settings = lib.mkOption {
-      type = lib.types.attrs;
+      type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra unbound.conf settings, deep-merged over (and overriding) the generated config.";
     };
