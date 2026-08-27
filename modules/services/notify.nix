@@ -19,6 +19,15 @@
   cfg = config.othrys.services.notify;
   ntfyCfg = config.othrys.services.ntfy;
 
+  # The token never becomes a curl argument. An `-H "Authorization: Bearer $t"`
+  # argv is world-readable through /proc/<pid>/cmdline for the life of the
+  # request, which is the same rule the cachix-push wrapper follows in
+  # modules/system/nix.nix. curl reads the header from a file instead, written
+  # under umask 077 and removed on exit.
+  #
+  # Two callers read the token. A human running othrys-notify reads tokenFile
+  # directly, and notify-failure@ runs under DynamicUser with no access to it,
+  # so systemd stages it at $CREDENTIALS_DIRECTORY/token instead.
   notifyScript = pkgs.writeShellScriptBin "othrys-notify" ''
     set -eu
     title="''${1:?usage: othrys-notify <title> [message...]}"
@@ -27,12 +36,23 @@
 
     auth=()
     ${lib.optionalString (cfg.tokenFile != null) ''
-      if [ -r ${lib.escapeShellArg cfg.tokenFile} ]; then
-        auth=(-H "Authorization: Bearer $(cat ${lib.escapeShellArg cfg.tokenFile})")
+      tokensrc=""
+      if [ -n "''${CREDENTIALS_DIRECTORY:-}" ] && [ -r "$CREDENTIALS_DIRECTORY/token" ]; then
+        tokensrc="$CREDENTIALS_DIRECTORY/token"
+      elif [ -r ${lib.escapeShellArg cfg.tokenFile} ]; then
+        tokensrc=${lib.escapeShellArg cfg.tokenFile}
+      fi
+
+      if [ -n "$tokensrc" ]; then
+        umask 077
+        hdrfile="$(${pkgs.coreutils}/bin/mktemp)"
+        trap 'rm -f "$hdrfile"' EXIT
+        printf 'Authorization: Bearer %s\n' "$(cat "$tokensrc")" > "$hdrfile"
+        auth=(-H "@$hdrfile")
       fi
     ''}
 
-    exec ${pkgs.curl}/bin/curl -fsS -m 10 \
+    ${pkgs.curl}/bin/curl -fsS -m 10 \
       -H "Title: $title" \
       "''${auth[@]}" \
       -d "$message" \
@@ -79,12 +99,41 @@ in {
 
     environment.systemPackages = [notifyScript];
 
+    # The unit posts one HTTP request, so it needs network access, the token,
+    # and nothing else. It ran as root with the full capability set, which is a
+    # standing root process on every host that enables failure notifications.
+    # DynamicUser plus LoadCredential gives it the token without giving it the
+    # rest of /run/secrets.
     systemd.services."notify-failure@" = {
       description = "Failure notification for %i.";
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = "${notifyScript}/bin/othrys-notify \"%i failed on ${config.networking.hostName}\" \"systemd unit %i entered failed state on ${config.networking.hostName}\"";
-      };
+      serviceConfig =
+        {
+          Type = "oneshot";
+          ExecStart = "${notifyScript}/bin/othrys-notify \"%i failed on ${config.networking.hostName}\" \"systemd unit %i entered failed state on ${config.networking.hostName}\"";
+
+          DynamicUser = true;
+          PrivateTmp = true;
+          PrivateDevices = true;
+          ProtectSystem = "strict";
+          ProtectHome = true;
+          ProtectKernelTunables = true;
+          ProtectKernelModules = true;
+          ProtectControlGroups = true;
+          RestrictNamespaces = true;
+          RestrictRealtime = true;
+          RestrictSUIDSGID = true;
+          RestrictAddressFamilies = ["AF_INET" "AF_INET6"];
+          LockPersonality = true;
+          MemoryDenyWriteExecute = true;
+          SystemCallArchitectures = "native";
+          SystemCallFilter = ["@system-service" "~@privileged" "~@resources"];
+          CapabilityBoundingSet = [""];
+          AmbientCapabilities = [""];
+          NoNewPrivileges = true;
+        }
+        // lib.optionalAttrs (cfg.tokenFile != null) {
+          LoadCredential = ["token:${cfg.tokenFile}"];
+        };
     };
   };
 }
