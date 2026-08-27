@@ -13,6 +13,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.restic;
 
   backupType = lib.types.submodule {
@@ -32,28 +33,28 @@
       };
 
       repositoryFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression ''config.sops.secrets."backup/repo-url".path'';
         description = "Path to a runtime file containing the repository URL (a secrets-provider path). Mutually exclusive with repository.";
       };
 
       passwordFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression ''config.sops.secrets."backup/repo-password".path'';
         description = "Path to a runtime file containing the repository password (a secrets-provider path). Omit only if the password is supplied via environmentFile (RESTIC_PASSWORD).";
       };
 
       environmentFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression ''config.sops.secrets."backup/env".path'';
         description = "systemd EnvironmentFile with backend credentials (e.g. AWS_*/B2_* keys). Use a secrets-provider path.";
       };
 
       rcloneConfigFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         description = "Path to an rclone config file for rclone backends. Use a secrets-provider path.";
       };

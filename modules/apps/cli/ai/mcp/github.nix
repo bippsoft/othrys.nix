@@ -25,6 +25,9 @@ in {
       };
 
       sopsFile = lib.mkOption {
+        # Deliberately lib.types.path, not othrysTypes.secretPath. This names an
+        # ENCRYPTED sops file, which belongs in the store and is read at
+        # evaluation, unlike the decrypted runtime paths that type guards.
         type = lib.types.path;
         default = config.othrys.system.secrets.secretFiles.common;
         defaultText = lib.literalExpression "config.othrys.system.secrets.secretFiles.common";

@@ -28,6 +28,7 @@
     };
 
     leasesFile = lib.mkOption {
+      # Mutable runtime state rather than a credential, so it stays a plain str.
       type = lib.types.str;
       default = "/var/lib/kea/dhcp${family}.leases";
       description = "memfile lease database path.";

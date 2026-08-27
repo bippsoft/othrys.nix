@@ -6,6 +6,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.mounts.cifs;
 
   shareType = lib.types.submodule ({name, ...}: {
@@ -17,7 +18,7 @@
       };
 
       credentialsFile = lib.mkOption {
-        type = lib.types.path;
+        type = othrysTypes.secretPath;
         description = "Path to a runtime credentials file (username=x\\npassword=y). Use a sops template path, not a /nix/store path.";
       };
 

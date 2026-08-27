@@ -6,6 +6,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../../lib/types.nix {inherit lib;};
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.hardware.wireless.wifi;
@@ -62,7 +63,7 @@ in {
     };
 
     environmentFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression "config.sops.secrets.\"networking/wifi/env\".path";
       description = ''

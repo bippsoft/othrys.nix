@@ -7,6 +7,7 @@
   lib,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.wireguard;
 in {
   # ANCHOR: wireguard-options
@@ -37,7 +38,7 @@ in {
       type = lib.types.attrsOf (lib.types.submodule {
         options = {
           privateKeyFile = lib.mkOption {
-            type = lib.types.path;
+            type = othrysTypes.secretPath;
             description = "Path to a runtime file holding the interface private key (a secrets-provider path).";
           };
 

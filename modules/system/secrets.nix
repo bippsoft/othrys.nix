@@ -24,6 +24,8 @@ in {
 
     # Expose secrets repo paths for host configs to reference
     secretFiles = lib.mkOption {
+      # Deliberately lib.types.path. These are ENCRYPTED sops files from the
+      # secrets input, read at evaluation, so the store is where they belong.
       type = lib.types.attrsOf lib.types.path;
       default = inputs.secrets.secretFiles or {};
       readOnly = true;

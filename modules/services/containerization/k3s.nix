@@ -6,6 +6,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.containerization.k3s;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -37,7 +38,7 @@ in {
     };
 
     tokenFile = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression ''config.sops.secrets."k3s/token".path'';
       description = "Path to the cluster join token. Preferred over `token` (kept out of the store).";

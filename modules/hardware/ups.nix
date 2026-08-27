@@ -8,6 +8,7 @@
   pkgs,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.hardware.ups;
   notifyEnabled = config.othrys.services.notify.enable;
 
@@ -32,7 +33,7 @@ in {
     };
 
     passwordFile = lib.mkOption {
-      type = lib.types.path;
+      type = othrysTypes.secretPath;
       example = lib.literalExpression ''config.sops.secrets."ups/password".path'';
       description = "Path to a runtime file holding the NUT monitor password (a secrets-provider path). Required.";
     };
