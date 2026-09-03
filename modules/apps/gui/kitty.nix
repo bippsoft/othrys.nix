@@ -5,7 +5,6 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.kitty;
 in {
   options.othrys.apps.kitty = {
@@ -13,7 +12,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.kitty" = {
       programs.kitty = {
         enable = true;
 

@@ -5,7 +5,6 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.ghostty;
 in {
   options.othrys.apps.ghostty = {
@@ -100,7 +99,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.ghostty" = {
       programs.ghostty = {
         enable = true;
 

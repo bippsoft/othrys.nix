@@ -72,7 +72,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.nixvim" = {
       imports = [
         inputs.nixvim.homeModules.nixvim
 

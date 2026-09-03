@@ -23,7 +23,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.yazi" = {
       programs.yazi = {
         enable = true;
 

@@ -6,7 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.ai.mcp.github;
   secretPath = config.sops.secrets.${cfg.secret.path}.path;
 in {
@@ -52,7 +51,7 @@ in {
       inherit (cfg.secret) sopsFile;
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.ai.mcp.github" = {
       # A local stdio server rather than the hosted HTTP endpoint, because
       # programs.mcp only accepts file-backed env on local servers. Upstream
       # turns the file reference into a wrapper that reads the sops path at

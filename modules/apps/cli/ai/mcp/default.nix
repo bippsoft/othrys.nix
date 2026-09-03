@@ -5,7 +5,6 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.ai.mcp;
 
   # Shared environment context for AI assistants
@@ -36,6 +35,6 @@ in {
   };
 
   config = lib.mkIf anyMcpEnabled {
-    home-manager.users.${username}.programs.mcp.enable = true;
+    othrys.internal.homeConfig."apps.ai.mcp".programs.mcp.enable = true;
   };
 }

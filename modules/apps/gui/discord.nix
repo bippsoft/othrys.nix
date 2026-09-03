@@ -23,7 +23,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.discord" = {
       home.packages = with pkgs; [discord];
 
       # Let Nix manage the client, so skip Discord's own self-update prompt.

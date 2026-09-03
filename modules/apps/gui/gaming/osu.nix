@@ -77,7 +77,7 @@ in {
       daemon.enable = true;
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.gaming.osu" = {
       home.packages = [
         cfg.package # Low-latency wrapper that calls pkgs.osu-lazer
         pkgs.opentabletdriver # GUI for tablet configuration

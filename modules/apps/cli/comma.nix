@@ -7,7 +7,6 @@
   inputs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.comma;
 in {
   options.othrys.apps.comma = {
@@ -20,7 +19,7 @@ in {
       nix-index
     ];
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.comma" = {
       imports = [
         inputs.nix-index-database.homeModules.nix-index
       ];

@@ -30,7 +30,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.vesktop" = {
       home.packages = with pkgs; [vesktop];
 
       xdg.configFile."vesktop/settings.json".text = builtins.toJSON ({

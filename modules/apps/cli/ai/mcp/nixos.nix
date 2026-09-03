@@ -7,7 +7,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.ai.mcp.nixos;
 in {
   options.othrys.apps.ai.mcp.nixos = {
@@ -15,7 +14,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.ai.mcp.nixos" = {
       programs.mcp.servers.nixos = {
         command = lib.getExe pkgs.mcp-nixos;
         args = [];

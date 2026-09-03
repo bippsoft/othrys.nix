@@ -247,7 +247,7 @@ in {
         wantedBy = ["graphical-session.target"];
       };
 
-      home-manager.users.${username} = {
+      othrys.internal.homeConfig."desktop.ashell" = {
         home.packages =
           [
             inputs.ashell.packages.${pkgs.stdenv.hostPlatform.system}.default

@@ -439,7 +439,7 @@ in {
         ];
       };
 
-      home-manager.users.${username} = {
+      othrys.internal.homeConfig."desktop.noctalia" = {
         imports = [inputs.noctalia.homeModules.default];
 
         programs.noctalia = {

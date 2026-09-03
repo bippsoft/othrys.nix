@@ -27,7 +27,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.gh" = {
       programs.gh = {
         enable = true;
         settings = {

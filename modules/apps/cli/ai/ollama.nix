@@ -6,7 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.ai.ollama;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -53,7 +52,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.ai.ollama" = {
       home.sessionVariables = {
         OLLAMA_HOST = "http://127.0.0.1:11434";
       };
