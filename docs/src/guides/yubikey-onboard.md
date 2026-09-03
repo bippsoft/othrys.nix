@@ -103,7 +103,8 @@ The script generates PGP keys once (or imports from backup), then provisions one
 | 3-6 | Per key | **Provision YubiKey**, reset, keytocard, PINs, U2F, age identity |
 | 7 | Once | **SSH Keygrip**, extract authentication subkey keygrip |
 | 8 | Once | **Public Key Import**, import into persistent keyring |
-| 9 | Once | **Summary**, print all values for NixOS config |
+| 9 | Once | **Encrypted Backup**, age-encrypt the master key and remove the plaintext |
+| 10 | Once | **Summary**, print all values for NixOS config |
 
 ## Phase Details
 
@@ -178,6 +179,42 @@ After the first YubiKey is provisioned, the script asks whether to provision ano
 
 - **Phase 7**: Extract the authentication subkey's keygrip for SSH and export the SSH public key (same for all keys since they share the same GPG key)
 - **Phase 8**: Import the public key into the persistent `~/.gnupg` keyring and set ultimate trust
+
+### Encrypted Master Key Backup
+
+Runs after every YubiKey is provisioned, and the ordering is forced rather than
+chosen. The plaintext backup has to exist before `keytocard` in Phase 3, since
+that move is irreversible, and it has to survive the provisioning loop because
+subkeys are re-imported from it between each key. The age recipients do not
+exist until Phase 6 has run for a token. There is no earlier point at which both
+are true.
+
+Two files are written, because `age` refuses `-p` and `-r` together:
+
+| File | Opens with |
+|------|------------|
+| `master-secret.key.age` | any provisioned YubiKey, or an extra `--age-recipient` |
+| `master-secret.key.pass.age` | the passphrase entered during this phase |
+
+The passphrase copy is not redundancy for its own sake. A master key backup
+exists precisely to survive losing every token, so encrypting it *only* to those
+tokens makes it worthless in the situation it was created for. `--no-age-passphrase`
+declines it.
+
+The plaintext is removed only after a copy has been decrypted and compared byte
+for byte in the same run. An encrypted file that was written but never opened
+does not license deleting the only copy of a master key, so a failed
+verification keeps the plaintext and says so. `--keep-plaintext` retains it even
+on success, and `--no-age-backup` skips the phase entirely.
+
+Verifying the token copy needs the inserted YubiKey's PIN and a touch, and can
+only test the token currently in the reader, which after a multi-key run is the
+last one provisioned. The other tokens are the same mechanism and the same
+ciphertext, but this phase has not proved them.
+
+```bash
+{{#include ../../../scripts/yubikey-onboard.sh:age-backup}}
+```
 
 ### Phase 9: Summary Output
 

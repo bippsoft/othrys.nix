@@ -75,6 +75,10 @@ OPT_ALGO=""
 OPT_KEY_COUNT=""
 OPT_FORCE_VOLATILE=false
 OPT_NO_PASSPHRASE=false
+OPT_NO_AGE_BACKUP=false
+OPT_NO_AGE_PASSPHRASE=false
+OPT_KEEP_PLAINTEXT=false
+OPT_AGE_RECIPIENTS=()
 
 # State, populated during execution
 SECURE_TMPDIR=""
@@ -122,6 +126,17 @@ Provisioning options:
   --key-count <n>      Number of YubiKeys to provision (skips the "provision another?" prompt)
   --dry-run            Walk through all phases without destructive operations
 
+Encrypted backup (on by default, runs after the YubiKeys are provisioned):
+  --age-recipient <r>  Extra age recipient, repeatable
+  --no-age-passphrase  Skip the passphrase-encrypted copy
+  --keep-plaintext     Keep master-secret.key after the encrypted copies verify
+  --no-age-backup      Do not produce encrypted copies at all
+
+Two files are written, since age refuses a passphrase and recipients together.
+master-secret.key.age opens with a provisioned YubiKey, master-secret.key.pass.age
+with the passphrase. The plaintext is removed only after a copy has been
+decrypted and compared in the same run.
+
 General:
   -h, --help           Show this help message
 EOF
@@ -152,6 +167,22 @@ while [[ $# -gt 0 ]]; do
     ;;
   --no-passphrase)
     OPT_NO_PASSPHRASE=true
+    shift
+    ;;
+  --age-recipient)
+    OPT_AGE_RECIPIENTS+=("$2")
+    shift 2
+    ;;
+  --no-age-passphrase)
+    OPT_NO_AGE_PASSPHRASE=true
+    shift
+    ;;
+  --keep-plaintext)
+    OPT_KEEP_PLAINTEXT=true
+    shift
+    ;;
+  --no-age-backup)
+    OPT_NO_AGE_BACKUP=true
     shift
     ;;
   --name)
@@ -998,6 +1029,127 @@ phase_import_pubkey() {
   export GNUPGHOME="$saved_gnupghome"
 }
 
+# ANCHOR: age-backup
+# Encrypt the plaintext master key backup, verify the result, and remove the
+# plaintext.
+#
+# This runs after every YubiKey is provisioned rather than inside phase_backup,
+# and the ordering is forced rather than chosen. The backup has to exist before
+# `keytocard` in Phase 3, since that move is irreversible, and the plaintext has
+# to survive the provisioning loop because subkeys are re-imported from it
+# between each key. The age recipients do not exist until Phase 6 has run for a
+# token. Encrypting earlier is therefore impossible in both directions.
+#
+# Two files, because `age` refuses -p together with -r. The token copy is
+# encrypted to the age recipients this run provisioned plus anything given with
+# --age-recipient. The passphrase copy exists so that losing every token does not
+# lose the identity, which is the exact case the master key backup is for.
+phase_age_backup() {
+  local plaintext="$BACKUP_DIR/master-secret.key"
+  local enc="$plaintext.age"
+  local pass_enc="$plaintext.pass.age"
+
+  $OPT_NO_AGE_BACKUP && return 0
+  [[ -n $BACKUP_DIR && -f $plaintext ]] || return 0
+
+  header "Encrypted Master Key Backup"
+
+  if $DRY_RUN; then
+    dry_run_skip "age -r <recipients> -o $enc $plaintext"
+    dry_run_skip "age -p -o $pass_enc $plaintext"
+    dry_run_skip "verify both by decrypting, then rm $plaintext"
+    return 0
+  fi
+
+  # Recipients: the tokens provisioned in this run, plus anything supplied.
+  local -a recipients=()
+  local r
+  for r in "${AGE_RECIPIENTS[@]}"; do
+    [[ -n $r ]] && recipients+=("$r")
+  done
+  for r in "${OPT_AGE_RECIPIENTS[@]+"${OPT_AGE_RECIPIENTS[@]}"}"; do
+    [[ -n $r ]] && recipients+=("$r")
+  done
+
+  local token_ok=false pass_ok=false
+
+  if [[ ${#recipients[@]} -gt 0 ]]; then
+    local -a args=()
+    for r in "${recipients[@]}"; do args+=(-r "$r"); done
+    info "Encrypting to ${#recipients[@]} age recipient(s)..."
+    if age "${args[@]}" -o "$enc" "$plaintext"; then
+      # Decrypting a YubiKey recipient needs the token in the reader, its PIN
+      # and a touch, so this proves the file opens with hardware rather than
+      # only that age wrote something. It can only test the token currently
+      # inserted, which after a multi-key run is the last one provisioned.
+      info "Verifying $enc (this needs the inserted YubiKey's PIN and a touch)..."
+      # A real file rather than process substitution, since age reads the
+      # identity file directly and /dev/fd paths are not seekable. It lives in
+      # the ramfs GNUPGHOME and goes with it.
+      local idfile="$GNUPGHOME/age-identities"
+      printf '%s\n' "${AGE_IDENTITIES[@]}" >"$idfile"
+      if age -d -i "$idfile" -o "$GNUPGHOME/verify.age" "$enc" &&
+        cmp -s "$plaintext" "$GNUPGHOME/verify.age"; then
+        token_ok=true
+        success "Token-encrypted backup verified: $enc"
+      else
+        warn "Could not verify $enc against the inserted token."
+        warn "The file was written, but nothing here has proved it opens."
+      fi
+      rm -f "$idfile" "$GNUPGHOME/verify.age"
+    else
+      error "Encrypting to age recipients failed."
+      rm -f "$enc"
+    fi
+  else
+    warn "No age recipients captured, so no token-encrypted copy was made."
+  fi
+
+  if ! $OPT_NO_AGE_PASSPHRASE; then
+    echo ""
+    info "Now a passphrase-encrypted copy, so losing every YubiKey does not"
+    info "lose the identity. Use a passphrase you can recover without this host."
+    if age -p -o "$pass_enc" "$plaintext"; then
+      info "Verifying $pass_enc (re-enter the same passphrase)..."
+      if age -d -o "$GNUPGHOME/verify.pass" "$pass_enc" &&
+        cmp -s "$plaintext" "$GNUPGHOME/verify.pass"; then
+        pass_ok=true
+        success "Passphrase-encrypted backup verified: $pass_enc"
+      else
+        error "Could not verify $pass_enc."
+        rm -f "$pass_enc"
+      fi
+      rm -f "$GNUPGHOME/verify.pass"
+    else
+      error "Passphrase encryption failed or was cancelled."
+      rm -f "$pass_enc"
+    fi
+  fi
+
+  # The plaintext goes only against a copy that has been decrypted and compared
+  # byte for byte in this run. Removing the only copy of a master key on the
+  # strength of a write that returned zero is the one mistake this must not
+  # make, so an unverified encrypt keeps the plaintext and says why.
+  if $OPT_KEEP_PLAINTEXT; then
+    warn "--keep-plaintext given: $plaintext left in place."
+    warn "It is an unencrypted master key. Store it accordingly."
+    return 0
+  fi
+
+  if $pass_ok || $token_ok; then
+    shred -u "$plaintext" 2>/dev/null || rm -f "$plaintext"
+    success "Plaintext master key removed; encrypted copies remain."
+    if ! $pass_ok; then
+      warn "Only the token-encrypted copy verified. Losing every YubiKey now"
+      warn "means losing the identity. Consider re-running with a passphrase copy."
+    fi
+  else
+    warn "No encrypted copy verified, so $plaintext was left in place."
+    warn "Do not delete it until you have a copy you have opened."
+  fi
+}
+# ANCHOR_END: age-backup
+
 phase_summary() {
   header "YubiKey Onboarding Complete"
 
@@ -1463,6 +1615,7 @@ main() {
   # One-time post-provisioning phases
   phase_ssh_keygrip
   phase_import_pubkey
+  phase_age_backup
   phase_summary
 
   success "All done! $NUM_KEYS YubiKey(s) provisioned."
