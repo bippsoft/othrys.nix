@@ -1,3 +1,13 @@
+## v0.2.1 (2026-09-03)
+
+### Fix
+
+- **modules**: guard every remaining per-user home-manager write
+
+### Refactor
+
+- **users**: route per-user config through one guarded option
+
 ## v0.2.0 (2026-08-28)
 
 ### BREAKING CHANGE
