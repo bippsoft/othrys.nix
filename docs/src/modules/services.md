@@ -74,6 +74,18 @@ With `suricata.enable`, forwarded traffic is handed to Suricata via NFQUEUE
 `othrys.services.suricata` (`mode = "nfqueue"`, matching `nfqueue.queues`).
 It disables `networking.firewall` (and asserts `othrys.services.firewall` is off).
 
+Two separate mechanisms decide what happens when inspection stops, and they are
+easy to confuse. The `bypass` flag above accepts packets when no process is bound
+to the queue, so a dead or stopped Suricata does not take the link down, and it
+is set unconditionally. `othrys.services.suricata.nfqueue.failOpen` covers the
+other case, a running Suricata whose queue is full. Setting `failOpen = false`
+therefore does not make a dead Suricata block traffic.
+
+Both directions fail open on purpose, since an IPS crash on a router should not
+sever the network it protects. The consequence is worth stating plainly: while
+Suricata is down, forwarded traffic is uninspected rather than blocked, so the
+link stays up with no IPS behind it.
+
 ### Options
 
 ```nix
@@ -102,8 +114,8 @@ othrys.services.router = {
 
 - **`nfqueue`** (default) keeps the box an L3 router/NAT, since an nftables `queue`
   rule (the router/firewall module's job) hands packets to Suricata, which the
-  module runs in NFQUEUE runmode. `nfqueue.queues` sets `-q 0 … -q N-1`;
-  `nfqueue.failOpen` passes traffic if Suricata is down.
+  module runs in NFQUEUE runmode. `nfqueue.queues` sets `-q 0 … -q N-1`, and
+  `nfqueue.failOpen` accepts packets when a running Suricata's queue is full.
 - **`af-packet`** captures on an interface; `posture = "ips"` builds a
   transparent L2 bridge across `afPacket.interface` + `afPacket.copyInterface`.
 
