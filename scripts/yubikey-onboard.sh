@@ -10,6 +10,41 @@
 
 set -euo pipefail
 
+# Every file this script writes holds key material, a keygrip, or an age
+# recipient. The backup directory is chmod 700 before anything lands in it, and
+# that stops protecting the contents the moment the directory is copied or
+# moved, so the mode goes on the files themselves.
+umask 077
+
+# Re-exec inside a private mount namespace so the temporary GNUPGHOME can sit on
+# ramfs. The script has always claimed RAM-backed storage with no disk traces
+# and has always used /dev/shm, which is tmpfs, and tmpfs pages are swappable.
+# On a host with active swap the master key can therefore reach disk while it
+# exists. ramfs pages are never swapped.
+#
+# unshare -Urm needs no privilege, so this costs nothing where unprivileged user
+# namespaces are available and degrades to a warning where they are not. The
+# namespace also removes the cleanup problem, since the mount dies with the
+# process and cannot be left behind by a failed unmount.
+#
+# `slave` propagation rather than `private`, because the script asks the
+# operator to swap YubiKeys and mount removable media mid-run. Host mounts made
+# after this point must stay visible, while the ramfs must not leak out.
+if [[ -z ${YUBIKEY_ONBOARD_NS:-} ]]; then
+  reexec=true
+  for arg in "$@"; do
+    # These modes touch no key material and need no namespace.
+    case "$arg" in
+    --verify | -h | --help) reexec=false ;;
+    esac
+  done
+  if $reexec && command -v unshare >/dev/null 2>&1 &&
+    unshare -Urm --propagation slave true 2>/dev/null; then
+    export YUBIKEY_ONBOARD_NS=1
+    exec unshare -Urm --propagation slave "$0" "$@"
+  fi
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -21,9 +56,10 @@ NC='\033[0m' # No Color
 # Minimum YubiKey firmware for ed25519 support
 MIN_ECC_FIRMWARE="5.2.3"
 
-# Defaults
-DEFAULT_NAME="alice"
-DEFAULT_EMAIL="alice@example.com"
+# Defaults. Name and email deliberately have none. They were `alice` and
+# `alice@example.com`, and pressing Enter through the prompts minted that as a
+# permanent PGP identity. Flags are read before prompting, so the constants had
+# no reachable use once empty entry is refused.
 DEFAULT_EXPIRY="2y"
 DEFAULT_U2F_ORIGIN="pam://yubi"
 
@@ -37,8 +73,12 @@ OPT_EMAIL=""
 OPT_EXPIRY=""
 OPT_ALGO=""
 OPT_KEY_COUNT=""
+OPT_FORCE_VOLATILE=false
+OPT_NO_PASSPHRASE=false
 
 # State, populated during execution
+SECURE_TMPDIR=""
+RAMFS_MOUNT=""
 TEMP_GNUPGHOME=""
 KEY_FINGERPRINT=""
 SSH_KEYGRIP=""
@@ -67,12 +107,17 @@ Modes:
   --verify             Check the currently inserted YubiKey's health and config
 
 Key identity (skip interactive prompts):
-  --name <name>        Real name for the PGP key (default: $DEFAULT_NAME)
-  --email <email>      Email address for the PGP key (default: $DEFAULT_EMAIL)
+  --name <name>        Real name for the PGP key
+  --email <email>      Email address for the PGP key
   --expiry <duration>  Subkey expiry period (default: $DEFAULT_EXPIRY)
 
+Both are prompted for when the flag is absent, and neither may be empty. They
+become a permanent PGP identity, so there is no default.
+
 Provisioning options:
-  --backup-dir <path>  Master key backup directory (skips the prompt)
+  --backup-dir <path>  Master key backup directory (required for provisioning)
+  --force-volatile     Allow a backup directory the host may not persist
+  --no-passphrase      Leave the master key unprotected (escape hatch)
   --algo <algorithm>   Force key algorithm: ed25519 or rsa4096 (auto-detected by default)
   --key-count <n>      Number of YubiKeys to provision (skips the "provision another?" prompt)
   --dry-run            Walk through all phases without destructive operations
@@ -100,6 +145,14 @@ while [[ $# -gt 0 ]]; do
   --backup-dir)
     OPT_BACKUP_DIR="$2"
     shift 2
+    ;;
+  --force-volatile)
+    OPT_FORCE_VOLATILE=true
+    shift
+    ;;
+  --no-passphrase)
+    OPT_NO_PASSPHRASE=true
+    shift
     ;;
   --name)
     OPT_NAME="$2"
@@ -180,6 +233,22 @@ prompt_value() {
   echo "${result:-$default}"
 }
 
+# For values with no meaningful default, where accepting an empty answer writes
+# something permanent. Loops rather than exiting, since the operator is already
+# partway through provisioning and re-running costs a YubiKey reset.
+prompt_required() {
+  local question="$1"
+  local result
+  while true; do
+    read -rp "$(echo -e "${BOLD}$question${NC}: ")" result
+    if [[ -n ${result//[[:space:]]/} ]]; then
+      echo "$result"
+      return 0
+    fi
+    echo "This cannot be empty. It becomes part of a permanent PGP identity." >&2
+  done
+}
+
 check_yubikey() {
   if ! ykman info &>/dev/null; then
     error "No YubiKey detected. Please insert your YubiKey and try again."
@@ -239,10 +308,47 @@ cleanup() {
     # Kill any gpg-agent running for the temp home
     GNUPGHOME="$TEMP_GNUPGHOME" gpgconf --kill gpg-agent 2>/dev/null || true
     rm -rf "$TEMP_GNUPGHOME"
-    info "Cleaned up temporary GNUPGHOME (RAM-backed, no disk traces)."
+    if [[ -n $RAMFS_MOUNT ]]; then
+      info "Cleaned up temporary GNUPGHOME (ramfs, never written to disk or swap)."
+    else
+      # Says what is true rather than what we would like to be true. tmpfs
+      # pages are swappable, so on a host with active swap the key may have
+      # reached disk. Encrypted swap bounds the exposure, and the script has no
+      # way to confirm the host has any.
+      info "Cleaned up temporary GNUPGHOME (tmpfs; pages may have reached swap)."
+    fi
+  fi
+  # The namespace takes the ramfs mount with it when this process exits, so
+  # only the empty mountpoint needs removing.
+  if [[ -n $RAMFS_MOUNT && -d $RAMFS_MOUNT ]]; then
+    rmdir "$RAMFS_MOUNT" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
+
+# Where the master key lives while it exists. ramfs when the re-exec at the top
+# of this script put us in a mount namespace, tmpfs otherwise.
+setup_secure_tmpdir() {
+  [[ -n $SECURE_TMPDIR ]] && return 0
+
+  if [[ -n ${YUBIKEY_ONBOARD_NS:-} ]]; then
+    local candidate
+    candidate=$(mktemp -d)
+    if mount -t ramfs -o mode=700 ramfs "$candidate" 2>/dev/null; then
+      RAMFS_MOUNT="$candidate"
+      SECURE_TMPDIR="$candidate"
+      return 0
+    fi
+    rmdir "$candidate" 2>/dev/null || true
+  fi
+
+  SECURE_TMPDIR="/dev/shm"
+  warn "Could not mount ramfs; falling back to /dev/shm, which is tmpfs."
+  if [[ -s /proc/swaps ]] && [[ $(wc -l </proc/swaps) -gt 1 ]]; then
+    warn "This host has active swap, so the master key may be paged to disk"
+    warn "while it exists. Encrypted swap bounds that; unencrypted swap does not."
+  fi
+}
 
 # ANCHOR: preflight
 phase_preflight() {
@@ -360,12 +466,12 @@ phase_generate_keys() {
   if [[ -n $OPT_NAME ]]; then
     real_name="$OPT_NAME"
   else
-    real_name=$(prompt_value "Real name for the key" "$DEFAULT_NAME")
+    real_name=$(prompt_required "Real name for the key")
   fi
   if [[ -n $OPT_EMAIL ]]; then
     email="$OPT_EMAIL"
   else
-    email=$(prompt_value "Email address" "$DEFAULT_EMAIL")
+    email=$(prompt_required "Email address")
   fi
   if [[ -n $OPT_EXPIRY ]]; then
     expiry="$OPT_EXPIRY"
@@ -374,8 +480,9 @@ phase_generate_keys() {
   fi
   info "Key identity: $real_name <$email> (subkey expiry: $expiry)"
 
-  # Create temporary GNUPGHOME on tmpfs
-  TEMP_GNUPGHOME=$(mktemp -d /dev/shm/gnupg_XXXXXXXXXX)
+  # Create the temporary GNUPGHOME on ramfs (or tmpfs if unavailable).
+  setup_secure_tmpdir
+  TEMP_GNUPGHOME=$(mktemp -d "$SECURE_TMPDIR/gnupg_XXXXXXXXXX")
   chmod 700 "$TEMP_GNUPGHOME"
   export GNUPGHOME="$TEMP_GNUPGHOME"
 
@@ -432,16 +539,111 @@ phase_generate_keys() {
   gpg --list-keys --with-keygrip "$KEY_FINGERPRINT"
 
   echo ""
-  warn "IMPORTANT: You should now set a passphrase on the master key."
-  warn "Run the following command in a separate terminal:"
+  set_master_passphrase
+}
+
+# Returns 0 when the master secret key on disk is passphrase-protected.
+#
+# gpg-agent's KEYINFO reports the protection state in field 8 of its S line,
+# `C` for a key stored in the clear and `P` for a protected one. Verified
+# against a freshly generated key both ways. This asks the agent about what is
+# actually on disk rather than trusting that a passphrase dialog was completed,
+# so it holds however the passphrase was set.
+master_key_is_protected() {
+  local grip
+  grip=$(gpg --list-secret-keys --with-keygrip --with-colons "$KEY_FINGERPRINT" 2>/dev/null |
+    awk -F: '/^grp/{print $10; exit}')
+  [[ -n $grip ]] || return 1
+  gpg-connect-agent "KEYINFO $grip" /bye 2>/dev/null |
+    awk '/^S KEYINFO/{exit ($8 == "P") ? 0 : 1}'
+}
+
+# The master key and its subkeys are generated with --passphrase '', so until
+# this runs the only copy of the identity is unprotected. This used to print a
+# command to run in a second terminal followed by "Press Enter when done (or
+# skip)", which advanced to the backup phase whether or not anything happened.
+#
+# Entry goes through gpg-agent's own pinentry on this terminal, so the
+# passphrase lives in the agent's mlocked memory and never reaches a shell
+# variable, the process environment or a trace. The gate below re-reads the
+# on-disk state afterwards, so a cancelled or failed dialog cannot pass.
+set_master_passphrase() {
+  if $OPT_NO_PASSPHRASE; then
+    warn "--no-passphrase given: the master key backup will be unprotected."
+    warn "Anyone who reads the backup file holds your identity."
+    return 0
+  fi
+
+  if $DRY_RUN; then
+    dry_run_skip "gpg --edit-key $KEY_FINGERPRINT passwd"
+    return 0
+  fi
+
+  warn "The master key is currently unprotected. Set a passphrase now."
+  warn "It protects the backup, which is the only copy once subkeys move to the"
+  warn "YubiKey and cannot be extracted again."
   echo ""
-  echo "  GNUPGHOME=$GNUPGHOME gpg --edit-key $KEY_FINGERPRINT passwd"
-  echo ""
-  read -rp "$(echo -e "${BOLD}Press Enter when done (or skip)...${NC}")"
+
+  while ! master_key_is_protected; do
+    gpg --edit-key "$KEY_FINGERPRINT" passwd || true
+    if master_key_is_protected; then
+      break
+    fi
+    error "The master key is still unprotected."
+    if prompt_yn "Try again?" "y"; then
+      continue
+    fi
+    if prompt_yn "Continue with an UNPROTECTED master key?"; then
+      warn "Proceeding with an unprotected master key at your request."
+      return 0
+    fi
+    error "Refusing to continue to backup with an unprotected master key."
+    error "Re-run with --no-passphrase if that is genuinely what you want."
+    exit 1
+  done
+
+  success "Master key is passphrase-protected."
 }
 # ANCHOR_END: keygen
 
 # ANCHOR: backup
+# Warn when the backup target looks like somewhere the host will not persist.
+#
+# A filesystem-type test for tmpfs is not enough on its own. On a host using
+# othrys.system.impermanence, /tmp is not a separate mount at all, it sits on a
+# root filesystem that the boot wipe clears, and a tmpfs check sees nothing. So
+# this looks at both the filesystem type and the well-known volatile paths, and
+# still only warns, because no heuristic can enumerate what a given host keeps.
+check_backup_target() {
+  local target="$1" fstype="" volatile=false
+  local parent="$target"
+  # findmnt needs a path that exists, so walk up to the nearest one.
+  while [[ -n $parent && ! -e $parent ]]; do parent=$(dirname "$parent"); done
+  if command -v findmnt >/dev/null 2>&1 && [[ -e $parent ]]; then
+    fstype=$(findmnt -no FSTYPE --target "$parent" 2>/dev/null || true)
+  fi
+
+  case "$fstype" in
+  tmpfs | ramfs) volatile=true ;;
+  esac
+  case "$target" in
+  /tmp/* | /tmp | /var/tmp/* | /var/tmp | /dev/shm/*) volatile=true ;;
+  esac
+
+  $volatile || return 0
+
+  error "The backup directory looks volatile: $target"
+  [[ -n $fstype ]] && error "  filesystem: $fstype"
+  error "This is the only copy of a master key whose subkeys cannot be extracted"
+  error "from the YubiKey again. If this location is cleared on reboot, the"
+  error "identity is gone."
+  if ! $OPT_FORCE_VOLATILE; then
+    error "Pass --force-volatile if you know this location is kept."
+    exit 1
+  fi
+  warn "--force-volatile given: continuing anyway."
+}
+
 phase_backup() {
   header "Phase 2: Master Key Backup"
 
@@ -453,8 +655,16 @@ phase_backup() {
     BACKUP_DIR="$OPT_BACKUP_DIR"
     info "Using backup directory from --backup-dir: $BACKUP_DIR"
   else
-    BACKUP_DIR=$(prompt_value "Backup directory (use removable media!)" "/tmp/yubikey-backup-$(date +%Y%m%d)")
+    # No default. This used to offer /tmp/yubikey-backup-<date>, which is
+    # predictable, unencrypted, and on most hosts does not survive a reboot, so
+    # pressing Enter put the only copy of a master key somewhere it could
+    # vanish. The script cannot know what a given host persists, so the operator
+    # names the destination.
+    echo "Use removable media you can store somewhere safe, e.g. /run/media/you/backup."
+    BACKUP_DIR=$(prompt_required "Backup directory")
   fi
+
+  check_backup_target "$BACKUP_DIR"
 
   if $DRY_RUN; then
     dry_run_skip "mkdir -p $BACKUP_DIR"
@@ -602,7 +812,7 @@ phase_pins() {
 
   if prompt_yn "Set cardholder name on the YubiKey?"; then
     local name
-    name=$(prompt_value "Cardholder name" "$DEFAULT_NAME")
+    name=$(prompt_required "Cardholder name")
     GNUPGHOME="$GNUPGHOME" gpg --command-fd=0 --edit-card <<EOF
 admin
 name
@@ -753,7 +963,10 @@ phase_import_pubkey() {
 
   if [[ -z $BACKUP_DIR || ! -f "$BACKUP_DIR/public.key" ]]; then
     warn "No public key backup found. Exporting from temp keyring."
-    local pubkey_file="/tmp/yubikey-pubkey-$$.asc"
+    # Into the temporary GNUPGHOME rather than a predictable /tmp path, so it
+    # is torn down with everything else. Public material, but a stable name in
+    # a shared directory is still a name anyone can guess and pre-create.
+    local pubkey_file="$GNUPGHOME/public.key"
     GNUPGHOME="$GNUPGHOME" gpg --armor --export "$KEY_FINGERPRINT" >"$pubkey_file"
   else
     local pubkey_file="$BACKUP_DIR/public.key"
@@ -877,9 +1090,20 @@ phase_summary() {
   echo "  5. Rebuild: just switch <hostname>"
   echo ""
 
-  # Write summary to a file for reference
-  local summary_file
-  summary_file="/tmp/yubikey-onboard-summary-$(date +%Y%m%d-%H%M%S).txt"
+  # Write summary to a file for reference.
+  #
+  # Beside the backup rather than in /tmp. It carries the keygrip, the age
+  # recipients and the U2F credential lines, all of which the operator needs
+  # later to fill in host configuration, and none of which survives a reboot in
+  # a temp directory. Falls back to the working directory when there is no
+  # backup directory, as in --from-backup runs that never set one.
+  local summary_file summary_dir
+  if [[ -n $BACKUP_DIR && -d $BACKUP_DIR ]]; then
+    summary_dir="$BACKUP_DIR"
+  else
+    summary_dir="$PWD"
+  fi
+  summary_file="$summary_dir/yubikey-onboard-summary-$(date +%Y%m%d-%H%M%S).txt"
   {
     echo "YubiKey Onboarding Summary, $(date)"
     echo "Fingerprint: $KEY_FINGERPRINT"
@@ -928,8 +1152,9 @@ phase_import_from_backup() {
 
   info "Importing master key from: $key_file"
 
-  # Create temporary GNUPGHOME on tmpfs
-  TEMP_GNUPGHOME=$(mktemp -d /dev/shm/gnupg_XXXXXXXXXX)
+  # Create the temporary GNUPGHOME on ramfs (or tmpfs if unavailable).
+  setup_secure_tmpdir
+  TEMP_GNUPGHOME=$(mktemp -d "$SECURE_TMPDIR/gnupg_XXXXXXXXXX")
   chmod 700 "$TEMP_GNUPGHOME"
   export GNUPGHOME="$TEMP_GNUPGHOME"
 

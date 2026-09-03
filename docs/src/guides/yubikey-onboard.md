@@ -29,18 +29,30 @@ just yubikey-onboard -- --verify
 
 | Flag | Description |
 |------|-------------|
-| `--name <name>` | Real name for the PGP key (default: `alice`) |
-| `--email <email>` | Email address for the PGP key (default: `alice@example.com`) |
+| `--name <name>` | Real name for the PGP key |
+| `--email <email>` | Email address for the PGP key |
 | `--expiry <duration>` | Subkey expiry period (default: `2y`) |
+
+Name and email have no defaults. Both are prompted for when the flag is absent,
+and an empty answer is refused, since the pair becomes a permanent PGP identity.
 
 ### Provisioning
 
 | Flag | Description |
 |------|-------------|
-| `--backup-dir <path>` | Master key backup directory (skips the interactive prompt) |
+| `--backup-dir <path>` | Master key backup directory (required, skips the prompt) |
+| `--force-volatile` | Allow a backup directory the host may not persist |
+| `--no-passphrase` | Leave the master key unprotected (escape hatch) |
 | `--algo <algorithm>` | Force key algorithm: `ed25519` or `rsa4096` (auto-detected by default) |
 | `--key-count <n>` | Number of YubiKeys to provision (skips the "provision another?" prompt) |
 | `--dry-run` | Walk through all phases without destructive operations |
+
+The backup directory has no default either. It used to offer
+`/tmp/yubikey-backup-<date>`, which is predictable, unencrypted, and on most
+hosts does not survive a reboot, so pressing Enter put the only copy of a master
+key somewhere it could vanish. The script refuses a target that looks volatile,
+by filesystem type or by path, and `--force-volatile` overrides that for an
+operator who knows the location is kept.
 
 ### Examples
 
@@ -105,11 +117,13 @@ Verifies required tools are available, detects the YubiKey (serial and firmware)
 
 ### Phase 1: PGP Key Generation
 
-Generates a master key (Certify only) and three subkeys (Sign, Encrypt, Authenticate) in a temporary GNUPGHOME on `/dev/shm` (RAM-backed tmpfs). The master key never touches persistent storage.
+Generates a master key (Certify only) and three subkeys (Sign, Encrypt, Authenticate) in a temporary GNUPGHOME on ramfs, so the key never touches persistent storage or swap. See Security Notes for the fallback when unprivileged user namespaces are unavailable.
 
 The temporary GPG environment uses a hardened `gpg.conf` matching the settings in `modules/services/security/yubikey.nix` and `pinentry-curses` for terminal PIN entry.
 
-The `--name`, `--email`, and `--expiry` flags skip the interactive prompts.
+The `--name`, `--email`, and `--expiry` flags skip the interactive prompts. Name and email are refused if empty.
+
+The phase ends by setting a passphrase on the master key, through gpg-agent's own pinentry on the same terminal. It will not advance to the backup phase while the key is unprotected unless `--no-passphrase` was given.
 
 ```bash
 {{#include ../../../scripts/yubikey-onboard.sh:keygen}}
@@ -176,7 +190,7 @@ Prints all values ready to paste into the NixOS host configurations:
 - SSH public key for GitHub/servers
 - age recipients for all provisioned keys (add all to `.sops.yaml` for redundancy)
 
-A copy is saved to `/tmp/yubikey-onboard-summary-*.txt`.
+A copy is saved beside the backup as `yubikey-onboard-summary-*.txt`, since it carries the keygrip, the age recipients and the U2F credential lines that the host configuration needs later.
 
 ## Verify Mode
 
@@ -209,8 +223,25 @@ The `--verify` flag runs a standalone health check on the currently inserted Yub
 
 ## Security Notes
 
-- The master key is generated in `/dev/shm` (RAM-backed) and cleaned up on exit via an EXIT trap
-- The master key backup must be stored on removable media, and the script enforces this with a confirmation gate
+- The script runs with `umask 077`, so every file it writes is owned by the
+  caller and readable by nobody else
+- The master key lives in a temporary GNUPGHOME on **ramfs** and is cleaned up on
+  exit via an EXIT trap. ramfs pages are never written to disk or swap. The
+  script re-execs itself under `unshare -Urm --propagation slave` to mount it,
+  which needs no privilege, and the mount dies with the process rather than
+  needing an unmount that could fail. Where unprivileged user namespaces are
+  disabled it falls back to `/dev/shm` and says so. That fallback is tmpfs, whose
+  pages are swappable, so on a host with active swap the key can reach disk while
+  it exists, and the script warns when it sees swap
+- The master key is generated unprotected and a passphrase is set before the
+  backup phase. Entry runs through gpg-agent's own pinentry on the same terminal,
+  so the passphrase stays in the agent's mlocked memory and never reaches a shell
+  variable. A gate re-reads the on-disk protection state afterwards, so a
+  cancelled dialog cannot pass. `--no-passphrase` is the explicit escape hatch
+- The backup directory has no default and a volatile target is refused unless
+  `--force-volatile` is given, since the backup is the only copy of a master key
+  whose subkeys cannot be extracted from the YubiKey again
 - Default YubiKey PINs should always be changed during Phase 4
 - The GPG configuration follows [drduh's hardened settings](https://github.com/drduh/config/blob/master/gpg.conf)
-- In `--from-backup` mode, the master key is loaded into tmpfs from the backup, so it still never persists to disk
+- In `--from-backup` mode, the master key is loaded into the same ramfs GNUPGHOME
+  from the backup, so it still never persists to disk
