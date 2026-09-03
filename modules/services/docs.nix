@@ -9,8 +9,6 @@
   othrysSelf ? null,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.services.docs;
 
   docsPackage =
@@ -91,11 +89,12 @@ in {
 
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [cfg.port];
 
-    # Desktop entry only when othrys manages the user account, guarded at the
-    # attrset level so headless docs servers never materialize a home-manager
-    # user (see modules/system/nix.nix).
-    home-manager.users = lib.mkIf (hmEnabled && cfg.desktopEntry) {
-      ${username}.xdg.desktopEntries.othrys-docs = {
+    # Desktop entry only when this host wants one. The homeManaged guard is
+    # applied once by othrys.system.users, so the condition here is the module's
+    # own. A false condition drops the key, so nothing is written and nothing is
+    # reported as skipped.
+    othrys.internal.homeConfig."services.docs" = lib.mkIf cfg.desktopEntry {
+      xdg.desktopEntries.othrys-docs = {
         name = "othrys.nix Docs";
         comment = "Open NixOS configuration documentation";
         exec = "${pkgs.xdg-utils}/bin/xdg-open ${docsUrl}";

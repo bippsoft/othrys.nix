@@ -6,8 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.hardware.nvidia;
   primeEnabled = cfg.prime.enable;
 in {
@@ -57,20 +55,18 @@ in {
       powerManagement.enable = lib.mkDefault primeEnabled;
       powerManagement.finegrained = lib.mkDefault false;
     };
+    # GPU compute servers enable nvidia with no primary user, so this is the
+    # only nvidia setting that needs one.
 
-    # Per-user session variables only when othrys manages the user account.
-    # GPU compute servers enable nvidia without one (see modules/system/nix.nix).
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username}.home.sessionVariables =
-        if primeEnabled
-        then {
-          LIBVA_DRIVER_NAME = "iHD";
-          VDPAU_DRIVER = "va_gl";
-        }
-        else {
-          __GLX_VENDOR_LIBRARY_NAME = "nvidia";
-        };
-    };
+    othrys.internal.homeConfig."hardware.nvidia".home.sessionVariables =
+      if primeEnabled
+      then {
+        LIBVA_DRIVER_NAME = "iHD";
+        VDPAU_DRIVER = "va_gl";
+      }
+      else {
+        __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+      };
 
     boot.initrd.kernelModules =
       [

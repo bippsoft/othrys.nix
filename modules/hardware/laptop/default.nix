@@ -6,8 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.hardware.laptop;
 in {
   imports = [
@@ -52,13 +50,11 @@ in {
       brightnessctl
       acpi
     ];
+    # Headless laptop servers exist, so these are user tools rather than
+    # something every laptop host gets.
 
-    # User packages, only when othrys manages the user account (headless
-    # laptop servers exist, see modules/system/nix.nix for the guard rationale).
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username}.home.packages = with pkgs; [
-        powertop
-      ];
-    };
+    othrys.internal.homeConfig."hardware.laptop".home.packages = with pkgs; [
+      powertop
+    ];
   };
 }

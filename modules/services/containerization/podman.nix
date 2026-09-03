@@ -8,7 +8,6 @@
 }: let
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.services.containerization.podman;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -120,10 +119,8 @@ in {
 
     # home.shellAliases propagates to every home-manager-enabled shell
     # (bash/zsh/fish), so never write per-shell alias sets from other modules.
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username}.home.shellAliases = lib.mkIf cfg.dockerCompat {
-        docker-compose = "podman-compose";
-      };
+    othrys.internal.homeConfig."services.containerization.podman".home.shellAliases = lib.mkIf cfg.dockerCompat {
+      docker-compose = "podman-compose";
     };
   };
 }

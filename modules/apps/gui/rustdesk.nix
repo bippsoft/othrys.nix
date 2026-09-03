@@ -6,8 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.apps.rustdesk;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -46,8 +44,6 @@ in {
       allowedTCPPorts = [21118];
     };
 
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username}.home.packages = with pkgs; [rustdesk];
-    };
+    othrys.internal.homeConfig."apps.rustdesk".home.packages = with pkgs; [rustdesk];
   };
 }

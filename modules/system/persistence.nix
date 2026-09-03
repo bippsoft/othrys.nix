@@ -20,7 +20,6 @@
 }: let
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.system.persistence;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -118,18 +117,14 @@ in {
       # ANCHOR_END: user-persistence
     };
 
-    # XDG user dirs only when othrys manages the user account
-    # (see modules/system/nix.nix for the guard rationale).
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username}.xdg.userDirs =
-        {
-          enable = true;
-          createDirectories = true;
-          setSessionVariables = true;
-        }
-        // lib.mapAttrs'
-        (folder: opt: lib.nameValuePair opt "/home/${username}/${folder}")
-        xdgUserDirs;
-    };
+    othrys.internal.homeConfig."system.persistence".xdg.userDirs =
+      {
+        enable = true;
+        createDirectories = true;
+        setSessionVariables = true;
+      }
+      // lib.mapAttrs'
+      (folder: opt: lib.nameValuePair opt "/home/${username}/${folder}")
+      xdgUserDirs;
   };
 }

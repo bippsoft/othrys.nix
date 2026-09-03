@@ -9,8 +9,6 @@
   ...
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.system.secrets;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   # On impermanence hosts the real key material lives under the persist root
@@ -141,22 +139,20 @@ in {
     # Tools for secrets management
     environment.systemPackages = with pkgs; [sops age];
 
-    # User config for manual sops editing (YubiKey, etc.). Guarded at the
-    # attrset level, since a leaf-level mkIf would still materialize the HM user on
-    # headless hosts (see modules/system/nix.nix).
+    # User config for manual sops editing (YubiKey, etc.). Only when an identity
+    # is actually configured, since the homeManaged guard is applied once by
+    # othrys.system.users and the condition here is the module's own.
     #
     # The file form points SOPS_AGE_KEY_FILE straight at the provider path, so
     # no identity file is generated and no copy of it exists in the store.
-    home-manager.users = lib.mkIf (hmEnabled && (cfg.ageIdentityStubs != null || cfg.ageIdentityFile != null)) {
-      ${username} = {
-        home.file.".config/sops/age/keys.txt" = lib.mkIf (cfg.ageIdentityStubs != null) {
-          text = cfg.ageIdentityStubs;
-        };
-        home.sessionVariables.SOPS_AGE_KEY_FILE =
-          if cfg.ageIdentityFile != null
-          then cfg.ageIdentityFile
-          else "$HOME/.config/sops/age/keys.txt";
+    othrys.internal.homeConfig."system.secrets" = lib.mkIf (cfg.ageIdentityStubs != null || cfg.ageIdentityFile != null) {
+      home.file.".config/sops/age/keys.txt" = lib.mkIf (cfg.ageIdentityStubs != null) {
+        text = cfg.ageIdentityStubs;
       };
+      home.sessionVariables.SOPS_AGE_KEY_FILE =
+        if cfg.ageIdentityFile != null
+        then cfg.ageIdentityFile
+        else "$HOME/.config/sops/age/keys.txt";
     };
   };
 }
