@@ -23,9 +23,14 @@
     if multiQueue
     then "0-${toString (cfg.suricata.queues - 1)}"
     else "0";
-  # Verb for allowed forwarded traffic, either handing it to Suricata via NFQUEUE
-  # (fail-open with `bypass` so a dead Suricata doesn't take the link down) when
-  # the IPS hook is on, otherwise a plain accept.
+  # Verb for allowed forwarded traffic, either handing it to Suricata via
+  # NFQUEUE when the IPS hook is on, otherwise a plain accept.
+  #
+  # `bypass` accepts packets when NO process is bound to the queue, so a dead or
+  # stopped Suricata does not take the link down. It is set unconditionally and
+  # is a separate mechanism from othrys.services.suricata.nfqueue.failOpen, which
+  # covers a running Suricata whose queue is full. The consequence is that a dead
+  # IPS means uninspected traffic rather than blocked traffic.
   fwdVerb =
     if cfg.suricata.enable
     then "queue num ${queueRange} ${lib.optionalString multiQueue "fanout,"}bypass"

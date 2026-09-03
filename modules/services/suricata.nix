@@ -145,7 +145,19 @@ in {
       failOpen = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Let packets pass if Suricata is down/overloaded (fail-open) instead of dropping traffic.";
+        description = ''
+          Suricata's `nfq.fail-open`. Lets the kernel accept packets when the
+          queue is full, which is the overloaded case, instead of dropping them.
+
+          This does not govern what happens when Suricata is not running. That
+          is the `bypass` flag on the nftables `queue` verdict, which
+          `othrys.services.router` sets unconditionally, so a dead IPS passes
+          traffic regardless of this option. Setting it to false does not make a
+          dead Suricata block the link.
+
+          Either way the failure mode is uninspected traffic rather than blocked
+          traffic, which is deliberate for a router in the forwarding path.
+        '';
       };
     };
 
