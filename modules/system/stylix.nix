@@ -6,7 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.system.stylix;
   guiEnabled = cfg.gui.enable;
   themePath = ../../assets/themes/${cfg.polarity}/${cfg.scheme}.yaml;
@@ -137,96 +136,92 @@ in {
         gnome.enable = false;
       };
     };
+    # Headless hosts still get the system-level Stylix targets (console,
+    # plymouth). Only the per-user surface lands here.
 
-    # Per-user theming only when othrys manages the user account, guarded at
-    # the attrset level so headless hosts can still use system-level Stylix
-    # targets (console, plymouth) without a home-manager user
-    # (see modules/system/nix.nix).
-    home-manager.users = lib.mkIf config.othrys.system.users.homeManaged {
-      ${username} = {
-        # Stylix drives the cursor via home.pointerCursor.{name,package,size}.
-        # Newer home-manager deprecates auto-enabling from those attrs, so opt in
-        # explicitly to silence the deprecation warning. GUI surface only.
-        home.pointerCursor.enable = lib.mkIf guiEnabled true;
+    othrys.internal.homeConfig."system.stylix" = {
+      # Stylix drives the cursor via home.pointerCursor.{name,package,size}.
+      # Newer home-manager deprecates auto-enabling from those attrs, so opt in
+      # explicitly to silence the deprecation warning. GUI surface only.
+      home.pointerCursor.enable = lib.mkIf guiEnabled true;
 
-        # Preserve legacy GTK4 theme behavior (stateVersion < 26.05).
-        # Newer Stylix sets gtk.gtk4.theme = gtk.theme unconditionally, so force
-        # null to keep GTK4 unthemed as before (resolves the null/not-null clash).
-        gtk.gtk4.theme = lib.mkIf guiEnabled (lib.mkForce null);
+      # Preserve legacy GTK4 theme behavior (stateVersion < 26.05).
+      # Newer Stylix sets gtk.gtk4.theme = gtk.theme unconditionally, so force
+      # null to keep GTK4 unthemed as before (resolves the null/not-null clash).
+      gtk.gtk4.theme = lib.mkIf guiEnabled (lib.mkForce null);
 
-        # Icon theme (follows polarity, GUI surface only)
-        gtk.iconTheme = lib.mkIf guiEnabled {
-          name =
-            if cfg.polarity == "light"
-            then "Papirus-Light"
-            else "Papirus-Dark";
-          package = pkgs.papirus-icon-theme;
-        };
-
-        # Export Stylix colors as session variables. BASE00..0F are generated,
-        # COLOR_* are semantic.
-        home.sessionVariables =
-          baseColorVars
-          // (with config.lib.stylix.colors; {
-            COLOR_BACKGROUND = base00;
-            COLOR_FOREGROUND = base05;
-            COLOR_SELECTION = base02;
-            COLOR_COMMENT = base03;
-            COLOR_CURSOR = base05;
-
-            COLOR_BLACK = base00;
-            COLOR_RED = base08;
-            COLOR_GREEN = base0B;
-            COLOR_YELLOW = base0A;
-            COLOR_BLUE = base0D;
-            COLOR_MAGENTA = base0E;
-            COLOR_CYAN = base0C;
-            COLOR_WHITE = base05;
-            COLOR_ORANGE = base09;
-            COLOR_BROWN = base0F;
-          });
-
-        # Color palette display utility
-        home.packages = with pkgs; [
-          (writeShellScriptBin "show-colors" ''
-            #!/usr/bin/env bash
-
-            print_color() {
-              local name="$1"
-              local hex="$2"
-              local r=$((16#''${hex:0:2}))
-              local g=$((16#''${hex:2:2}))
-              local b=$((16#''${hex:4:2}))
-              printf "\033[48;2;%d;%d;%dm  \033[0m  " "$r" "$g" "$b"
-              printf "%-20s #%s   RGB(%3d, %3d, %3d)\n" "$name" "$hex" "$r" "$g" "$b"
-            }
-
-            echo "Current Stylix Color Palette"
-            echo "──────────────────────────────────────────────────────────────────────"
-            echo ""
-            echo "Base16 Colors:"
-            print_color "BASE00 (Background)" "$BASE00"
-            print_color "BASE01 (Lighter BG)" "$BASE01"
-            print_color "BASE02 (Selection)" "$BASE02"
-            print_color "BASE03 (Comments)" "$BASE03"
-            print_color "BASE04 (Dark FG)" "$BASE04"
-            print_color "BASE05 (Foreground)" "$BASE05"
-            print_color "BASE06 (Light FG)" "$BASE06"
-            print_color "BASE07 (Light BG)" "$BASE07"
-            echo ""
-            print_color "BASE08 (Red)" "$BASE08"
-            print_color "BASE09 (Orange)" "$BASE09"
-            print_color "BASE0A (Yellow)" "$BASE0A"
-            print_color "BASE0B (Green)" "$BASE0B"
-            print_color "BASE0C (Cyan)" "$BASE0C"
-            print_color "BASE0D (Blue)" "$BASE0D"
-            print_color "BASE0E (Magenta)" "$BASE0E"
-            print_color "BASE0F (Brown)" "$BASE0F"
-            echo ""
-            echo "Usage: echo \"\$BASE08\" for red hex code"
-          '')
-        ];
+      # Icon theme (follows polarity, GUI surface only)
+      gtk.iconTheme = lib.mkIf guiEnabled {
+        name =
+          if cfg.polarity == "light"
+          then "Papirus-Light"
+          else "Papirus-Dark";
+        package = pkgs.papirus-icon-theme;
       };
+
+      # Export Stylix colors as session variables. BASE00..0F are generated,
+      # COLOR_* are semantic.
+      home.sessionVariables =
+        baseColorVars
+        // (with config.lib.stylix.colors; {
+          COLOR_BACKGROUND = base00;
+          COLOR_FOREGROUND = base05;
+          COLOR_SELECTION = base02;
+          COLOR_COMMENT = base03;
+          COLOR_CURSOR = base05;
+
+          COLOR_BLACK = base00;
+          COLOR_RED = base08;
+          COLOR_GREEN = base0B;
+          COLOR_YELLOW = base0A;
+          COLOR_BLUE = base0D;
+          COLOR_MAGENTA = base0E;
+          COLOR_CYAN = base0C;
+          COLOR_WHITE = base05;
+          COLOR_ORANGE = base09;
+          COLOR_BROWN = base0F;
+        });
+
+      # Color palette display utility
+      home.packages = with pkgs; [
+        (writeShellScriptBin "show-colors" ''
+          #!/usr/bin/env bash
+
+          print_color() {
+            local name="$1"
+            local hex="$2"
+            local r=$((16#''${hex:0:2}))
+            local g=$((16#''${hex:2:2}))
+            local b=$((16#''${hex:4:2}))
+            printf "\033[48;2;%d;%d;%dm  \033[0m  " "$r" "$g" "$b"
+            printf "%-20s #%s   RGB(%3d, %3d, %3d)\n" "$name" "$hex" "$r" "$g" "$b"
+          }
+
+          echo "Current Stylix Color Palette"
+          echo "──────────────────────────────────────────────────────────────────────"
+          echo ""
+          echo "Base16 Colors:"
+          print_color "BASE00 (Background)" "$BASE00"
+          print_color "BASE01 (Lighter BG)" "$BASE01"
+          print_color "BASE02 (Selection)" "$BASE02"
+          print_color "BASE03 (Comments)" "$BASE03"
+          print_color "BASE04 (Dark FG)" "$BASE04"
+          print_color "BASE05 (Foreground)" "$BASE05"
+          print_color "BASE06 (Light FG)" "$BASE06"
+          print_color "BASE07 (Light BG)" "$BASE07"
+          echo ""
+          print_color "BASE08 (Red)" "$BASE08"
+          print_color "BASE09 (Orange)" "$BASE09"
+          print_color "BASE0A (Yellow)" "$BASE0A"
+          print_color "BASE0B (Green)" "$BASE0B"
+          print_color "BASE0C (Cyan)" "$BASE0C"
+          print_color "BASE0D (Blue)" "$BASE0D"
+          print_color "BASE0E (Magenta)" "$BASE0E"
+          print_color "BASE0F (Brown)" "$BASE0F"
+          echo ""
+          echo "Usage: echo \"\$BASE08\" for red hex code"
+        '')
+      ];
     };
   };
 }

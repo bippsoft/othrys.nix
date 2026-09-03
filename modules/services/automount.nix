@@ -5,8 +5,6 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.services.automount;
   desktopEnabled = config.othrys.desktop.graphical;
 in {
@@ -34,15 +32,12 @@ in {
   config = lib.mkIf cfg.enable {
     # Automounting requires udisks2
     services.udisks2.enable = true;
+    # udiskie is a per-user agent, so it has no headless equivalent.
 
-    # udiskie is a per-user agent, enabled only when othrys manages the user account
-    # (see modules/system/nix.nix for the guard rationale).
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username}.services.udiskie = {
-        enable = true;
-        automount = true;
-        inherit (cfg) notify tray;
-      };
+    othrys.internal.homeConfig."services.automount".services.udiskie = {
+      enable = true;
+      automount = true;
+      inherit (cfg) notify tray;
     };
   };
 }

@@ -15,8 +15,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.apps.languages;
 
   # Canonical toolchain table. server = null means no standalone LSP binary
@@ -118,7 +116,5 @@ in {
 
   # The shared toolchain lands on the user's PATH (home-manager scope) so
   # editors, terminals, direnv shells, and hooks all see the same binaries.
-  config.home-manager.users = lib.mkIf hmEnabled {
-    ${username}.home.packages = lib.concatMap toolchainOf (lib.attrNames languages);
-  };
+  config.othrys.internal.homeConfig."apps.languages".home.packages = lib.concatMap toolchainOf (lib.attrNames languages);
 }

@@ -6,8 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.apps.localsend;
 in {
   options.othrys.apps.localsend = {
@@ -31,8 +29,6 @@ in {
       allowedUDPPorts = [53317];
     };
 
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username}.home.packages = with pkgs; [localsend];
-    };
+    othrys.internal.homeConfig."apps.localsend".home.packages = with pkgs; [localsend];
   };
 }

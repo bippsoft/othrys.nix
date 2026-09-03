@@ -5,8 +5,6 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.services.ssh;
 in {
   options.othrys.services.ssh = {
@@ -50,31 +48,26 @@ in {
 
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.server.enable [22];
 
-    # Per-user state only when othrys manages the user account, guarded at the
-    # attrset level so headless hosts never materialize a home-manager user
-    # (see modules/system/nix.nix).
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username}.programs.ssh = {
-        enable = true;
-        enableDefaultConfig = false;
+    othrys.internal.homeConfig."services.ssh".programs.ssh = {
+      enable = true;
+      enableDefaultConfig = false;
 
-        settings =
-          {
-            "*" = {
-              SetEnv = {
-                TERM = "xterm-256color";
-              };
-              ServerAliveInterval = 60;
-              ServerAliveCountMax = 3;
-              Compression = true;
+      settings =
+        {
+          "*" = {
+            SetEnv = {
+              TERM = "xterm-256color";
             };
-          }
-          // cfg.settings;
+            ServerAliveInterval = 60;
+            ServerAliveCountMax = 3;
+            Compression = true;
+          };
+        }
+        // cfg.settings;
 
-        extraConfig = ''
-          AddKeysToAgent yes
-        '';
-      };
+      extraConfig = ''
+        AddKeysToAgent yes
+      '';
     };
   };
 }

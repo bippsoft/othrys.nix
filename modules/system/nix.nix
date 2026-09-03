@@ -8,7 +8,6 @@
   ...
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
-  username = config.othrys.system.user.name;
   cfg = config.othrys.system.nix;
   # Shell snippet that loads the Cachix push token into the current process
   # only (used by the cachix-push wrapper), never exported to interactive shells.
@@ -245,16 +244,11 @@ in {
 
     system.stateVersion = cfg.stateVersion;
 
-    # Only touch home-manager when othrys actually manages the user's
-    # environment (users.homeManaged = account created AND homeManager on).
-    # The guard wraps the whole `home-manager.users` write rather than just the leaf.
-    # even a mkIf-false leaf would still materialize `home-manager.users.<name>`,
-    # forcing home-manager to reference the user's home and trip NixOS's user
-    # assertions on headless/root-only hosts that enable nix settings but no
-    # primary user.
-    home-manager.users = lib.mkIf config.othrys.system.users.homeManaged {
-      ${username}.home.stateVersion = cfg.stateVersion;
-    };
+    # Per-user state goes through the registry rather than home-manager.users
+    # directly, so othrys.system.users applies the homeManaged guard once, at
+    # the attrset level. See modules/system/users.nix for why the guard cannot
+    # sit on a leaf.
+    othrys.internal.homeConfig."system.nix".home.stateVersion = cfg.stateVersion;
 
     # cachix-push <path>... loads the auth token only into the push process,
     # not every interactive shell, so it never leaks via /proc or subprocesses.

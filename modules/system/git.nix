@@ -6,8 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   cfg = config.othrys.system.git;
 in {
   options.othrys.system.git = {
@@ -49,29 +47,25 @@ in {
   config = lib.mkIf cfg.enable {
     programs.git.enable = true;
 
-    # Per-user git config only when othrys manages the user account
-    # (see modules/system/nix.nix for the guard rationale).
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username} = {
-        home.packages = [pkgs.commitizen];
+    othrys.internal.homeConfig."system.git" = {
+      home.packages = [pkgs.commitizen];
 
-        programs.git = {
-          enable = true;
+      programs.git = {
+        enable = true;
 
-          settings = {
-            user = {
-              inherit (cfg) name email;
-            };
-
-            init.defaultBranch = cfg.defaultBranch;
-            # A preference rather than a requirement, so mkDefault lets a
-            # consumer set pull.rebase = true without lib.mkForce (the same
-            # rule modules/services/ssh.nix states for its hardened settings).
-            pull.rebase = lib.mkDefault false;
-            core.editor = config.othrys.system.defaultEditor;
-
-            alias = cfg.aliases;
+        settings = {
+          user = {
+            inherit (cfg) name email;
           };
+
+          init.defaultBranch = cfg.defaultBranch;
+          # A preference rather than a requirement, so mkDefault lets a
+          # consumer set pull.rebase = true without lib.mkForce (the same
+          # rule modules/services/ssh.nix states for its hardened settings).
+          pull.rebase = lib.mkDefault false;
+          core.editor = config.othrys.system.defaultEditor;
+
+          alias = cfg.aliases;
         };
       };
     };
