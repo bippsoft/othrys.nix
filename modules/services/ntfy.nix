@@ -46,7 +46,7 @@ in {
     settings = lib.mkOption {
       type = lib.types.attrsOf lib.types.anything;
       default = {};
-      description = "Extra services.ntfy-sh settings (server.yml), merged over the generated config.";
+      description = "Extra services.ntfy-sh settings (server.yml), deep-merged over (and overriding) the generated config.";
     };
   };
   # ANCHOR_END: ntfy-options
@@ -66,12 +66,28 @@ in {
 
     services.ntfy-sh = {
       enable = true;
-      settings =
+      # lib.mkMerge rather than `//`. The union operator merges one level deep,
+      # so a consumer setting a nested key under `settings` replaced the whole
+      # generated subtree rather than adding to it.
+      #
+      # mkDefault sits on each generated leaf rather than on the attrset. A
+      # priority applies to a whole definition, so one mkDefault covering both
+      # keys would be discarded entirely the moment a consumer names either one,
+      # taking the other with it. Per leaf, each competes on its own and a
+      # consumer setting base-url still gets the generated listen-http.
+      #
+      # Without the defaults, two normal-priority definitions of the same leaf
+      # collide, which would make `settings.base-url` an evaluation error rather
+      # than the override the description promises. lib.mkForce is not a
+      # workaround, since `settings` is attrsOf anything and that type discharges
+      # priorities here, so a mkForce inside it never reaches services.ntfy-sh.
+      settings = lib.mkMerge [
         {
-          listen-http = "${cfg.listenAddress}:${toString cfg.port}";
-          base-url = cfg.baseUrl;
+          listen-http = lib.mkDefault "${cfg.listenAddress}:${toString cfg.port}";
+          base-url = lib.mkDefault cfg.baseUrl;
         }
-        // cfg.settings;
+        cfg.settings
+      ];
     };
 
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [cfg.port];

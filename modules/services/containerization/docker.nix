@@ -14,10 +14,17 @@
   nvidiaEnabled = config.othrys.hardware.nvidia.enable;
 
   # Daemon defaults, merged into both the rootful and rootless settings.
+  #
+  # mkDefault sits on each leaf rather than on the attrset, so a consumer
+  # setting daemon.settings.log-driver overrides that one key and still gets the
+  # generated storage-driver. A priority applies to a whole definition, so one
+  # mkDefault covering both would be discarded entirely the moment either key is
+  # named. Without the defaults at all, the two definitions collide and the
+  # override the description promises is an evaluation error instead.
   daemonSettings = lib.mkMerge [
     {
-      log-driver = "journald";
-      storage-driver = "overlay2";
+      log-driver = lib.mkDefault "journald";
+      storage-driver = lib.mkDefault "overlay2";
     }
     cfg.daemon.settings
   ];
