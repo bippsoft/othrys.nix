@@ -72,7 +72,6 @@ All modules follow the `othrys.*` namespace convention:
 }: let
   cfg = config.othrys.{category}.{name};
   username = config.othrys.system.user.name;
-  hmEnabled = config.othrys.system.users.homeManaged;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
@@ -87,10 +86,8 @@ in {
       ];
     };
 
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username} = {
-        home.packages = with pkgs; [package-name];
-      };
+    othrys.internal.homeConfig."{category}.{name}" = {
+      home.packages = with pkgs; [package-name];
     };
   };
 }
@@ -103,12 +100,39 @@ per-user path must therefore sit behind a guard.
 
 Two guards exist, and they are not interchangeable. Account-level writes
 (`users.users.<name>`, `/persist` home directories, wipe-script home recreation)
-go behind `othrys.system.users.enable`. Home Manager writes go behind the derived
-read-only flag `othrys.system.users.homeManaged`. Both guards belong at the
-attrset level rather than on a leaf, since a leaf-level `mkIf` still materializes
-the Home Manager user and trips the NixOS user assertions on a headless host. The
-`eval-host-server`, `eval-host-anonymous` and `eval-host-server-account` checks in
-`flake/checks/` encode this.
+go behind `othrys.system.users.enable`, spelled in the module. Home Manager
+writes do not spell a guard at all. A module contributes to
+`othrys.internal.homeConfig`, keyed by its own option path, and
+`modules/system/users.nix` splices the whole registry into
+`home-manager.users.<name>` behind `othrys.system.users.homeManaged`. Nothing
+else in `modules/` may write `home-manager.users`, and `contract-guards` in
+`flake/checks/` enforces that as a prohibition.
+
+The registry exists because the guard belongs at the attrset level rather than
+on a leaf. A leaf-level `mkIf` still materializes the Home Manager user and
+trips the NixOS user assertions on a headless host, and that distinction is easy
+to get wrong once per module and impossible to get wrong in one place. It also
+gives the diagnostic somewhere to live, since `users.nix` warns once naming every
+module whose user configuration was skipped rather than each module warning
+separately on every rebuild.
+
+Three details follow from the registry:
+
+- A module with a second condition wraps its own value, as
+  `othrys.internal.homeConfig."services.docs" = lib.mkIf cfg.desktopEntry { ... };`.
+  A false condition drops the key, so nothing is written and nothing is reported.
+- The option is `lib.types.raw`, so `lib.mkForce` and `lib.mkDefault` inside a
+  contribution survive to `home-manager.users` and still win or lose against
+  upstream definitions. An ordinary type would discharge them at the registry
+  and silently change what a module means.
+- Reading evaluated Home Manager output is not a write.
+  `modules/apps/gui/vscode/default.nix` reads
+  `config.home-manager.users.<name>.programs.nixvim.build.package`, and the
+  `config.` prefix is what distinguishes a read from a write.
+
+The `eval-host-server`, `eval-host-anonymous`, `eval-host-server-account`,
+`eval-host-app-no-hm` and `eval-host-app-no-hm-full` checks in `flake/checks/`
+encode all of this.
 
 ## Comments and Anchors
 

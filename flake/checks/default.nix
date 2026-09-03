@@ -111,6 +111,80 @@
       };
     };
 
+    # A named primary account that home-manager does NOT manage. The shape the
+    # per-user guard exists for, shared by the two app/desktop fixtures below.
+    accountNoHomeManager = {
+      imports = [bootBase];
+      othrys.system.nix = {
+        enable = true;
+        stateVersion = "26.05";
+      };
+      othrys.system.users = {
+        enable = true;
+        homeManager.enable = false;
+        # Bootstrap hash for "changeme", generated with mkpasswd -m yescrypt.
+        initialHashedPassword = "$y$j9T$aiZuvauf85ZjB04z3seyG0$OKYG9I1g.vAp5IA48MlGzaVoB15gqWIL.k7lSni8fe8";
+      };
+    };
+
+    # Every app and desktop module that configures the primary user, minus two
+    # sets the module tree declares mutually exclusive. hyprland stands for the
+    # compositor pair, with niri covered by eval-host-desktop-niri. ashell,
+    # idle and nightLight stand for the shell layer, with noctalia covered by
+    # the companion fixture below, since noctalia asserts against all three.
+    appDesktopModules = {
+      # Prerequisites the modules below assert on, rather than things under
+      # test. Several apps refuse to evaluate without theming, a Steam install,
+      # a JDK or a secrets provider.
+      othrys.system.stylix.enable = true;
+      othrys.system.secrets.enable = true;
+      othrys.system.nix.allowUnfree = true;
+      othrys.desktop.graphical = true;
+      othrys.apps.gaming.steam.enable = true;
+      othrys.apps.languages.java.enable = true;
+      # The GitHub MCP module defaults its sops file to secretFiles.common, which
+      # only exists when a consumer declares a secrets input. The fixture has
+      # none, so it names a file instead of the default.
+      othrys.apps.ai.mcp.github.secret.sopsFile = pkgs.writeText "fixture-secrets.yaml" "";
+      # The placeholder above is not a real sops file, and this fixture tests the
+      # per-user guard rather than decryption.
+      sops.validateSopsFiles = false;
+
+      othrys.apps = {
+        ai.claude-code.enable = true;
+        ai.mcp.context7.enable = true;
+        ai.mcp.github.enable = true;
+        ai.mcp.nixos.enable = true;
+        ai.ollama.enable = true;
+        comma.enable = true;
+        gh.enable = true;
+        nixvim.enable = true;
+        yazi.enable = true;
+        discord.enable = true;
+        floorp.enable = true;
+        gaming.mangohud.enable = true;
+        gaming.osu.enable = true;
+        gaming.prismlauncher.enable = true;
+        gaming.r2modman.enable = true;
+        ghostty.enable = true;
+        idea.enable = true;
+        kitty.enable = true;
+        mpv.enable = true;
+        obs.enable = true;
+        picard.enable = true;
+        plexamp.enable = true;
+        signal.enable = true;
+        vesktop.enable = true;
+        vscode.enable = true;
+      };
+      othrys.desktop = {
+        ashell.enable = true;
+        compositors.hyprland.enable = true;
+        idle.enable = true;
+        nightLight.enable = true;
+      };
+    };
+
     # bootBase plus the core system modules a functioning workstation host needs
     # (a managed user account, nix settings, git).
     functioningHost = {
@@ -152,6 +226,83 @@
           echo "CONTRIBUTING.md is canonical. Copy its block into CLAUDE.md." >&2
           exit 1
         fi
+      '';
+    };
+
+    # The four numbered clauses of the consumer contract, as a static check.
+    # contract-mirror keeps the prose in CONTRIBUTING.md and CLAUDE.md
+    # identical; this keeps the tree honest about it. Run from a repository root.
+    #
+    # Clauses 1 and 2 fail at evaluation only in the cases a fixture happens to
+    # cover. A module that accepts a `username` argument from a fleet that
+    # provides one evaluates cleanly and still breaks any other consumer, and an
+    # unguarded per-user write only shows up on a host shape nobody tests. A
+    # grep catches both the moment the module is written.
+    contractGuards = pkgs.writeShellApplication {
+      name = "contract-guards";
+      runtimeInputs = [pkgs.gnugrep pkgs.findutils pkgs.coreutils];
+      text = ''
+        fail=0
+        report() {
+          fail=1
+          echo "contract-guards: $1" >&2
+          shift
+          printf '  %s\n' "$@" >&2
+        }
+
+        # Clause 2, home-manager half. Stated as a prohibition rather than a
+        # correlation: modules route per-user config through
+        # othrys.internal.homeConfig and othrys.system.users applies the
+        # homeManaged guard once. A correlation ("a module writing
+        # home-manager.users must also mention homeManaged") can be satisfied by
+        # a guard on the wrong node; this cannot be satisfied by accident.
+        #
+        # A read is `config.home-manager.users...`, which is how
+        # apps/gui/vscode reaches nixvim's build product. Only writes lack the
+        # `config.` prefix, so that prefix is the discriminator.
+        hm_writes=$(grep -rn --include='*.nix' -E '(^|[^.a-zA-Z])home-manager\.users' modules \
+          | grep -v '^modules/system/users\.nix:' \
+          | grep -v 'config\.home-manager\.users' \
+          | grep -vE '^[^:]+:[0-9]+: *#' || true)
+        [ -z "$hm_writes" ] || report \
+          "only modules/system/users.nix may write home-manager.users; route per-user config through othrys.internal.homeConfig:" \
+          "$hm_writes"
+
+        # Clause 2, account half. Every module creating the primary account
+        # guards on othrys.system.users.enable, at the attrset level.
+        account_unguarded=()
+        while IFS= read -r f; do
+          [ "$f" = "modules/system/users.nix" ] && continue
+          grep -q 'usersEnabled\|othrys\.system\.users\.enable' "$f" || account_unguarded+=("$f")
+        done < <(grep -rln --include='*.nix' -E '^ *users\.users' modules | sort)
+        [ ''${#account_unguarded[@]} -eq 0 ] ||
+          report "modules writing users.users without an othrys.system.users.enable guard:" "''${account_unguarded[@]}"
+
+        # Clause 1. No module takes a `username` argument. Identity is read from
+        # othrys.system.user.name, which has no default.
+        username_args=$(grep -rn --include='*.nix' -E '^ *username,' modules flake || true)
+        [ -z "$username_args" ] ||
+          report "modules must read config.othrys.system.user.name, not take a username argument:" "$username_args"
+
+        # Clause 4. specialArgs carry `inputs` alone wherever a host or a NixOS
+        # test is built. Bare lib.evalModules fixtures with stub option trees are
+        # not a consumer path and pass what they need, so the rule is scoped to
+        # files that actually build one.
+        bad_special=()
+        while IFS= read -r f; do
+          grep -q 'nixosSystem\|nixosTest\|runTest' "$f" || continue
+          while IFS= read -r hit; do
+            case "$hit" in
+              *'{inherit inputs;}'*) ;;
+              *) bad_special+=("$f: $hit") ;;
+            esac
+          done < <(grep -hoE 'specialArgs = \{[^}]*\}' "$f")
+        done < <(grep -rl --include='*.nix' 'specialArgs' . | sed 's|^\./||' | sort)
+        [ ''${#bad_special[@]} -eq 0 ] ||
+          report "specialArgs must carry inputs alone where a host or NixOS test is built:" "''${bad_special[@]}"
+
+        [ "$fail" -eq 0 ] || exit 1
+        echo "contract-guards: ok"
       '';
     };
 
@@ -329,7 +480,52 @@
         serverModules
       ];
 
+      # App/desktop contract, account-without-home-manager variant. The gap the
+      # guard sweep closed: every headless fixture above enables the SERVER
+      # module surface and never an app or desktop module, so thirty-two
+      # unguarded per-user writes sat undetected. A managed account with
+      # home-manager off must be able to enable app modules without any of them
+      # materializing a home-manager user.
+      #
+      # A cheap representative slice runs here in CORE, one CLI module, one GUI
+      # module, one desktop module, and vscode for its cross-read of nixvim's
+      # build product. The full set runs in EXTENDED below, since a subset only
+      # proves that a subset is guarded.
+      eval-host-app-no-hm = mkHostEval "othrys-eval-host-app-no-hm" [
+        accountNoHomeManager
+        {
+          othrys.apps.gh.enable = true;
+          othrys.apps.ghostty.enable = true;
+          othrys.apps.vscode.enable = true;
+          othrys.desktop.graphical = true;
+          othrys.desktop.idle.enable = true;
+        }
+      ];
+
       # EXTENDED, heavy, main and manual dispatch
+
+      # The same contract over every app and desktop module that writes per-user
+      # configuration. Heavy enough for EXTENDED (browser and Electron closures
+      # evaluate here), and the only fixture that proves the claim for all of
+      # them rather than for four.
+      eval-host-app-no-hm-full = mkHostEval "othrys-eval-host-app-no-hm-full" [
+        accountNoHomeManager
+        appDesktopModules
+      ];
+
+      # The exclusive shell layer, which asserts against ashell, idle and
+      # nightLight and so cannot ride in the fixture above. Small on its own,
+      # and without it noctalia would be the one per-user module no fixture
+      # covers on an unmanaged host.
+      eval-host-app-no-hm-noctalia = mkHostEval "othrys-eval-host-app-no-hm-noctalia" [
+        accountNoHomeManager
+        {
+          othrys.system.stylix.enable = true;
+          othrys.desktop.graphical = true;
+          othrys.desktop.compositors.niri.enable = true;
+          othrys.desktop.noctalia.enable = true;
+        }
+      ];
 
       # Whole-tree evaluation over the minimal host plus theming and the mangohud
       # settings merge (mangohud reads Stylix colors, so both must be on. This
@@ -364,6 +560,7 @@
             defaultDesktop = "hyprland";
           };
           othrys.services.automount.enable = true;
+          othrys.desktop.graphical = true;
           othrys.desktop.idle.enable = true;
           othrys.desktop.nightLight.enable = true;
           othrys.hardware.scanner.enable = true;
@@ -439,6 +636,13 @@
             entry = "${contractMirror}/bin/contract-mirror";
             pass_filenames = false;
           };
+
+          contract-guards = {
+            enable = true;
+            name = "contract-guards";
+            entry = "${contractGuards}/bin/contract-guards";
+            pass_filenames = false;
+          };
         };
       };
 
@@ -451,6 +655,19 @@
         } ''
           cd ${inputs.self}
           comment-hygiene
+          touch $out
+        '';
+
+      # CORE. The consumer contract, enforced rather than described. The
+      # home-manager clause held for twenty of fifty-two modules while the prose
+      # said all of them, and nothing failed, because the fixtures never enabled
+      # an app module on a host without a managed user.
+      contract-guards =
+        pkgs.runCommand "othrys-contract-guards" {
+          nativeBuildInputs = [contractGuards];
+        } ''
+          cd ${inputs.self}
+          contract-guards
           touch $out
         '';
 
