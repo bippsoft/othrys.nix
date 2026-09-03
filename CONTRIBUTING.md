@@ -161,6 +161,16 @@ already published in `docs/src/reference/options.md`, generated from the module
 tree, so an anchor that no page includes is duplication with a maintenance cost
 and nothing reading it. The `comment-hygiene` check fails on one.
 
+**Prose that must exist in two places.** Anchor it and add the pair to
+`contract-mirror` in `flake/checks/`. The consumer contract is the worked
+example. `CONTRIBUTING.md` holds the canonical copy, `docs/src/architecture/`
+embeds it through mdbook, and `CLAUDE.md` carries an enforced duplicate because
+an agent reads that file automatically and would otherwise have to be told to go
+and fetch the contract. Duplication is only dangerous when the copies can
+disagree unnoticed, so the hook diffs the two regions and turns the copy into a
+mirror. Only one such block exists today, and the hook stays specific to it until
+a second one appears.
+
 **Rationale.** Comments that answer why, never what. A guard that has to sit at
 the attrset level, an assertion that needs its own `mkIf`, an upstream defect and
 the check that guards against its return. These are the comments worth writing at
