@@ -1,3 +1,9 @@
+## v0.2.3 (2026-09-03)
+
+### Fix
+
+- **yubikey-onboard**: close the gaps a default run could fall into
+
 ## v0.2.2 (2026-09-03)
 
 ### Fix
