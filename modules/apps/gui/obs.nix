@@ -6,7 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.obs;
 in {
   options.othrys.apps.obs = {
@@ -17,7 +16,7 @@ in {
     security.polkit.enable = true;
 
     # User-level OBS with plugins
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.obs" = {
       programs.obs-studio = {
         enable = true;
         package = pkgs.obs-studio.override {cudaSupport = true;};

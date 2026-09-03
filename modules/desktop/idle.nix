@@ -10,7 +10,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.desktop.idle;
   hyprlandEnabled = config.othrys.desktop.compositors.hyprland.enable;
 
@@ -83,7 +82,7 @@ in {
       }
     ];
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."desktop.idle" = {
       # The lock stage needs its locker on PATH even on bar-less hosts
       # (deduplicated with ashell's copy when both are enabled).
       home.packages =

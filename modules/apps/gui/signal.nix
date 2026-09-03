@@ -22,7 +22,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.signal" = {
       home.packages = with pkgs; [signal-desktop];
     };
   };

@@ -92,7 +92,7 @@ in {
       };
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.ai.claude" = {
       programs.claude-code = {
         enable = true;
         enableMcpIntegration = true;

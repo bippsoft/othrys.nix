@@ -167,7 +167,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.idea" = {
       home.packages = [idePackage];
     };
   };

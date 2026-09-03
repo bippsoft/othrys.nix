@@ -22,7 +22,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.mpv" = {
       programs.mpv = {
         enable = true;
 

@@ -8,7 +8,6 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.desktop.nightLight;
   manual = cfg.latitude != null && cfg.longitude != null;
 in {
@@ -64,7 +63,7 @@ in {
     # geoclue is only needed when no manual coordinates are provided.
     services.geoclue2.enable = lib.mkIf (!manual) true;
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."desktop.nightLight" = {
       services.gammastep = {
         enable = true;
         provider =

@@ -95,7 +95,7 @@ in {
         ];
       };
 
-      home-manager.users.${username} = {
+      othrys.internal.homeConfig."apps.floorp" = {
         stylix.targets.floorp = {
           enable = true;
           profileNames = ["default"];

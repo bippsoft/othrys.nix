@@ -14,7 +14,6 @@
   inputs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.desktop.compositors.niri;
 
   # A single action keybinding. The module defines the dispatcher and the
@@ -281,7 +280,7 @@ in {
         ]
         ++ lib.optional cfg.xwayland.enable pkgs.xwayland-satellite;
 
-      home-manager.users.${username} = {
+      othrys.internal.homeConfig."desktop.compositors.niri" = {
         programs.niri.settings = lib.mkMerge [
           generatedSettings
           cfg.settings

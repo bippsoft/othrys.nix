@@ -61,7 +61,7 @@ in {
         ];
       };
 
-      home-manager.users.${username} = {
+      othrys.internal.homeConfig."apps.vscode" = {
         imports = [
           # Language-specific extensions
           ./languages

@@ -70,7 +70,7 @@ in {
       };
 
       # Home-manager configuration for MangoHud
-      home-manager.users.${username} = {
+      othrys.internal.homeConfig."apps.gaming.mangohud" = {
         programs.mangohud = {
           enable = true;
 

@@ -6,7 +6,6 @@
   config,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.gaming.r2modman;
 
   # Wrap r2modman with Wayland flags to fix blurry rendering
@@ -39,7 +38,7 @@ in {
       }
     ];
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.gaming.r2modman" = {
       home.packages = [
         cfg.package
         pkgs.mono # Required for executing .NET/C# mods in Unity games

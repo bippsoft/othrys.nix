@@ -22,7 +22,7 @@ in {
       ];
     };
 
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.picard" = {
       home.packages = with pkgs; [
         picard
       ];

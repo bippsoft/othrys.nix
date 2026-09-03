@@ -30,7 +30,7 @@ in {
     };
 
     # Install PrismLauncher for the user via home-manager
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.gaming.prismlauncher" = {
       home.packages = [cfg.package];
     };
   };

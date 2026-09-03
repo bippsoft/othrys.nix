@@ -5,7 +5,6 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.ai.mcp.context7;
 in {
   options.othrys.apps.ai.mcp.context7 = {
@@ -19,7 +18,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home-manager.users.${username} = {
+    othrys.internal.homeConfig."apps.ai.mcp.context7" = {
       programs.mcp.servers.context7 = {
         url = "https://mcp.context7.com/mcp";
         headers =
