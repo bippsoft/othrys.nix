@@ -59,7 +59,15 @@
         secretKeyFile = "/run/secrets/grafana-secret-key";
       };
       othrys.services.alerting.enable = true;
-      othrys.services.ntfy.enable = true;
+      # Off-loopback deliberately. Upstream ntfy-sh defines settings.listen-http
+      # at mkDefault, and with the default listenAddress othrys computes the
+      # identical string, so a priority tie between the two merges silently and
+      # the fixture proves nothing. Any address upstream does not write keeps
+      # this eval failing if the generated leaves ever tie with upstream again.
+      othrys.services.ntfy = {
+        enable = true;
+        listenAddress = "0.0.0.0";
+      };
       othrys.services.notify.enable = true;
       othrys.hardware.smart.enable = true;
       othrys.services.containerization.docker.enable = true;

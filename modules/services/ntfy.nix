@@ -70,21 +70,22 @@ in {
       # so a consumer setting a nested key under `settings` replaced the whole
       # generated subtree rather than adding to it.
       #
-      # mkDefault sits on each generated leaf rather than on the attrset. A
-      # priority applies to a whole definition, so one mkDefault covering both
+      # The priority sits on each generated leaf rather than on the attrset,
+      # since a priority applies to a whole definition and one covering both
       # keys would be discarded entirely the moment a consumer names either one,
-      # taking the other with it. Per leaf, each competes on its own and a
-      # consumer setting base-url still gets the generated listen-http.
+      # taking the other with it.
       #
-      # Without the defaults, two normal-priority definitions of the same leaf
-      # collide, which would make `settings.base-url` an evaluation error rather
-      # than the override the description promises. lib.mkForce is not a
-      # workaround, since `settings` is attrsOf anything and that type discharges
-      # priorities here, so a mkForce inside it never reaches services.ntfy-sh.
+      # mkOverride 900 rather than mkDefault, and the difference is a real
+      # conflict. Upstream services.ntfy-sh defines settings.listen-http at
+      # mkDefault priority itself, and two definitions at the same priority with
+      # different values are an evaluation error, so any host that moved
+      # listenAddress off loopback collided with upstream. 900 beats upstream's
+      # 1000 and still loses to a consumer's plain definition at 100, so these
+      # stay overridable without ever tying.
       settings = lib.mkMerge [
         {
-          listen-http = lib.mkDefault "${cfg.listenAddress}:${toString cfg.port}";
-          base-url = lib.mkDefault cfg.baseUrl;
+          listen-http = lib.mkOverride 900 "${cfg.listenAddress}:${toString cfg.port}";
+          base-url = lib.mkOverride 900 cfg.baseUrl;
         }
         cfg.settings
       ];

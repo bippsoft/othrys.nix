@@ -15,16 +15,20 @@
 
   # Daemon defaults, merged into both the rootful and rootless settings.
   #
-  # mkDefault sits on each leaf rather than on the attrset, so a consumer
+  # The priority sits on each leaf rather than on the attrset, so a consumer
   # setting daemon.settings.log-driver overrides that one key and still gets the
   # generated storage-driver. A priority applies to a whole definition, so one
-  # mkDefault covering both would be discarded entirely the moment either key is
-  # named. Without the defaults at all, the two definitions collide and the
-  # override the description promises is an evaluation error instead.
+  # covering both would be discarded entirely the moment either key is named.
+  #
+  # mkOverride 900 rather than mkDefault, matching ntfy.nix. Upstream modules
+  # define their own settings leaves at mkDefault, and two definitions at the
+  # same priority with different values are an evaluation error rather than an
+  # override. No upstream leaf competes with these two today, and 900 keeps it
+  # from mattering when one does.
   daemonSettings = lib.mkMerge [
     {
-      log-driver = lib.mkDefault "journald";
-      storage-driver = lib.mkDefault "overlay2";
+      log-driver = lib.mkOverride 900 "journald";
+      storage-driver = lib.mkOverride 900 "overlay2";
     }
     cfg.daemon.settings
   ];
