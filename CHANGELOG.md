@@ -1,3 +1,9 @@
+## v0.3.0 (2026-09-03)
+
+### Feat
+
+- **yubikey-onboard**: encrypt the master key backup and verify before deleting
+
 ## v0.2.3 (2026-09-03)
 
 ### Fix
