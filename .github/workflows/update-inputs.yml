@@ -1,12 +1,31 @@
 name: Update Inputs
-# Weekly `nix flake update` as a PR. The PR title carries the "chore(flake)"
-# prefix, which build.yml uses to run the EXTENDED check tier (full-tree
-# evals, enable matrix, VM tests) on the update instead of just CORE, since input
-# bumps are exactly the changes that break deep surfaces.
+# Weekly `nix flake update` as a PR. It is opened and tested, never merged. An
+# input bump reaches main only when someone reads it, which is the point of
+# raising it as a PR rather than pushing the lockfile.
 #
-# PRs opened with the default GITHUB_TOKEN do not trigger workflows on
-# their own; the run is attached when the PR is first interacted with (or
-# configure a PAT in the `token` input to trigger immediately).
+# The PR title carries the "chore(flake)" prefix, which build.yml uses to run the
+# EXTENDED check tier (full-tree evals, enable matrix, VM tests) on the update
+# instead of just CORE, since input bumps are exactly the changes that break deep
+# surfaces.
+#
+# TOKEN. This needs a token other than the default GITHUB_TOKEN, supplied as the
+# FLAKE_UPDATE_TOKEN secret. Two separate GitHub behaviours make the default
+# token insufficient:
+#
+#  1. Creating a PR at all requires "Allow GitHub Actions to create and approve
+#     pull requests" in the repository settings. Without it the run fails with
+#     "GitHub Actions is not permitted to create or approve pull requests", which
+#     is how this workflow failed every week since the schedule started.
+#  2. More importantly, events raised by GITHUB_TOKEN do not start new workflow
+#     runs. A PR it opens therefore never fires build.yml, so `Core checks` and
+#     `Extended verdict` never report, and since both are required by branch
+#     protection the PR can never merge. Running the EXTENDED tier on these
+#     updates is the whole reason for testing them, so a bump that arrives with
+#     nothing run against it is the outcome to avoid.
+#
+# A PAT or GitHub App token raises events normally, so the checks attach on open.
+# The workflow falls back to GITHUB_TOKEN when the secret is absent so the update
+# still happens, and the guard below says plainly that the PR arrived untested.
 on:
   schedule:
     - cron: "0 5 * * 1"
@@ -21,15 +40,39 @@ jobs:
   update:
     name: Update flake inputs
     runs-on: ubuntu-latest
+    env:
+      UPDATE_TOKEN: ${{ secrets.FLAKE_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+      # Resolved here rather than in the step below, since the `secrets` context
+      # is not available in a step-level `if` and the guard would silently never
+      # fire if it read the secret directly.
+      HAS_DEDICATED_TOKEN: ${{ secrets.FLAKE_UPDATE_TOKEN != '' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Install Nix
         uses: DeterminateSystems/determinate-nix-action@4eea0b33e3d1f02ecfe37cf16e7204c424009606 # v3
       - name: Update flake.lock and open PR
+        id: update
         uses: DeterminateSystems/update-flake-lock@834c491b2ece4de0bbd00d85214bb5e83b4da5c6 # v28
         with:
+          token: ${{ env.UPDATE_TOKEN }}
           commit-msg: "chore(flake): update inputs"
           pr-title: "chore(flake): update inputs"
           pr-labels: |
             automated
             dependencies
+      # Says so once, on the run that produced the PR, rather than leaving
+      # someone to work out why a PR has no checks against it.
+      - name: Warn when running without a dedicated token
+        if: steps.update.outputs.pull-request-number != '' && env.HAS_DEDICATED_TOKEN != 'true'
+        run: |
+          {
+            echo "### This PR has no checks attached"
+            echo
+            echo "It was opened with the default \`GITHUB_TOKEN\`, and events raised"
+            echo "by that token do not start workflow runs. \`build.yml\` has not"
+            echo "fired, so \`Core checks\` and \`Extended verdict\` will never report."
+            echo "Branch protection requires both, so the PR cannot merge as it is."
+            echo
+            echo "Close and reopen the PR to attach a run, or add a"
+            echo "\`FLAKE_UPDATE_TOKEN\` secret so future updates arrive tested."
+          } >> "$GITHUB_STEP_SUMMARY"
