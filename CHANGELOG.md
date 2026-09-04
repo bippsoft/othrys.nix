@@ -1,3 +1,9 @@
+## v0.3.1 (2026-09-04)
+
+### Fix
+
+- **settings**: stop generated leaves tying with upstream mkDefault
+
 ## v0.3.0 (2026-09-03)
 
 ### Feat
