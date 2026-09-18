@@ -72,9 +72,12 @@ in {
         convenient.
 
         Setting this to true switches the control to `required`, so both the
-        password and the touch must succeed. Enrol and test a key before
-        turning it on, because a host with no working key and a required U2F
-        factor cannot be logged into.
+        password and the touch must succeed. The control applies to the whole
+        PAM service and not to one user, so every account on the host then
+        needs an enrolled credential for `login` and `sudo`. An account with
+        none is locked out of both, even while other accounts on the same host
+        work. Enrol and test a key for every account that logs in before
+        turning it on.
       '';
     };
 

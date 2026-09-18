@@ -34,9 +34,13 @@ worth defending against.
 
 `othrys.services.security.yubikey.u2fRequirePassword` switches the control to
 `required`, so the password and the touch must both succeed and the key becomes
-a second factor rather than a replacement for the first. Enrol and test a key
-before turning it on, since a host with a required U2F factor and no working
-key cannot be logged into.
+a second factor rather than a replacement for the first.
+
+The control applies to the whole PAM service and not to one user. Every account
+on the host then needs an enrolled credential for `login` and `sudo`, and an
+account with none is locked out of both while the other accounts keep working.
+Enrol and test a key for every account that logs in before turning it on, and
+count service and recovery accounts among them.
 
 ### Options
 
