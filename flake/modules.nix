@@ -26,8 +26,17 @@
     # Aggregate of the full module tree. Injects this flake's own source as the
     # `othrysSelf` module arg for modules that build from it (services/docs.nix),
     # so consumers don't need to thread it through specialArgs.
+    #
+    # niri-flake's module is imported here and not inside the tree. An import
+    # is evaluated on every host, and a module can only reach `inputs` through
+    # the consumer's specialArgs, so importing it from modules/ made every
+    # consumer declare a niri input whether or not they used niri. Here it
+    # comes from this flake's own lock.
     default = {
-      imports = [../modules];
+      imports = [
+        ../modules
+        inputs.niri.nixosModules.niri
+      ];
       _module.args.othrysSelf = inputs.self;
     };
 

@@ -11,7 +11,6 @@
   config,
   lib,
   pkgs,
-  inputs,
   ...
 }: let
   cfg = config.othrys.desktop.compositors.niri;
@@ -105,9 +104,9 @@
       };
     };
 in {
-  # niri-flake is self-contained, since its NixOS module is
-  # imported here directly, so consumers need no extra upstream import.
-  imports = [inputs.niri.nixosModules.niri];
+  # The niri-flake NixOS module that declares programs.niri is imported beside
+  # this file by nixosModules.default (see flake/modules.nix), from this flake's
+  # own inputs, so a consumer needs no niri input of their own.
 
   # ANCHOR: niri-options
   options.othrys.desktop.compositors.niri = {
