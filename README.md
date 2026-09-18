@@ -27,6 +27,18 @@ with NAT and an NFQUEUE hook, while you name the interfaces and subnets.
 
 ## Quick start
 
+```bash
+mkdir myhost && cd myhost
+nix flake init -t github:bippsoft/othrys.nix
+```
+
+The template is a minimal host with the five upstream imports and the mandatory
+options in place. A check instantiates it against this flake on every change,
+so it always evaluates. Replace `hardware.nix`, set the user and `stateVersion`
+in `configuration.nix`, and build with `nixos-rebuild build --flake .#myhost`.
+
+The same shape written out by hand, with a desktop enabled:
+
 ```nix
 {
   inputs = {

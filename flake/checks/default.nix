@@ -756,6 +756,19 @@
         }
       ];
 
+      # The default template, instantiated with its othrys input pointed at
+      # this flake and only the inputs a consumer would have. A template that
+      # stops matching the consumer contract, or the required options, fails
+      # here instead of in a new user's first build.
+      eval-template = pkgs.runCommand "othrys-eval-template" {
+        drv =
+          builtins.unsafeDiscardStringContext
+          ((import ../../templates/default/flake.nix).outputs {
+            othrys = inputs.self;
+            inherit (inputs) nixpkgs home-manager disko stylix sops-nix impermanence;
+          }).nixosConfigurations.myhost.config.system.build.toplevel.drvPath;
+      } "echo \"$drv\" > \"$out\"";
+
       # The SSH known hosts and client defaults (see ./ssh.nix).
       eval-ssh = import ./ssh.nix {inherit hostConfig mkExpectations functioningHost;};
 

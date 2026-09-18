@@ -147,6 +147,7 @@
         inputs.treefmt-nix.flakeModule
 
         ./flake/modules.nix # Exported nixosModules
+        ./flake/templates.nix # `nix flake init` starting points
         ./flake/packages.nix # Packaged scripts and tools
         ./flake/dev-shells.nix # Development environments
         ./flake/treefmt.nix # Multi-language formatter (nix fmt)

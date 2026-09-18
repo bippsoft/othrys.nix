@@ -4,6 +4,11 @@ Hosts compose modules by setting `othrys.*` options. Host configurations do not 
 
 ## Consuming the Module Library
 
+`nix flake init -t github:<owner>/othrys.nix` writes a minimal consuming flake
+with everything below already in place. The `eval-template` check instantiates
+that template with only the inputs a consumer has, so it cannot drift from the
+contract described here.
+
 A fleet flake takes othrys.nix as an input and builds hosts with `nixosSystem`, importing `nixosModules.default` (the full module tree) alongside the external modules the library builds on:
 
 ```nix
