@@ -95,6 +95,7 @@ jobs:
           - headscale-test
           - crowdsec-test
           - router-test
+          - router-ips-test
           - integration-test
           - impermanence-reboot-test
     steps:

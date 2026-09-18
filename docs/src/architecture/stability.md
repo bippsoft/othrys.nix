@@ -75,14 +75,15 @@ an empty root that compares the machine-id, the SSH host key and the journal
 directory before and after. The router stack also runs in a VM, where two LAN
 clients take Kea leases, resolve a local name through Unbound and reach a WAN
 host through the masquerade, while the default-drop input and forward chains are
-probed from the WAN and from the other LAN.
+probed from the WAN and from the other LAN. A second VM puts Suricata inline on
+the router's NFQUEUE hook and shows a local rule dropping a request, then stops
+Suricata and shows forwarded traffic still passing, which is the fail-open
+behavior the router documents.
 
 ## What the checks do not cover
 
 - **Graphical sessions.** No check starts a compositor, so treat the first boot
   of a new desktop surface as a smoke test.
-- **The inline IPS.** The documented fail-open behaviour of the NFQUEUE hook has
-  no runtime check.
 - **Secure Boot.** `eval-bootloader` evaluates every bootloader with
   `secureBoot` on and off, with and without lanzaboote imported. No check boots
   a VM under firmware Secure Boot.
