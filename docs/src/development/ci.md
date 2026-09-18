@@ -11,7 +11,8 @@ get fast feedback while the exhaustive suite still gates what lands:
   gate: lint (pre-commit), `secret-scan` (gitleaks over every tracked file), the docs build, `eval-host-min` (a minimal
   functioning host evaluates), the four server-contract evals
   (`eval-host-headless`, `eval-host-server`, `eval-host-anonymous`,
-  `eval-host-server-account`), and `impermanence-test` (the persistence and
+  `eval-host-server-account`), `eval-bootloader` (every bootloader type with
+  `secureBoot` off and on), and `impermanence-test` (the persistence and
   root-wipe invariant, the defining principle of the system). Small closures.
 - **Extended** (`extended` job) runs on push to `main`, manual
   `workflow_dispatch`, and input-update PRs titled `chore(flake)`, since input
@@ -29,7 +30,7 @@ locally still runs **every** check regardless of tier.
 
 | File | Jobs | Purpose |
 |------|------|---------|
-| `build.yml` | **core** | Every PR/push: lint, docs, `eval-host-min`, the server-contract evals, `impermanence-test` (fast gate) |
+| `build.yml` | **core** | Every PR/push: lint, docs, `eval-host-min`, the server-contract evals, `eval-bootloader`, `impermanence-test` (fast gate) |
 | `build.yml` | **extended** | main, manual dispatch, `chore(flake)` PRs: a matrix of whole-tree evals, `enable-matrix` and the four runtime VM tests, one runner each |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |
 | `flake-inputs.yml` | **flake-inputs** | Freshness/advisory check for the flake lock (runs when `flake.{lock,nix}` change, plus weekly) |

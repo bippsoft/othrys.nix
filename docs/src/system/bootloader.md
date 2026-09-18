@@ -50,7 +50,7 @@ Without that import, `secureBoot = true` on `"systemd-boot"` fails evaluation wi
 ### Limits
 
 - No option exists for TPM measured boot. Lanzaboote's `boot.lanzaboote.measuredBoot` options are left for the host to set directly.
-- No check boots a VM under firmware Secure Boot, so the checks prove evaluation only.
+- The `eval-bootloader` check evaluates every type with `secureBoot` off and on, and reads back the loader options each combination sets. No check boots a VM under firmware Secure Boot, so the checks prove evaluation only.
 
 ## Dual Boot
 

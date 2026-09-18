@@ -515,6 +515,14 @@
         }
       ];
 
+      # Every bootloader type with secureBoot off and on (see ./bootloader.nix).
+      # Every other fixture carries its own GRUB and leaves the bootloader
+      # module off, and the enable matrix lists it as an expected failure for
+      # the same reason, so nothing else evaluates it.
+      eval-bootloader = import ./bootloader.nix {
+        inherit pkgs inputs system upstreamModules bootCore;
+      };
+
       # EXTENDED, heavy, main and manual dispatch
 
       # The same contract over every app and desktop module that writes per-user
