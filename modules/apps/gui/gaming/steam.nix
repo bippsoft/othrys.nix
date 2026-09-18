@@ -95,8 +95,13 @@ in {
 
     dedicatedServer.openFirewall = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Open firewall ports for Source Dedicated Server.";
+      default = false;
+      description = ''
+        Open firewall ports for Source Dedicated Server, TCP and UDP 27015.
+        Off by default, since a host that plays games does not also serve
+        them, while Remote Play and LAN transfers are client features and
+        stay open.
+      '';
     };
 
     localNetworkGameTransfers.openFirewall = lib.mkOption {
