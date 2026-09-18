@@ -83,8 +83,14 @@ in {
     package = lib.mkOption {
       type = lib.types.package;
       readOnly = true;
-      default = configuredSteam;
-      description = "The configured Steam package with extra packages.";
+      default = config.programs.steam.package;
+      defaultText = lib.literalExpression "config.programs.steam.package";
+      description = ''
+        The Steam package as installed, after nixpkgs adds the graphics
+        drivers, fonts, and compatibility tool paths to the FHS environment.
+        Read this when wrapping Steam, since a package taken before that step
+        starts without a working GPU driver.
+      '';
     };
 
     remotePlay.openFirewall = lib.mkOption {
@@ -195,7 +201,7 @@ in {
         package = lib.mkDefault pkgs.protontricks;
       };
 
-      inherit (cfg) package;
+      package = configuredSteam;
 
       # Use combined list of default + user extras
       extraCompatPackages = finalCompatPackages;
