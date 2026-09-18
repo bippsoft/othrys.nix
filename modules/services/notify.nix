@@ -45,7 +45,9 @@
 
       if [ -n "$tokensrc" ]; then
         umask 077
-        hdrfile="$(${pkgs.coreutils}/bin/mktemp)"
+        # An interactive run lands on the per-user tmpfs. The unit has no
+        # XDG_RUNTIME_DIR and falls back to its private /tmp.
+        hdrfile="$(${pkgs.coreutils}/bin/mktemp -p "''${XDG_RUNTIME_DIR:-/tmp}")"
         trap 'rm -f "$hdrfile"' EXIT
         printf 'Authorization: Bearer %s\n' "$(cat "$tokensrc")" > "$hdrfile"
         auth=(-H "@$hdrfile")
