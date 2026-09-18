@@ -41,6 +41,7 @@ ______________________________________________________________________
 - [Adding Modules](./guides/adding-modules.md)
 - [Theming](./guides/theming.md)
 - [YubiKey Onboarding](./guides/yubikey-onboard.md)
+- [Secure Boot](./guides/secure-boot.md)
 
 # Development
 

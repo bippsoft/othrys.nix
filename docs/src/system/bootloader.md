@@ -28,6 +28,8 @@ When `othrys.system.bootloader.secureBoot = true`:
 - With `"limine"`, `boot.loader.limine.secureBoot.enable` is set and Limine signs itself with the sbctl keys
 - With `"systemd-boot"`, `boot.lanzaboote` is enabled with `pkiBundle = "/var/lib/sbctl"`, and `boot.loader.systemd-boot.enable` goes to `false` because lanzaboote installs and signs systemd-boot itself
 
+The [Secure Boot guide](../guides/secure-boot.md) walks through key creation and enrollment.
+
 ### systemd-boot needs lanzaboote
 
 `nixosModules.default` does not import lanzaboote, so a host that never enables Secure Boot on systemd-boot needs no extra input. A host that does adds the input and the module in the consuming flake:
