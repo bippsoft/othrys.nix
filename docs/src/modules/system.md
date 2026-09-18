@@ -43,6 +43,64 @@ by default, randomized delay so a fleet doesn't stampede the repo host).
 Reboots are opt-in and window-confined, and failures push through
 `othrys-notify` when the notify module is enabled.
 
+### Signature verification
+
+Verification is off by default. With it off, `nixos-rebuild` follows whatever
+`flake` resolves to and nothing checks a signature, so whoever can push to the
+repository or answer the fetch decides what the host runs as root.
+
+With `verify.enable` on, `flake` stays unset and the host names a git URL
+instead. A oneshot unit, `othrys-auto-upgrade-verify.service`, fetches that URL
+and verifies the target before every upgrade. `nixos-upgrade.service` requires
+the unit and is ordered after it, so a failed verification means no rebuild. The
+unit carries the same `othrys-notify` failure hook as the upgrade. The rebuild
+then reads a local checkout of the verified commit and never the network.
+
+```nix
+othrys.system.autoUpgrade = {
+  enable = true;
+  verify = {
+    enable = true;
+    url = "https://example.com/alice/hosts.git";
+    publicKeys = [./keys/alice.asc];
+  };
+};
+```
+
+- **What is verified**: in `commit` mode the tip of `verify.ref` has to pass
+  `git verify-commit`. Only the tip is checked, since a signer who signs a commit
+  vouches for the history beneath it. In `tag` mode the highest tag matching
+  `verify.tagPattern` by version sort has to pass `git verify-tag`, and the host
+  upgrades to the commit it points at. A newer tag that is unsigned or lightweight
+  stops upgrades until it is removed, because falling back to an older tag would
+  let anyone with push access hold a host back.
+- **Which keys count**: only the files in `verify.publicKeys`, or the entries of
+  `verify.allowedSigners` for `format = "ssh"`. OpenPGP keys are imported into a
+  keyring that exists for one run, and the unit reads no other git or GnuPG
+  configuration. A signature in the format that is not configured fails. These
+  keys are trust roots, so they belong in the host configuration. The generation
+  a host currently runs fixes them, which means rotating a key takes a commit
+  signed by a key that is still listed. The unit never takes a key from the
+  repository it is verifying.
+- **What the signature covers**: the commit, which includes `flake.lock`. The
+  lock file pins every input by hash, so one signature fixes every input
+  along with the repository's own files. Flags that replace locked inputs
+  (`--update-input`, `--recreate-lock-file`, `--override-input`) fail an
+  assertion when `verify` is on.
+- **Rollback rule**: the last verified commit id is kept in
+  `/var/lib/othrys-auto-upgrade-verify/last-verified`. A new target that does not
+  descend from it fails the unit, which stops a validly signed but older commit
+  from being replayed. After a deliberate history rewrite, delete that file and
+  the next run accepts the new history. The directory is persisted when
+  impermanence is on.
+- **Failure behaviour**: any failure leaves the previous checkout in place, exits
+  non-zero and logs one line naming the reason.
+
+The fetch is anonymous, so the repository has to be readable without
+credentials. The unit is sandboxed like `notify-failure@` but runs as root
+without capabilities, because Nix refuses to read a git repository owned by
+another user and the rebuild reads the checkout as root.
+
 ### Options
 
 ```nix
