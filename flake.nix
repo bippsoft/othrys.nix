@@ -30,6 +30,9 @@
       # second nixpkgs this input costs. Left alone because no check here can
       # prove a packaging swap leaves a live session behaving the same.
       url = "github:hyprwm/Hyprland";
+      # Only upstream's own checks and dev shell read this, so following ours
+      # leaves the package hashes alone and drops a second copy from the lock.
+      inputs.pre-commit-hooks.follows = "git-hooks";
     };
 
     ashell = {
@@ -73,6 +76,7 @@
     impermanence = {
       url = "github:nix-community/impermanence";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
     };
 
     # Nixvim - Neovim configuration with Nix modules
