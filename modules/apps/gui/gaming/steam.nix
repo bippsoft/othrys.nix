@@ -203,11 +203,6 @@ in {
       gamescopeSession.enable = cfg.gamescopeSession.enable;
     };
 
-    # Environment variables for Steam
-    environment.sessionVariables = {
-      STEAM_EXTRA_COMPAT_TOOLS_PATHS = "\${HOME}/.steam/root/compatibilitytools.d";
-    };
-
     # The file sits inside the Steam tree persisted above, so the home-manager
     # symlink survives a reboot on impermanence hosts. Steam only reads the
     # file, which makes a store symlink safe there.
