@@ -72,6 +72,22 @@ Every commit on main evaluates: the three server-contract host shapes
 `othrys.*.enable` flipped on with defaults (the enable matrix), the
 impermanence wipe-script behavior against real btrfs, and a reboot of a VM with
 an empty root that compares the machine-id, the SSH host key and the journal
-directory before and after. What the checks do
-not cover is runtime behavior of graphical sessions, so treat first boots of
-new desktop surfaces as smoke tests.
+directory before and after.
+
+## What the checks do not cover
+
+- **Graphical sessions.** No check starts a compositor, so treat the first boot
+  of a new desktop surface as a smoke test.
+- **The router.** `othrys.services.router`, `kea` and `unbound` are evaluated
+  and never run. Nothing proves NAT, the forward-drop default or DHCP at
+  runtime.
+- **The inline IPS.** The documented fail-open behaviour of the NFQUEUE hook has
+  no runtime check.
+- **Secure Boot.** The Limine Secure Boot path is evaluated. No check boots a VM
+  under firmware Secure Boot.
+- **Auto-upgrade.** `othrys.system.autoUpgrade` is evaluated and never run.
+- **Platforms other than `x86_64-linux`.** No check evaluates the modules for
+  another system.
+
+The [Security Model](./security-model.md) lists the design limits, as opposed to
+the testing limits here.
