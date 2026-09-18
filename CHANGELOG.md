@@ -6,17 +6,32 @@
 
 ## v0.3.0 (2026-09-03)
 
+### Known issue
+
+- A host that sets `othrys.services.ntfy.listenAddress` to anything off loopback
+  fails evaluation on this tag. Fixed in v0.3.1.
+
 ### Feat
 
 - **yubikey-onboard**: encrypt the master key backup and verify before deleting
 
 ## v0.2.3 (2026-09-03)
 
+### Known issue
+
+- A host that sets `othrys.services.ntfy.listenAddress` to anything off loopback
+  fails evaluation on this tag. Fixed in v0.3.1.
+
 ### Fix
 
 - **yubikey-onboard**: close the gaps a default run could fall into
 
 ## v0.2.2 (2026-09-03)
+
+### Known issue
+
+- A host that sets `othrys.services.ntfy.listenAddress` to anything off loopback
+  fails evaluation on this tag. Fixed in v0.3.1.
 
 ### Fix
 
