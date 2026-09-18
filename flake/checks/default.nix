@@ -756,6 +756,9 @@
         }
       ];
 
+      # The Traefik TLS floor and header defaults (see ./traefik.nix).
+      eval-traefik = import ./traefik.nix {inherit hostConfig mkExpectations bootBase;};
+
       # EXTENDED. Enable-with-defaults matrix (see ./enable-matrix.nix).
       enable-matrix = import ./enable-matrix.nix {
         inherit pkgs inputs system upstreamModules bootCore bootBase functioningHost;

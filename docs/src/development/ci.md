@@ -14,7 +14,8 @@ get fast feedback while the exhaustive suite still gates what lands:
   `eval-host-server-account`), `eval-bootloader` (every bootloader type with
   `secureBoot` off and on), `eval-host-hardening` and
   `eval-host-hardening-hibernate` (the hardening profile's values read back,
-  and its hibernation assertion), and `impermanence-test` (the persistence and
+  and its hibernation assertion), `eval-traefik` (the Traefik TLS floor and
+  header defaults read back), and `impermanence-test` (the persistence and
   root-wipe invariant, the defining principle of the system). Small closures.
 - **Extended** (`extended` job) runs on push to `main`, manual
   `workflow_dispatch`, and input-update PRs titled `chore(flake)`, since input

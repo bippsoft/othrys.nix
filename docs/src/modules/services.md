@@ -25,6 +25,7 @@ Service modules under `othrys.services.*`.
 | Suricata | `othrys.services.suricata` | IDS/IPS (NFQUEUE or AF_PACKET inline) |
 | Kea | `othrys.services.kea` | Kea DHCPv4/DHCPv6 server |
 | Unbound | `othrys.services.unbound` | Recursive DNS (DoT upstream, RPZ blocklists) |
+| Traefik | `othrys.services.traefik` | Reverse proxy with DNS-01 ACME, a TLS floor and security headers |
 | Restic | `othrys.services.restic` | Scheduled restic backups (secrets via file paths) |
 | Virtual Camera | `othrys.services.virtualcamera` | Virtual camera support |
 | Printing | `othrys.services.printing` | CUPS printing |
@@ -489,6 +490,48 @@ port.
 
 ```nix
 {{#include ../../../modules/services/wireguard.nix:wireguard-options}}
+```
+
+## Traefik
+
+[Traefik](https://traefik.io/) as the edge reverse proxy, a wrapper over
+`services.traefik`. The module builds the static configuration for the `web`
+and `websecure` entrypoints, the HTTPS redirect and a DNS-01 ACME resolver.
+Routers, services and further middlewares go through `dynamicConfigOptions`,
+which is merged on top of what the module generates.
+
+Two sets of defaults apply to every router behind `websecure`.
+
+The default TLS options set `minVersion = "VersionTLS12"`, since Traefik itself
+still admits TLS 1.0 and 1.1. With ACME on they also set `sniStrict`, so a
+connection whose server name matches no certificate is refused instead of being
+answered with the self-signed default certificate. A request to the bare IP
+address is refused for the same reason.
+
+A headers middleware named `othrys-security-headers` is attached at the
+entrypoint. It sends `Strict-Transport-Security` for one year, without
+subdomains or preload, `X-Content-Type-Options: nosniff`, and
+`X-Frame-Options: SAMEORIGIN`. The frame header breaks a dashboard that another
+host name embeds in an iframe. Give that router its own headers middleware, or
+change `securityHeaders.frameOptions`.
+
+Each default has its own switch.
+
+```nix
+othrys.services.traefik = {
+  tls.minVersion = null;                  # Traefik's own default
+  tls.sniStrict = false;
+  securityHeaders.hstsSeconds = 0;        # no HSTS header
+  securityHeaders.contentTypeNosniff = false;
+  securityHeaders.frameOptions = null;    # no X-Frame-Options header
+  securityHeaders.enable = false;         # attach no middleware at all
+};
+```
+
+### Options
+
+```nix
+{{#include ../../../modules/services/traefik.nix:traefik-options}}
 ```
 
 ## DDNS

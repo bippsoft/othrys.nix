@@ -29,10 +29,16 @@
             };
           };
         websecure =
-          {address = ":443";}
-          // lib.optionalAttrs cfg.acme.enable {
-            http.tls.certResolver = cfg.acme.resolver;
-          };
+          lib.recursiveUpdate (
+            {address = ":443";}
+            // lib.optionalAttrs cfg.acme.enable {
+              http.tls.certResolver = cfg.acme.resolver;
+            }
+          ) (lib.optionalAttrs headersOn {
+            # Attached at the entrypoint so every router behind it gets the
+            # headers without naming the middleware itself.
+            http.middlewares = ["${headersMiddleware}@file"];
+          });
       };
     }
     // lib.optionalAttrs cfg.dashboard.enable {
@@ -52,7 +58,35 @@
           };
       };
     };
+
+  headersMiddleware = "othrys-security-headers";
+  headers =
+    lib.optionalAttrs (cfg.securityHeaders.hstsSeconds > 0) {
+      stsSeconds = cfg.securityHeaders.hstsSeconds;
+    }
+    // lib.optionalAttrs cfg.securityHeaders.contentTypeNosniff {
+      contentTypeNosniff = true;
+    }
+    // lib.optionalAttrs (cfg.securityHeaders.frameOptions != null) {
+      customFrameOptionsValue = cfg.securityHeaders.frameOptions;
+    };
+  headersOn = cfg.securityHeaders.enable && headers != {};
+
+  # Dynamic config assembled from the options. dynamicConfigOptions is merged
+  # on top, so a host can replace any value here, tls.options.default included.
+  generatedDynamic =
+    {
+      tls.options.default =
+        {inherit (cfg.tls) sniStrict;}
+        // lib.optionalAttrs (cfg.tls.minVersion != null) {
+          inherit (cfg.tls) minVersion;
+        };
+    }
+    // lib.optionalAttrs headersOn {
+      http.middlewares.${headersMiddleware}.headers = headers;
+    };
 in {
+  # ANCHOR: traefik-options
   options.othrys.services.traefik = {
     enable = lib.mkEnableOption "Traefik reverse proxy";
 
@@ -120,6 +154,75 @@ in {
       };
     };
 
+    tls = {
+      minVersion = lib.mkOption {
+        type = lib.types.nullOr (lib.types.enum ["VersionTLS12" "VersionTLS13"]);
+        default = "VersionTLS12";
+        description = ''
+          Lowest TLS version the default TLS options accept. Traefik's own
+          default admits TLS 1.0 and 1.1. `null` leaves Traefik's default in
+          place.
+        '';
+      };
+
+      sniStrict = lib.mkOption {
+        type = lib.types.bool;
+        default = cfg.acme.enable;
+        defaultText = lib.literalExpression "config.othrys.services.traefik.acme.enable";
+        description = ''
+          Refuse a TLS connection whose server name matches no certificate,
+          instead of answering with Traefik's self-signed default certificate.
+          A request made to the bare IP address is refused as well.
+
+          On by default when ACME issues the certificates, since every routed
+          host then has one. Off by default otherwise, because a proxy with no
+          certificate of its own would refuse every connection.
+        '';
+      };
+    };
+
+    securityHeaders = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Attach a headers middleware to the websecure entrypoint, so every
+          router behind it sends the headers below. A router that needs
+          different values sets its own headers middleware, which runs after
+          this one and wins. Set to `false` to attach nothing.
+        '';
+      };
+
+      hstsSeconds = lib.mkOption {
+        type = lib.types.ints.unsigned;
+        default = 31536000;
+        description = ''
+          `max-age` of the `Strict-Transport-Security` header, one year by
+          default. Subdomains are not included and preload is not requested,
+          since both reach past the hosts this proxy serves. `0` sends no HSTS
+          header.
+        '';
+      };
+
+      contentTypeNosniff = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Send `X-Content-Type-Options: nosniff`.";
+      };
+
+      frameOptions = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = "SAMEORIGIN";
+        example = "DENY";
+        description = ''
+          Value of the `X-Frame-Options` header. The default lets a site frame
+          its own pages and stops other origins from framing them, which breaks
+          a dashboard embedded from a different host name. `null` sends no such
+          header.
+        '';
+      };
+    };
+
     environmentFiles = lib.mkOption {
       type = lib.types.listOf othrysTypes.secretPath;
       default = [];
@@ -145,9 +248,11 @@ in {
     dynamicConfigOptions = lib.mkOption {
       type = lib.types.attrsOf lib.types.anything;
       default = {};
-      description = "Dynamic configuration (routers, services, middlewares, TLS).";
+      description = "Dynamic configuration (routers, services, middlewares, TLS), merged on top of the generated TLS options and headers middleware.";
     };
   };
+
+  # ANCHOR_END: traefik-options
 
   config = lib.mkIf cfg.enable {
     assertions = [
@@ -163,7 +268,8 @@ in {
 
     services.traefik = {
       enable = true;
-      inherit (cfg) dataDir group environmentFiles dynamicConfigOptions;
+      inherit (cfg) dataDir group environmentFiles;
+      dynamicConfigOptions = lib.recursiveUpdate generatedDynamic cfg.dynamicConfigOptions;
       staticConfigOptions = lib.recursiveUpdate generatedStatic cfg.staticConfigOptions;
     };
 
