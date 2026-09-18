@@ -1,0 +1,48 @@
+name: Bug report
+description: A module evaluates wrongly, fails to build, or misbehaves at runtime.
+labels: [bug]
+body:
+  - type: input
+    id: revision
+    attributes:
+      label: othrys.nix revision
+      description: The tag or commit your flake.lock pins.
+      placeholder: v0.4.0
+    validations:
+      required: true
+  - type: input
+    id: module
+    attributes:
+      label: Module and option
+      placeholder: othrys.services.restic
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Minimal configuration
+      description: The smallest host configuration that shows the problem. Use placeholders such as alice and example.com, and leave out secrets.
+      render: nix
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the evaluation error, build log or unit log.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: ai
+    attributes:
+      label: AI assistance
+      description: AI_POLICY.md requires disclosure. Name the tool and how much of this report it wrote, or write "none".
+    validations:
+      required: true

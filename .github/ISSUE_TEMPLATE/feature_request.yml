@@ -1,0 +1,29 @@
+name: Feature request
+description: A new module, a new option, or a change to an existing one.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What a host cannot express today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed option shape
+      description: The options you have in mind, with types and defaults.
+      render: nix
+  - type: textarea
+    id: contract
+    attributes:
+      label: Effect on consumers
+      description: Whether existing hosts need to change, and whether the consumer contract in CONTRIBUTING.md is touched.
+  - type: textarea
+    id: ai
+    attributes:
+      label: AI assistance
+      description: AI_POLICY.md requires disclosure. Name the tool and how much of this request it wrote, or write "none".
+    validations:
+      required: true

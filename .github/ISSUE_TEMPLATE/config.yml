@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/bippsoft/othrys.nix/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue for them.
+  - name: Documentation
+    url: https://bippsoft.github.io/othrys.nix/
+    about: Module reference, architecture and guides.

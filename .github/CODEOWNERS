@@ -1,0 +1,5 @@
+# Review ownership. The last matching pattern wins.
+*         @bippsoft/maintainers
+
+# Workflows hold the repository's tokens and publish its artifacts.
+/.github/ @bippsoft/maintainers
