@@ -24,5 +24,6 @@ All external dependencies are declared in `flake.nix`:
 | `git-hooks` | Pre-commit validation (treefmt, Statix, Deadnix) |
 | `treefmt-nix` | Multi-language formatter behind `nix fmt` |
 | `sops-nix` | Secrets management with age encryption |
+| `lanzaboote` | Secure Boot for systemd-boot (read by the checks only, since no module imports it and a consumer who wants it declares their own) |
 
 The private `secrets` input is declared only in the consuming fleet flake, never here, since this flake must remain evaluable by anyone. A consuming flake typically declares its own inputs as `follows = "othrys/<name>"` so hosts build against the exact versions this library is locked to (see [Host Configuration](./host-configuration.md)).

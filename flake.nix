@@ -116,6 +116,21 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Lanzaboote, Secure Boot for systemd-boot. Pinned to a release tag, which
+    # is what upstream asks consumers to track. No module imports it. It is
+    # here so flake/checks can evaluate the systemd-boot Secure Boot path, and
+    # a consumer who wants that path imports the module from their own input.
+    lanzaboote = {
+      url = "github:nix-community/lanzaboote/v1.1.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+      # Upstream names this input after the repository's former name. It is
+      # the project this flake carries as git-hooks.
+      inputs.pre-commit.follows = "git-hooks";
+      # crane and rust-overlay stay unfollowed. This flake declares neither,
+      # and the copies ashell brings are pinned for ashell's toolchain rather
+      # than for the lzbt build.
+    };
   };
   # ANCHOR_END: inputs
 
