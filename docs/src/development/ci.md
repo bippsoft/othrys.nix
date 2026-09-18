@@ -18,8 +18,8 @@ get fast feedback while the exhaustive suite still gates what lands:
   `workflow_dispatch`, and input-update PRs titled `chore(flake)`, since input
   bumps are exactly the changes that break deep surfaces. A matrix fans the suite out, one runner per check:
   `eval-default` and the two desktop evals, `enable-matrix` (every module
-  enabled with defaults), and the five runtime VM tests (`restic-test`,
-  `headscale-test`, `crowdsec-test`, `integration-test`,
+  enabled with defaults), and the runtime VM tests (`restic-test`,
+  `headscale-test`, `crowdsec-test`, `router-test`, `integration-test`,
   `impermanence-reboot-test`).
 
 Core builds its checks in one `nix build`; each extended matrix leg builds one check, and unchanged
@@ -31,7 +31,7 @@ locally still runs **every** check regardless of tier.
 | File | Jobs | Purpose |
 |------|------|---------|
 | `build.yml` | **core** | Every PR/push: lint, docs, `eval-host-min`, the server-contract evals, `eval-bootloader`, `impermanence-test` (fast gate) |
-| `build.yml` | **extended** | main, manual dispatch, `chore(flake)` PRs: a matrix of whole-tree evals, `enable-matrix` and the four runtime VM tests, one runner each |
+| `build.yml` | **extended** | main, manual dispatch, `chore(flake)` PRs: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |
 | `flake-inputs.yml` | **flake-inputs** | Freshness/advisory check for the flake lock (runs when `flake.{lock,nix}` change, plus weekly) |
 | `scorecard.yml` | **analysis** | OpenSSF Scorecard on `main`, weekly, and on branch protection changes. Publishes the score behind the README badge and uploads findings to code scanning |

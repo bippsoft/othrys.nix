@@ -633,6 +633,7 @@
       crowdsec-test = import ./crowdsec.nix {inherit pkgs inputs;};
       headscale-test = import ./headscale.nix {inherit pkgs inputs;};
       impermanence-reboot-test = import ./impermanence-reboot.nix {inherit pkgs inputs;};
+      router-test = import ./router.nix {inherit pkgs inputs;};
 
       # CORE. Pre-commit hooks check (treefmt formats, statix and deadnix lint,
       # comment-hygiene enforces the CONTRIBUTING.md comment conventions).

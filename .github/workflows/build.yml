@@ -94,6 +94,7 @@ jobs:
           - restic-test
           - headscale-test
           - crowdsec-test
+          - router-test
           - integration-test
           - impermanence-reboot-test
     steps:

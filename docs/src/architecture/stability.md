@@ -72,15 +72,15 @@ Every commit on main evaluates: the three server-contract host shapes
 `othrys.*.enable` flipped on with defaults (the enable matrix), the
 impermanence wipe-script behavior against real btrfs, and a reboot of a VM with
 an empty root that compares the machine-id, the SSH host key and the journal
-directory before and after.
+directory before and after. The router stack also runs in a VM, where two LAN
+clients take Kea leases, resolve a local name through Unbound and reach a WAN
+host through the masquerade, while the default-drop input and forward chains are
+probed from the WAN and from the other LAN.
 
 ## What the checks do not cover
 
 - **Graphical sessions.** No check starts a compositor, so treat the first boot
   of a new desktop surface as a smoke test.
-- **The router.** `othrys.services.router`, `kea` and `unbound` are evaluated
-  and never run. Nothing proves NAT, the forward-drop default or DHCP at
-  runtime.
 - **The inline IPS.** The documented fail-open behaviour of the NFQUEUE hook has
   no runtime check.
 - **Secure Boot.** `eval-bootloader` evaluates every bootloader with
