@@ -25,6 +25,19 @@ shader caches they depend on live in `~/.cache` and NVIDIA's is capped at
 [Hardware](hardware.md)) or large Vulkan titles recompile shaders every
 launch on impermanence hosts.
 
+Steam deletes every game's compiled shader cache when the GPU driver version
+changes, so each driver update is followed by one full recompile per game. Two
+passes do that work. The background pass drains the queue while Steam is idle,
+and only runs once "Allow background processing of Vulkan shaders" is enabled in
+Steam under Settings, Downloads. The pre-launch pass covers whatever is left and
+blocks the game behind the "Processing Vulkan shaders" dialog. With nothing set,
+the pre-launch pass was measured at about 16 pipelines per second on a 32-thread
+desktop, where the same replay reaches 223 per second at 28 threads.
+`shaderPrecache.backgroundThreads` and `shaderPrecache.highPriorityThreads` pin
+the thread count of each pass. Both render into
+`~/.local/share/Steam/steam_dev.cfg`, which the client reads as a console script
+at start, and `devConfig` writes any other console variable into the same file.
+
 ## GameMode
 
 Performance optimization with per-application settings:
