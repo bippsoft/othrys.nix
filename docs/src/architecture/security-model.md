@@ -82,8 +82,11 @@ next unlock.
 
 Secure Boot closes that gap by having the firmware verify what it loads.
 `othrys.system.bootloader.secureBoot` supports it on Limine, which is the
-default bootloader. It has no effect on `systemd-boot` or GRUB. See
-[Bootloader & Secure Boot](../system/bootloader.md).
+default bootloader, and on `systemd-boot` through lanzaboote when the consuming
+flake imports that module. GRUB has no Secure Boot path in NixOS and the option
+is rejected there. The firmware enforces nothing until the keys are enrolled,
+which is a manual step. See [Bootloader & Secure Boot](../system/bootloader.md)
+and the [Secure Boot guide](../guides/secure-boot.md).
 
 No measured boot option exists. The LUKS key is not bound to TPM PCR values, so
 a changed boot chain does not by itself prevent an unlock.

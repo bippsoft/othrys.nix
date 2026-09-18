@@ -83,8 +83,9 @@ directory before and after.
   runtime.
 - **The inline IPS.** The documented fail-open behaviour of the NFQUEUE hook has
   no runtime check.
-- **Secure Boot.** The Limine Secure Boot path is evaluated. No check boots a VM
-  under firmware Secure Boot.
+- **Secure Boot.** `eval-bootloader` evaluates every bootloader with
+  `secureBoot` on and off, with and without lanzaboote imported. No check boots
+  a VM under firmware Secure Boot.
 - **Auto-upgrade.** `othrys.system.autoUpgrade` is evaluated and never run.
 - **Platforms other than `x86_64-linux`.** No check evaluates the modules for
   another system.
