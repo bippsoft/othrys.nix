@@ -13,6 +13,7 @@
   ...
 }: let
   cfg = config.othrys.system.autoUpgrade;
+  sandbox = import ../lib/sandbox.nix;
   notifyEnabled = config.othrys.services.notify.enable;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -331,32 +332,16 @@ in {
         after = ["network-online.target"];
         wants = ["network-online.target"];
         onFailure = lib.mkIf notifyEnabled ["notify-failure@%n.service"];
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = lib.getExe verifyScript;
-          StateDirectory = verifyUnit;
-          RuntimeDirectory = verifyUnit;
-          RuntimeDirectoryMode = "0700";
-
-          PrivateTmp = true;
-          PrivateDevices = true;
-          ProtectSystem = "strict";
-          ProtectHome = true;
-          ProtectKernelTunables = true;
-          ProtectKernelModules = true;
-          ProtectControlGroups = true;
-          RestrictNamespaces = true;
-          RestrictRealtime = true;
-          RestrictSUIDSGID = true;
-          RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
-          LockPersonality = true;
-          MemoryDenyWriteExecute = true;
-          SystemCallArchitectures = "native";
-          SystemCallFilter = ["@system-service" "~@privileged" "~@resources"];
-          CapabilityBoundingSet = [""];
-          AmbientCapabilities = [""];
-          NoNewPrivileges = true;
-        };
+        serviceConfig =
+          sandbox.baseline
+          // {
+            Type = "oneshot";
+            ExecStart = lib.getExe verifyScript;
+            StateDirectory = verifyUnit;
+            RuntimeDirectory = verifyUnit;
+            RuntimeDirectoryMode = "0700";
+            RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
+          };
       };
 
       # The last verified commit is what the rollback rule compares against,
