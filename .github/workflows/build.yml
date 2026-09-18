@@ -40,6 +40,7 @@ jobs:
         run: |
           nix build --no-link --print-build-logs \
             '.#checks.x86_64-linux.pre-commit-check' \
+            '.#checks.x86_64-linux.secret-scan' \
             '.#checks.x86_64-linux.docs' \
             '.#checks.x86_64-linux.eval-host-min' \
             '.#checks.x86_64-linux.eval-host-headless' \

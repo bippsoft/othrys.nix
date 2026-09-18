@@ -657,8 +657,28 @@
             entry = "${contractGuards}/bin/contract-guards";
             pass_filenames = false;
           };
+
+          # contract-guards covers where a secret may be referenced. This
+          # covers content, scanning what is staged for anything shaped like
+          # a key or a token before it reaches a public history.
+          gitleaks = {
+            enable = true;
+            name = "gitleaks";
+            entry = "${pkgs.gitleaks}/bin/gitleaks git --pre-commit --staged --redact --no-banner";
+            pass_filenames = false;
+          };
         };
       };
+
+      # CORE. The hook above only sees what one commit stages. This scans every
+      # tracked file, so a secret that arrived any other way still fails CI.
+      secret-scan =
+        pkgs.runCommand "othrys-secret-scan" {
+          nativeBuildInputs = [pkgs.gitleaks];
+        } ''
+          gitleaks dir ${inputs.self} --redact --no-banner
+          touch $out
+        '';
 
       # CORE. The comment conventions in CONTRIBUTING.md are only a convention
       # until something fails on them. The 56 banner rules this check now

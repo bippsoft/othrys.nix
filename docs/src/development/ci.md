@@ -8,7 +8,7 @@ The **Build** workflow splits the flake's checks into two tiers so pull requests
 get fast feedback while the exhaustive suite still gates what lands:
 
 - **Core** (`core` job) runs on every PR/push/dispatch. The cheap, high-value
-  gate: lint (pre-commit), the docs build, `eval-host-min` (a minimal
+  gate: lint (pre-commit), `secret-scan` (gitleaks over every tracked file), the docs build, `eval-host-min` (a minimal
   functioning host evaluates), the four server-contract evals
   (`eval-host-headless`, `eval-host-server`, `eval-host-anonymous`,
   `eval-host-server-account`), and `impermanence-test` (the persistence and
