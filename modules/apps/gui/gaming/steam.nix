@@ -22,6 +22,30 @@
   configuredSteam = pkgs.steam.override {
     inherit (cfg) extraPkgs;
   };
+
+  # The client reads steam_dev.cfg at start, one console variable per line.
+  # The typed shaderPrecache options are merged over the raw devConfig set, so
+  # a typed key wins a duplicate.
+  devConfig =
+    cfg.devConfig
+    // lib.filterAttrs (_: v: v != null) {
+      unShaderBackgroundProcessingThreads = cfg.shaderPrecache.backgroundThreads;
+      unShaderHighPriorityProcessingThreads = cfg.shaderPrecache.highPriorityThreads;
+    };
+
+  renderDevValue = v:
+    if lib.isBool v
+    then
+      (
+        if v
+        then "1"
+        else "0"
+      )
+    else toString v;
+
+  devConfigText =
+    lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "${k} ${renderDevValue v}") devConfig)
+    + "\n";
 in {
   options.othrys.apps.gaming.steam = {
     enable = lib.mkEnableOption "Steam with gaming optimizations";
@@ -86,6 +110,62 @@ in {
       default = true;
       description = "Enable GameScope session for Steam Deck-like experience.";
     };
+
+    shaderPrecache = {
+      backgroundThreads = lib.mkOption {
+        type = lib.types.nullOr lib.types.ints.positive;
+        default = null;
+        example = 12;
+        description = ''
+          CPU threads given to Steam's fossilize shader pre-caching while it
+          runs in the background, written as
+          `unShaderBackgroundProcessingThreads` in `steam_dev.cfg`. The pass
+          only runs while "Allow background processing of Vulkan shaders" is
+          enabled in Steam under Settings, Downloads. That toggle is off by
+          default and lives in Steam's own registry, which this module cannot
+          declare. Null leaves Steam's heuristic in place. The value is a host
+          sizing decision, since a desktop can spare most of `nproc` while a
+          laptop wants a fraction of it.
+        '';
+      };
+
+      highPriorityThreads = lib.mkOption {
+        type = lib.types.nullOr lib.types.ints.positive;
+        default = null;
+        example = 24;
+        description = ''
+          CPU threads for the "Processing Vulkan shaders" pass that blocks a
+          game launch, written as `unShaderHighPriorityProcessingThreads` in
+          `steam_dev.cfg`. Steam deletes every compiled cache when the GPU
+          driver version changes, so each game pays this pass once after a
+          driver update. With the variable unset the pass was measured at
+          about 16 pipelines per second on a 32-thread desktop, where the same
+          replay reaches 223 per second at 28 threads. Valve documents neither
+          variable. The background one is confirmed by wide use, while this
+          one is known only from the client binary, where its name places it
+          on the pre-launch pass. Null leaves Steam's default.
+        '';
+      };
+    };
+
+    devConfig = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.oneOf [lib.types.int lib.types.str lib.types.bool]);
+      default = {};
+      example = lib.literalExpression ''
+        {
+          "@nClientDownloadEnableHTTP2PlatformLinux" = 0;
+          "@fDownloadRateImprovementToAddAnotherConnection" = "1.0";
+        }
+      '';
+      description = ''
+        Additional Steam console variables written to
+        `~/.local/share/Steam/steam_dev.cfg`, one `name value` per line.
+        These are the variables accepted by the Steam console at
+        `steam://open/console`, applied at every client start. The
+        `shaderPrecache` options render into the same file and take
+        precedence over a duplicate key here.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -121,6 +201,15 @@ in {
     # Environment variables for Steam
     environment.sessionVariables = {
       STEAM_EXTRA_COMPAT_TOOLS_PATHS = "\${HOME}/.steam/root/compatibilitytools.d";
+    };
+
+    # The file sits inside the Steam tree persisted above, so the home-manager
+    # symlink survives a reboot on impermanence hosts. Steam only reads the
+    # file, which makes a store symlink safe there.
+    othrys.internal.homeConfig = lib.mkIf (devConfig != {}) {
+      "apps.gaming.steam" = {
+        home.file.".local/share/Steam/steam_dev.cfg".text = devConfigText;
+      };
     };
   };
 }
