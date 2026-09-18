@@ -7,5 +7,9 @@ version_provider = "scm"
 tag_format = "v$version"
 update_changelog_on_bump = true
 changelog_file = "CHANGELOG.md"
+# A bump adds the new release on top and leaves the existing entries alone.
+# Without this the whole file is regenerated from the commit log, which erases
+# any note written into an entry by hand.
+changelog_incremental = true
 # 0.x, so a breaking change bumps the minor rather than the major.
 major_version_zero = true
