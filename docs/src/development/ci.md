@@ -33,6 +33,10 @@ locally still runs **every** check regardless of tier.
 | `build.yml` | **extended** | main, manual dispatch, `chore(flake)` PRs: a matrix of whole-tree evals, `enable-matrix` and the four runtime VM tests, one runner each |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |
 | `flake-inputs.yml` | **flake-inputs** | Freshness/advisory check for the flake lock (runs when `flake.{lock,nix}` change, plus weekly) |
+| `scorecard.yml` | **analysis** | OpenSSF Scorecard on `main`, weekly, and on branch protection changes. Publishes the score behind the README badge and uploads findings to code scanning |
+
+`.github/dependabot.yml` raises weekly PRs that move the sha pins of the actions
+these workflows use. Nix inputs are left to `update-inputs.yml`.
 
 ## Disk Space
 

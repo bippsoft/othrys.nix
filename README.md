@@ -7,6 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/bippsoft/othrys.nix/actions/workflows/build.yml"><img src="https://github.com/bippsoft/othrys.nix/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/bippsoft/othrys.nix"><img src="https://api.scorecard.dev/projects/github.com/bippsoft/othrys.nix/badge" alt="OpenSSF Scorecard"></a>
   <a href="https://bippsoft.github.io/othrys.nix/"><img src="https://img.shields.io/badge/docs-mdBook-informational" alt="Docs"></a>
   <a href="https://nixos.org"><img src="https://img.shields.io/badge/NixOS-unstable-blue?logo=nixos&logoColor=white" alt="NixOS Unstable"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/bippsoft/othrys.nix" alt="License"></a>
