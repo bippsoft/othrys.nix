@@ -48,9 +48,14 @@ Tags are `vMAJOR.MINOR.PATCH` (semver-ish; pre-1.0 minor bumps may carry
 breaking changes, always marked as above). Cut with:
 
 ```bash
-just release v0.4.0   # runs the full check suite, then tags
-git push origin v0.4.0
+just release          # runs the full check suite, then bumps, writes CHANGELOG.md and tags
+just release minor    # the same, forcing the increment (major, minor or patch)
+git push origin main v0.4.0
 ```
+
+Without an argument commitizen derives the increment from the commits since the
+last tag. The bump commit lands on `main`, so `main` is pushed together with the
+tag.
 
 Consumers choose their risk level:
 
