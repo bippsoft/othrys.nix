@@ -16,6 +16,15 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # nixpkgs ships discord for some platforms only. Without this the host fails
+    # deep inside the package set with a message that does not name the option.
+    assertions = [
+      {
+        assertion = lib.meta.availableOn pkgs.stdenv.hostPlatform pkgs.discord;
+        message = "othrys.apps.discord: nixpkgs does not provide discord for ${pkgs.stdenv.hostPlatform.system}. Turn the module off on this host.";
+      }
+    ];
+
     # Persistence for Discord data
     environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
       users.${username}.directories = [

@@ -135,9 +135,12 @@ all five even when the matching othrys feature is off.
 identity-shaped, meaning disk IDs, interface names, domains, monitor descriptors
 and keys, ships null or neutral and arrives from your configuration.
 
-**This flake builds for `x86_64-linux` only.** Nothing in the module tree is
-architecture-specific in principle, and no other system has been built or
-tested, so that is the only entry in `systems`.
+**`x86_64-linux` is the tested platform.** Every check runs there. For
+`aarch64-linux` CI evaluates the server, headless and default host fixtures on
+an ARM runner, which shows the module tree evaluates and nothing more. No VM
+test runs on ARM and no ARM host has been booted. A module whose package
+nixpkgs does not ship for the platform, such as Discord or Plexamp, fails an
+assertion that names it.
 
 **An input named `secrets` is read if you declare one.** othrys declares no such
 input. When your flake does, `othrys.system.secrets.secretFiles` reads

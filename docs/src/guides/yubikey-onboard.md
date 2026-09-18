@@ -73,7 +73,7 @@ just yubikey-onboard -- --algo rsa4096
 
 ## Nix Package
 
-The script is packaged as a Nix derivation at `flake/packages.nix` and exposed as `packages.x86_64-linux.yubikey-onboard`. All runtime dependencies (gnupg, yubikey-manager, pam_u2f, age-plugin-yubikey, ssh-to-age, pinentry-curses, openssh) are pinned via the flake lockfile.
+The script is packaged as a Nix derivation at `flake/packages.nix` and exposed as `packages.<system>.yubikey-onboard` for `x86_64-linux` and `aarch64-linux`. All runtime dependencies (gnupg, yubikey-manager, pam_u2f, age-plugin-yubikey, ssh-to-age, pinentry-curses, openssh) are pinned via the flake lockfile.
 
 ```bash
 # Via justfile (recommended)

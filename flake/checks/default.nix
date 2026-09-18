@@ -486,12 +486,36 @@
           };
         }
       ];
+
+    # x86_64-linux runs every check. Any other system keeps the host
+    # evaluations that hold no platform-bound package, which is what shows the
+    # module tree evaluates there. The VM tests need a hypervisor for that
+    # system, the desktop fixtures pull x86-only packages such as Steam, the
+    # template names x86_64-linux itself, and the lint checks do not vary by
+    # platform.
+    portableChecks = [
+      "eval-host-min"
+      "eval-host-headless"
+      "eval-host-server"
+      "eval-host-anonymous"
+      "eval-host-server-account"
+      "eval-default"
+      "eval-host-hardening"
+      "eval-host-hardening-hibernate"
+      "eval-bootloader"
+      "eval-traefik"
+      "eval-ssh"
+    ];
+    onThisSystem = all:
+      if system == "x86_64-linux"
+      then all
+      else inputs.nixpkgs.lib.filterAttrs (name: _: builtins.elem name portableChecks) all;
   in {
     # ANCHOR: checks
     # Checks are split into two tiers. The GitHub workflow runs CORE on every PR
     # and EXTENDED only on main + manual dispatch (see .github/workflows).
     # `nix flake check` locally still runs all of them.
-    checks = {
+    checks = onThisSystem {
       # CORE, fast, every PR
 
       # The least it takes for othrys to produce a bootable Linux host. Small

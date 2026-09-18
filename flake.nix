@@ -136,11 +136,11 @@
 
   outputs = inputs @ {flake-parts, ...}:
     flake-parts.lib.mkFlake {inherit inputs;} {
-      # x86_64-linux only. Nothing here is architecture-specific in principle,
-      # and no other system has ever been built or tested, so the list says
-      # what is true rather than what is aspirational. Additional systems go
-      # here, and perSystem is evaluated once for each.
-      systems = ["x86_64-linux"];
+      # x86_64-linux runs every check. aarch64-linux runs the portable host
+      # evaluations (see portableChecks in flake/checks), which show that the
+      # module tree evaluates there, and no VM test or desktop fixture. Nothing
+      # has been built or booted on it. perSystem is evaluated once for each.
+      systems = ["x86_64-linux" "aarch64-linux"];
 
       # ANCHOR: imports
       imports = [

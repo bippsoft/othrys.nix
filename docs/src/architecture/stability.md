@@ -91,8 +91,10 @@ unlisted key, and a rollback.
   a VM under firmware Secure Boot.
 - **Auto-upgrade.** The signature gate runs in a VM. The rebuild that follows it
   is never run, since the test VM has no network.
-- **Platforms other than `x86_64-linux`.** No check evaluates the modules for
-  another system.
+- **`aarch64-linux` beyond evaluation.** CI evaluates the server, headless and
+  default host fixtures on an ARM runner. No VM test runs there, no desktop
+  fixture is evaluated, and no ARM host has been booted. No other platform is
+  evaluated at all.
 
 The [Security Model](./security-model.md) lists the design limits, as opposed to
 the testing limits here.
