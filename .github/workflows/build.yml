@@ -54,6 +54,34 @@ jobs:
             '.#checks.x86_64-linux.eval-host-hardening' \
             '.#checks.x86_64-linux.eval-host-hardening-hibernate' \
             '.#checks.x86_64-linux.impermanence-test'
+  # The portable host evaluations on a native ARM runner. It shows that the
+  # module tree evaluates for aarch64-linux and nothing more. No VM test runs
+  # here, and nothing is booted. The list is portableChecks in flake/checks.
+  core-aarch64:
+    name: Core checks (aarch64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@4eea0b33e3d1f02ecfe37cf16e7204c424009606 # v3
+        with:
+          extra-conf: |
+            fallback = true
+            download-attempts = 10
+      - name: Build the portable checks
+        run: |
+          nix build --no-link --print-build-logs \
+            '.#checks.aarch64-linux.eval-host-min' \
+            '.#checks.aarch64-linux.eval-host-headless' \
+            '.#checks.aarch64-linux.eval-host-server' \
+            '.#checks.aarch64-linux.eval-host-anonymous' \
+            '.#checks.aarch64-linux.eval-host-server-account' \
+            '.#checks.aarch64-linux.eval-default' \
+            '.#checks.aarch64-linux.eval-host-hardening' \
+            '.#checks.aarch64-linux.eval-host-hardening-hibernate' \
+            '.#checks.aarch64-linux.eval-bootloader' \
+            '.#checks.aarch64-linux.eval-traefik' \
+            '.#checks.aarch64-linux.eval-ssh'
   # Decides whether a pull request touches the flake definition or its lock.
   # The extended tier used to key on the PR title alone, so retitling a
   # dependency bump silently skipped every VM test. The paths answer the

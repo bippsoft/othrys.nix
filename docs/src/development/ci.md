@@ -19,6 +19,10 @@ get fast feedback while the exhaustive suite still gates what lands:
   read back), `eval-template` (the `nix flake init` template instantiated with
   only the inputs a consumer has), and `impermanence-test` (the persistence and
   root-wipe invariant, the defining principle of the system). Small closures.
+- **Core on ARM** (`core-aarch64` job) runs on every PR/push/dispatch on an
+  `ubuntu-24.04-arm` runner. It builds the portable host evaluations for
+  `aarch64-linux`, which is every check named in `portableChecks` in
+  `flake/checks/default.nix`. It is not required by branch protection.
 - **Extended** (`extended` job) runs on push to `main`, manual
   `workflow_dispatch`, and input-update PRs titled `chore(flake)`, since input
   bumps are exactly the changes that break deep surfaces. A matrix fans the suite out, one runner per check:
@@ -36,6 +40,7 @@ locally still runs **every** check regardless of tier.
 | File | Jobs | Purpose |
 |------|------|---------|
 | `build.yml` | **core** | Every PR/push: lint, docs, `eval-host-min`, the server-contract evals, `eval-bootloader`, `impermanence-test` (fast gate) |
+| `build.yml` | **core-aarch64** | Every PR/push: the portable host evaluations for `aarch64-linux` on an ARM runner |
 | `build.yml` | **extended** | main, manual dispatch, `chore(flake)` PRs: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |
 | `flake-inputs.yml` | **flake-inputs** | Freshness/advisory check for the flake lock (runs when `flake.{lock,nix}` change, plus weekly) |
