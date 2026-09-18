@@ -260,7 +260,13 @@ and sops), and this module only accepts the resulting file paths.
 
 ### Integrity checking
 
-Plain `restic check` (what `runCheck` runs by default) verifies repository
+`runCheck` is on by default, so every backup ends with `restic check` and a
+damaged repository fails the backup unit. The default `checkOpts` is
+`--read-data-subset=5%`, which reads a random twentieth of the pack data on
+each run. That read is billed by remote backends, so set `runCheck = false` or
+change `checkOpts` where it costs too much.
+
+Plain `restic check`, which is what an empty `checkOpts` runs, verifies repository
 **structure**, meaning index consistency and pack existence and size, but never reads
 pack contents, so in-place bit corruption of backed-up data passes it
 silently. Content verification requires `--read-data`, which downloads and
@@ -272,9 +278,8 @@ over time:
 ```nix
 othrys.services.restic.backups.headscale = {
   # ...
-  runCheck = true;
-  # Verify a different 10% of pack data on each run, giving full coverage
-  # roughly every 10 runs, at a tenth of the download cost:
+  # Verify a random 10% of pack data on each run, at a tenth of the
+  # download cost of a full read:
   checkOpts = ["--read-data-subset=10%"];
 };
 ```

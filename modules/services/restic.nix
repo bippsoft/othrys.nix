@@ -93,20 +93,27 @@
 
       runCheck = lib.mkOption {
         type = lib.types.bool;
-        default = false;
-        description = "Run `restic check` after the backup.";
+        default = true;
+        description = ''
+          Run `restic check` after the backup, so a damaged repository fails
+          the backup unit instead of being found at restore time. The check
+          reads from the repository backend on every run. Set this to `false`
+          where that read is not wanted.
+        '';
       };
 
       checkOpts = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = [];
-        example = ["--read-data-subset=10%"];
+        default = ["--read-data-subset=5%"];
+        example = ["--read-data"];
         description = ''
           Options for `restic check` (when runCheck is set). Plain check
           verifies repository structure only, and never reads pack contents,
-          so in-place bit corruption passes silently. Add
-          `--read-data-subset=<n>%` (rotating partial content verification)
-          or `--read-data` (full, every run) to actually verify data.
+          so in-place bit corruption passes silently. The default reads a
+          random 5% of the pack data on each run, which costs a twentieth of
+          the repository in backend reads. Raise the percentage, or use
+          `--read-data` to read everything on every run, where reads are cheap.
+          An empty list gives the structure-only check.
         '';
       };
 
