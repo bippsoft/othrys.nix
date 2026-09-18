@@ -10,6 +10,7 @@ ______________________________________________________________________
 - [Module System](./architecture/module-system.md)
 - [Host Configuration](./architecture/host-configuration.md)
 - [Flake Inputs](./architecture/flake-inputs.md)
+- [Security Model](./architecture/security-model.md)
 - [Stability & Releases](./architecture/stability.md)
 
 # System Infrastructure
