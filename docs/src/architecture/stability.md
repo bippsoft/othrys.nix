@@ -64,7 +64,9 @@ Consumers choose their risk level:
 
 Every commit on main evaluates: the three server-contract host shapes
 (named/anonymous/account-without-home-manager), both desktop stacks, every
-`othrys.*.enable` flipped on with defaults (the enable matrix), and the
-impermanence wipe-script behavior against real btrfs. What the checks do
+`othrys.*.enable` flipped on with defaults (the enable matrix), the
+impermanence wipe-script behavior against real btrfs, and a reboot of a VM with
+an empty root that compares the machine-id, the SSH host key and the journal
+directory before and after. What the checks do
 not cover is runtime behavior of graphical sessions, so treat first boots of
 new desktop surfaces as smoke tests.

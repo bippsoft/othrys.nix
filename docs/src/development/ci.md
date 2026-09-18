@@ -17,8 +17,9 @@ get fast feedback while the exhaustive suite still gates what lands:
   `workflow_dispatch`, and input-update PRs titled `chore(flake)`, since input
   bumps are exactly the changes that break deep surfaces. A matrix fans the suite out, one runner per check:
   `eval-default` and the two desktop evals, `enable-matrix` (every module
-  enabled with defaults), and the four runtime VM tests (`restic-test`,
-  `headscale-test`, `crowdsec-test`, `integration-test`).
+  enabled with defaults), and the five runtime VM tests (`restic-test`,
+  `headscale-test`, `crowdsec-test`, `integration-test`,
+  `impermanence-reboot-test`).
 
 Core builds its checks in one `nix build`; each extended matrix leg builds one check, and unchanged
 derivations are pulled from the cache rather than rebuilt. `nix flake check`
