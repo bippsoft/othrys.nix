@@ -1,5 +1,5 @@
 {
-  description = "othrys.nix - NixOS configuration with flakes";
+  description = "othrys.nix - reusable NixOS modules under the othrys namespace";
 
   # All external dependencies for this flake
   # ANCHOR: inputs
