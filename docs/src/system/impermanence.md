@@ -31,6 +31,10 @@ System-critical directories persisted in `persistence.nix`:
 {{#include ../../../modules/system/persistence.nix:system-persistence}}
 ```
 
+`/etc/machine-id` is in the set because the journal directory and the
+systemd-networkd DHCP identity are both derived from it. Without it every boot
+produces a new id.
+
 ## User Persistence
 
 Cross-cutting user directories (XDG, SSH, Projects):

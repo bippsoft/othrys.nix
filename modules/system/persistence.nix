@@ -85,8 +85,12 @@ in {
         }
       ];
 
+      # /etc/machine-id keys the journal directory, the systemd-networkd DHCP
+      # identity and anything else that tracks the host by id. Left on the
+      # wiped root it is regenerated on every boot.
       files = [
         "/etc/adjtime"
+        "/etc/machine-id"
       ];
 
       # ANCHOR_END: system-persistence
