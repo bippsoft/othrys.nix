@@ -37,9 +37,14 @@ A host built from these modules trusts the following, and nothing in this
 repository can reduce that set.
 
 - **The consuming flake's repository.** `othrys.system.autoUpgrade` runs
-  `nixos-rebuild switch` against whatever the configured flake ref resolves to.
-  No signature is checked, so write access to that repository is root on every
-  host that follows it.
+  `nixos-rebuild switch` against whatever the configured flake ref resolves to,
+  so by default write access to that repository is root on every host that
+  follows it. With `autoUpgrade.verify` on, the host fetches the repository
+  itself, requires a good signature from a configured key on the commit or tag,
+  refuses anything that does not descend from the last verified commit, and
+  rebuilds from that checkout. The signing keys then take the repository's place
+  as the trust root. Only the tip is verified, and the signature covers
+  `flake.lock`, which pins every input by hash.
 - **The flake lock.** Every input is pinned by content hash in the consuming
   flake's `flake.lock`, this repository included. A changed input cannot reach a
   host without a changed lock.
