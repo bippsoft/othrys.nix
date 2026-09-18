@@ -395,10 +395,15 @@
     };
 
     # Force a host's toplevel derivation so any option/module error fails the
-    # check. Only the tiny wrapper is realised, not the system.
+    # check. Only the tiny wrapper is realised, not the system. The string
+    # context is dropped because it would make the system's .drv file an input
+    # of the wrapper, and `nix flake check --no-build` does not write that file
+    # to the store, so it fails with "path ... .drv is not valid" whenever the
+    # system derivation is new. Evaluation is forced either way.
     mkHostEval = name: hostModules:
       pkgs.runCommand name {
         drv =
+          builtins.unsafeDiscardStringContext
           (inputs.nixpkgs.lib.nixosSystem {
             inherit system;
             specialArgs = {inherit inputs;};
