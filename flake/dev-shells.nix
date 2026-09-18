@@ -1,25 +1,14 @@
 # flake/dev-shells.nix
 # Development shell environments
-{inputs, ...}: {
+{
   perSystem = {
     pkgs,
-    system,
     config,
     ...
   }: let
-    # Pre-commit hooks from git-hooks.nix (treefmt formats, statix and deadnix lint)
-    pre-commit-check = inputs.git-hooks.lib.${system}.run {
-      src = inputs.self;
-      hooks = {
-        treefmt = {
-          enable = true;
-          package = config.treefmt.build.wrapper;
-        };
-        statix.enable = true;
-        deadnix.enable = true;
-        commitizen.enable = true;
-      };
-    };
+    # The same hook set `nix flake check` runs (see ./checks/default.nix), so a
+    # commit meets locally every hook it will meet in CI.
+    inherit (config.checks) pre-commit-check;
   in {
     # ANCHOR: dev-shells
     devShells = {
