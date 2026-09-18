@@ -246,18 +246,40 @@ with `just build <hostname>`, `just diff <hostname>` and `just test <hostname>`.
 
 ## Linting
 
-Four checks run automatically through pre-commit hooks.
+Eight hooks run on every commit once the dev shell has installed them, and
+`pre-commit-check` runs the same set in `nix flake check`.
 
 - **treefmt** formats Nix, shell, TOML, YAML and Markdown (`just fmt`)
 - **Statix** lints Nix
 - **Deadnix** finds dead code
-- **comment-hygiene** enforces the conventions above
+- **commitizen** checks the commit message against Conventional Commits
+- **comment-hygiene** enforces the comment and anchor conventions above
+- **contract-mirror** keeps the consumer contract in this file and in
+  `CLAUDE.md` identical
+- **contract-guards** enforces the consumer contract against `modules/`
+- **gitleaks** scans what the commit stages for keys and tokens
 
 ## Commit Conventions
 
-- Use imperative mood, so "Add kitty module" rather than "Added kitty module"
-- Reference the module category where it applies
+- Follow Conventional Commits, `type(scope): subject`, with the module basename
+  as the scope. The changelog and the next version number are derived from it
+- Use imperative mood, so "add kitty module" rather than "added kitty module"
+- Mark a breaking change with `!` and a `BREAKING CHANGE:` footer that says what
+  a consumer must do
 - Keep the first line under 72 characters
+
+## Signing
+
+Maintainers sign their commits and tags. Release tags are signed annotated tags
+cut by `just release`, and `git tag -v <tag>` verifies one.
+
+A rebase merge on GitHub rewrites the commits and discards their signatures.
+A pull request is therefore opened for review and checks, and once the required
+checks pass on its head commit a maintainer fast-forwards `main` to that commit
+locally and pushes it. GitHub marks the pull request as merged when its head
+reaches `main`.
+
+Outside contributions do not need to be signed.
 
 ## Secrets
 
