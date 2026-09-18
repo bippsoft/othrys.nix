@@ -78,7 +78,9 @@ host through the masquerade, while the default-drop input and forward chains are
 probed from the WAN and from the other LAN. A second VM puts Suricata inline on
 the router's NFQUEUE hook and shows a local rule dropping a request, then stops
 Suricata and shows forwarded traffic still passing, which is the fail-open
-behavior the router documents.
+behavior the router documents. A third VM serves a git repository to the
+auto-upgrade signature gate, which refuses unsigned refs, refs signed by an
+unlisted key, and a rollback.
 
 ## What the checks do not cover
 
@@ -87,7 +89,8 @@ behavior the router documents.
 - **Secure Boot.** `eval-bootloader` evaluates every bootloader with
   `secureBoot` on and off, with and without lanzaboote imported. No check boots
   a VM under firmware Secure Boot.
-- **Auto-upgrade.** `othrys.system.autoUpgrade` is evaluated and never run.
+- **Auto-upgrade.** The signature gate runs in a VM. The rebuild that follows it
+  is never run, since the test VM has no network.
 - **Platforms other than `x86_64-linux`.** No check evaluates the modules for
   another system.
 

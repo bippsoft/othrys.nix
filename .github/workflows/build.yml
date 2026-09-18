@@ -98,6 +98,7 @@ jobs:
           - enable-matrix
           - restic-test
           - headscale-test
+          - auto-upgrade-test
           - crowdsec-test
           - router-test
           - router-ips-test

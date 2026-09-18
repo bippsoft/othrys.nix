@@ -24,7 +24,7 @@ get fast feedback while the exhaustive suite still gates what lands:
   bumps are exactly the changes that break deep surfaces. A matrix fans the suite out, one runner per check:
   `eval-default` and the two desktop evals, `enable-matrix` (every module
   enabled with defaults), and the runtime VM tests (`restic-test`,
-  `headscale-test`, `crowdsec-test`, `router-test`, `router-ips-test`,
+  `headscale-test`, `auto-upgrade-test`, `crowdsec-test`, `router-test`, `router-ips-test`,
   `integration-test`, `impermanence-reboot-test`).
 
 Core builds its checks in one `nix build`; each extended matrix leg builds one check, and unchanged
