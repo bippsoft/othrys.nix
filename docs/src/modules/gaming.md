@@ -17,6 +17,7 @@ Gaming modules under `othrys.apps.gaming.*`. Located in `modules/apps/gui/gaming
 - FHS environment with essential X11, audio, and system libraries
 - Proton-GE for compatibility
 - Firewall rules for Remote Play and LAN transfers, with the dedicated server ports opt-in
+  (`dedicatedServer.openFirewall`, which opens TCP and UDP 27015 and defaults to `false`)
 - Gamescope session support
 
 Steam's per-app shader caches persist with the Steam tree, but the DRIVER
