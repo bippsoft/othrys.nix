@@ -5,6 +5,10 @@ name = "cz_conventional_commits"
 # flake revision, so there is nothing here for a bump to keep in sync.
 version_provider = "scm"
 tag_format = "v$version"
+# Releases are signed annotated tags, so `git tag -v` verifies one. The bump
+# commit is signed with the same key. A release needs the signing key present.
+annotated_tag = true
+gpg_sign = true
 update_changelog_on_bump = true
 changelog_file = "CHANGELOG.md"
 # A bump adds the new release on top and leaves the existing entries alone.
