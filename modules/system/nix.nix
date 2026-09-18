@@ -9,6 +9,11 @@
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.system.nix;
+  # Whether an externally supplied nixpkgs instance admits unfree packages by
+  # an allowlist instead of the blanket switch.
+  externalAllowlist =
+    lib.isFunction (pkgs.config.allowUnfreePredicate or null)
+    || (pkgs.config.allowUnfreePackages or []) != [];
   # Shell snippet that loads the Cachix push token into the current process
   # only (used by the cachix-push wrapper), never exported to interactive shells.
   cachixTokenLoad = lib.optionalString (cfg.cachix.authTokenFile != null) ''
@@ -153,16 +158,22 @@ in {
     # nixpkgs instance through nixpkgs.pkgs (the NixOS test framework and
     # nixops both do). Writing the policy there would then be a silent no-op,
     # so fail loudly and make the consumer set it on the instance they own.
+    #
+    # An instance that admits unfree packages through allowUnfreePredicate or
+    # allowUnfreePackages reports allowUnfree = false while unfree evaluation
+    # works, so either one satisfies allowUnfree = true here.
     assertions = [
       {
         assertion =
           !options.nixpkgs.pkgs.isDefined
-          || (pkgs.config.allowUnfree or false) == cfg.allowUnfree;
+          || (pkgs.config.allowUnfree or false) == cfg.allowUnfree
+          || (cfg.allowUnfree && externalAllowlist);
         message = ''
           othrys.system.nix.allowUnfree is ${lib.boolToString cfg.allowUnfree} but
           nixpkgs.pkgs is defined externally, where nixpkgs.config is ignored, and
-          that instance has allowUnfree = ${lib.boolToString (pkgs.config.allowUnfree or false)}.
-          Set allowUnfree on the nixpkgs instance you pass in, or drop nixpkgs.pkgs
+          that instance has allowUnfree = ${lib.boolToString (pkgs.config.allowUnfree or false)}
+          and no allowUnfreePredicate or allowUnfreePackages.
+          Set one of them on the nixpkgs instance you pass in, or drop nixpkgs.pkgs
           and let this module configure nixpkgs.
         '';
       }
@@ -171,7 +182,11 @@ in {
     # No mkDefault here, since nixpkgs.config is untyped attrs and override objects
     # would leak through to pkgs.config verbatim. The othrys option IS the
     # override mechanism.
-    nixpkgs.config.allowUnfree = cfg.allowUnfree;
+    # Skipped for an external instance, where NixOS rejects any nixpkgs.config
+    # definition and the assertion above checks the instance instead.
+    nixpkgs.config = lib.mkIf (!options.nixpkgs.pkgs.isDefined) {
+      inherit (cfg) allowUnfree;
+    };
 
     # Home-manager must see the same nixpkgs policy as the system (unfree,
     # overlays). With its own instantiation, an unfree HM package fails even
