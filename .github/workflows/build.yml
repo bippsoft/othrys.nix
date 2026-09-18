@@ -48,6 +48,8 @@ jobs:
             '.#checks.x86_64-linux.eval-host-anonymous' \
             '.#checks.x86_64-linux.eval-host-server-account' \
             '.#checks.x86_64-linux.eval-bootloader' \
+            '.#checks.x86_64-linux.eval-host-hardening' \
+            '.#checks.x86_64-linux.eval-host-hardening-hibernate' \
             '.#checks.x86_64-linux.impermanence-test'
   # Decides whether a pull request touches the flake definition or its lock.
   # The extended tier used to key on the PR title alone, so retitling a

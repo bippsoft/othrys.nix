@@ -394,6 +394,15 @@
       '';
     };
 
+    # The evaluated config of a host built the way a consumer builds one.
+    hostConfig = hostModules:
+      (inputs.nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = {inherit inputs;};
+        modules = upstreamModules ++ hostModules;
+      })
+      .config;
+
     # Force a host's toplevel derivation so any option/module error fails the
     # check. Only the tiny wrapper is realised, not the system. The string
     # context is dropped because it would make the system's .drv file an input
@@ -402,19 +411,81 @@
     # system derivation is new. Evaluation is forced either way.
     mkHostEval = name: hostModules:
       pkgs.runCommand name {
-        drv =
-          builtins.unsafeDiscardStringContext
-          (inputs.nixpkgs.lib.nixosSystem {
-            inherit system;
-            specialArgs = {inherit inputs;};
-            modules = upstreamModules ++ hostModules;
-          })
-          .config
-          .system
-          .build
-          .toplevel
-          .drvPath;
+        drv = builtins.unsafeDiscardStringContext (hostConfig hostModules).system.build.toplevel.drvPath;
       } "echo \"$drv\" > \"$out\"";
+
+    # Compare values read back from evaluated hosts. `expectations` maps a
+    # label to a boolean, and the check fails naming every label that is false.
+    # mkHostEval only proves a host evaluates, which says nothing about what a
+    # module actually wrote.
+    mkExpectations = name: expectations:
+      pkgs.runCommand name {
+        failed = builtins.concatStringsSep "\n" (builtins.attrNames (inputs.nixpkgs.lib.filterAttrs (_: ok: !ok) expectations));
+        total = toString (builtins.length (builtins.attrNames expectations));
+      } ''
+        if [ -n "$failed" ]; then
+          echo "${name}: expectations not met:" >&2
+          printf '%s\n' "$failed" | sed 's/^/  - /' >&2
+          exit 1
+        fi
+        echo "$total expectations met" > "$out"
+      '';
+
+    # True when the host carries a failing assertion whose message mentions
+    # `needle`. Reads config.assertions directly, since forcing the toplevel of
+    # a host that is meant to be rejected aborts the evaluation instead.
+    rejectedWith = needle: cfg:
+      builtins.any (a: !a.assertion && inputs.nixpkgs.lib.hasInfix needle a.message) cfg.assertions;
+
+    # A headless host with the hardening profile and both costly switches on,
+    # next to Tailscale, whose firewall setting the profile has to respect, and
+    # one plain sysctl assignment the profile has to lose to.
+    hardenedHost = hostConfig [
+      bootBase
+      {
+        othrys.system.nix = {
+          enable = true;
+          stateVersion = "26.05";
+        };
+        othrys.services.firewall.enable = true;
+        othrys.services.tailscale.enable = true;
+        othrys.system.hardening = {
+          enable = true;
+          lockKernelModules = true;
+          protectKernelImage = true;
+        };
+        boot.kernel.sysctl."kernel.yama.ptrace_scope" = 0;
+      }
+    ];
+
+    # The profile next to the router module, which assigns strict rp_filter.
+    hardenedRouter = hostConfig [
+      bootBase
+      {
+        othrys.system.nix = {
+          enable = true;
+          stateVersion = "26.05";
+        };
+        othrys.services.router = {
+          enable = true;
+          wan.interface = "wan0";
+        };
+        othrys.system.hardening.enable = true;
+      }
+    ];
+
+    # The profile with protectKernelImage on a host configured to hibernate.
+    hibernatingHost = hibernation:
+      hostConfig [
+        bootBase
+        hibernation
+        {
+          othrys.system.hardening = {
+            enable = true;
+            protectKernelImage = true;
+          };
+        }
+      ];
   in {
     # ANCHOR: checks
     # Checks are split into two tiers. The GitHub workflow runs CORE on every PR
@@ -522,6 +593,69 @@
       eval-bootloader = import ./bootloader.nix {
         inherit pkgs inputs system upstreamModules bootCore;
       };
+
+      # The hardening profile, read back rather than merely evaluated. Every
+      # sysctl is compared with the value the profile documents, so a dropped or
+      # retyped key fails here. The toplevel is forced as well, because
+      # boot.kernel.sysctl rejects two definitions at one priority and NixOS
+      # itself defines kernel.kptr_restrict and, under protectKernelImage,
+      # kernel.kexec_load_disabled at mkDefault. The host's plain ptrace_scope
+      # assignment has to win, and the router's strict rp_filter has to survive
+      # the profile's loose one.
+      eval-host-hardening = let
+        sysctl = hardenedHost.boot.kernel.sysctl;
+        expected = {
+          "kernel.kptr_restrict" = 2;
+          "kernel.dmesg_restrict" = 1;
+          "kernel.unprivileged_bpf_disabled" = 1;
+          "net.core.bpf_jit_harden" = 2;
+          "kernel.kexec_load_disabled" = 1;
+          "net.ipv4.conf.all.rp_filter" = 2;
+          "net.ipv4.conf.default.rp_filter" = 2;
+          "net.ipv4.conf.all.accept_redirects" = 0;
+          "net.ipv4.conf.default.accept_redirects" = 0;
+          "net.ipv4.conf.all.secure_redirects" = 0;
+          "net.ipv4.conf.default.secure_redirects" = 0;
+          "net.ipv4.conf.all.send_redirects" = 0;
+          "net.ipv4.conf.default.send_redirects" = 0;
+          "net.ipv6.conf.all.accept_redirects" = 0;
+          "net.ipv6.conf.default.accept_redirects" = 0;
+          "net.ipv4.conf.all.accept_source_route" = 0;
+          "net.ipv4.conf.default.accept_source_route" = 0;
+          "net.ipv6.conf.all.accept_source_route" = 0;
+          "net.ipv6.conf.default.accept_source_route" = 0;
+          "net.ipv4.tcp_syncookies" = 1;
+          "net.ipv4.icmp_echo_ignore_broadcasts" = 1;
+          "net.ipv4.tcp_rfc1337" = 1;
+        };
+      in
+        mkExpectations "othrys-eval-host-hardening" (
+          inputs.nixpkgs.lib.mapAttrs' (key: value:
+            inputs.nixpkgs.lib.nameValuePair "sysctl ${key} is ${toString value}" ((sysctl.${key} or null) == value))
+          expected
+          // {
+            "the hardened host evaluates" = hardenedHost.system.build.toplevel.drvPath != null;
+            "a plain host assignment of kernel.yama.ptrace_scope wins" = sysctl."kernel.yama.ptrace_scope" == 0;
+            "security.lockKernelModules is set" = hardenedHost.security.lockKernelModules;
+            "security.protectKernelImage is set" = hardenedHost.security.protectKernelImage;
+            "Tailscale keeps the firewall reverse path check loose" = hardenedHost.networking.firewall.checkReversePath == "loose";
+            "the hardened router evaluates" = hardenedRouter.system.build.toplevel.drvPath != null;
+            "the router keeps strict rp_filter on all" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 1;
+            "the router keeps strict rp_filter on default" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.default.rp_filter" == 1;
+          }
+        );
+
+      # protectKernelImage disables hibernation, so the profile has to refuse a
+      # host configured to hibernate, by either signal it reads. The last
+      # expectation keeps the assertion from firing on a host that does not.
+      eval-host-hardening-hibernate = let
+        needle = "othrys.system.hardening.protectKernelImage";
+      in
+        mkExpectations "othrys-eval-host-hardening-hibernate" {
+          "boot.resumeDevice is rejected" = rejectedWith needle (hibernatingHost {boot.resumeDevice = "/dev/disk/by-label/swap";});
+          "a resume= kernel parameter is rejected" = rejectedWith needle (hibernatingHost {boot.kernelParams = ["resume=LABEL=swap"];});
+          "a host that does not hibernate is accepted" = !rejectedWith needle hardenedHost;
+        };
 
       # EXTENDED, heavy, main and manual dispatch
 

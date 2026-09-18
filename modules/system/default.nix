@@ -8,6 +8,7 @@
     ./nix.nix
     ./auto-upgrade.nix
     ./kernel.nix
+    ./hardening.nix
     ./impermanence.nix
     ./persistence.nix
     ./bootloader.nix

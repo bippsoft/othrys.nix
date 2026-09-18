@@ -38,6 +38,7 @@
     users = ../modules/system/users.nix;
     nix = ../modules/system/nix.nix;
     kernel = ../modules/system/kernel.nix;
+    hardening = ../modules/system/hardening.nix;
     networking = ../modules/system/networking.nix;
     secrets = ../modules/system/secrets.nix;
     impermanence = ../modules/system/impermanence.nix;
