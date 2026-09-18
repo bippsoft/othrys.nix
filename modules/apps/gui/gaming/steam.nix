@@ -206,6 +206,12 @@ in {
       # Use combined list of default + user extras
       extraCompatPackages = finalCompatPackages;
 
+      # The session also turns on programs.gamescope, which is how gamescope
+      # reaches the system path. programs.gamescope.capSysNice stays off on
+      # purpose. The setcap wrapper it installs cannot run inside Steam's
+      # bubblewrap sandbox, where gamescope in a game's launch options then
+      # dies with "failed to inherit capabilities". NixOS/nixpkgs#351516
+      # tracks it.
       gamescopeSession.enable = cfg.gamescopeSession.enable;
     };
 
