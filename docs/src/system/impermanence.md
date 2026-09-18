@@ -35,6 +35,12 @@ System-critical directories persisted in `persistence.nix`:
 systemd-networkd DHCP identity are both derived from it. Without it every boot
 produces a new id.
 
+The SSH host keys are not bind-mounted. `services.openssh.hostKeys` points at
+`<persistRoot>/etc/ssh/` directly, which is also where sops-nix reads the
+ed25519 key. A bind mount over `/etc/ssh` would cover the `sshd_config` that
+activation writes, and `sshd` on a freshly installed host would not start until
+the first switch.
+
 ## User Persistence
 
 Cross-cutting user directories (XDG, SSH, Projects):

@@ -42,17 +42,28 @@ in {
   };
 
   config = lib.mkIf (cfg.enable && impermanenceEnabled) {
+    # The host keys live on the persist volume directly, at the path sops-nix
+    # already reads them from (see ./secrets.nix). Persisting /etc/ssh as a
+    # directory instead would mount over the /etc/ssh/sshd_config that
+    # activation writes, and sshd on a freshly installed host would not start
+    # until the first switch. Only read when services.openssh is enabled.
+    services.openssh.hostKeys = [
+      {
+        path = "${persistRoot}/etc/ssh/ssh_host_ed25519_key";
+        type = "ed25519";
+      }
+      {
+        path = "${persistRoot}/etc/ssh/ssh_host_rsa_key";
+        type = "rsa";
+        bits = 4096;
+      }
+    ];
+
     # ANCHOR: system-persistence
     environment.persistence.${persistRoot} = {
       hideMounts = true;
 
       directories = [
-        {
-          directory = "/etc/ssh";
-          user = "root";
-          group = "root";
-          mode = "0755";
-        }
         {
           directory = "/var/lib/systemd";
           user = "root";
