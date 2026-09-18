@@ -756,6 +756,9 @@
         }
       ];
 
+      # The SSH known hosts and client defaults (see ./ssh.nix).
+      eval-ssh = import ./ssh.nix {inherit hostConfig mkExpectations functioningHost;};
+
       # The Traefik TLS floor and header defaults (see ./traefik.nix).
       eval-traefik = import ./traefik.nix {inherit hostConfig mkExpectations bootBase;};
 

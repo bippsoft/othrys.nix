@@ -7,7 +7,7 @@ Service modules under `othrys.services.*`.
 | Module | Option | Description |
 |--------|--------|-------------|
 | Docs | `othrys.services.docs` | MdBook documentation server (darkhttpd) |
-| SSH | `othrys.services.ssh` | OpenSSH server |
+| SSH | `othrys.services.ssh` | OpenSSH server, client defaults and known hosts |
 | Tailscale | `othrys.services.tailscale` | VPN mesh network |
 | WireGuard | `othrys.services.wireguard` | Raw WireGuard interfaces (site-to-site, exit nodes) |
 | DDNS | `othrys.services.ddns` | Dynamic DNS updates (inadyn) |
@@ -59,6 +59,34 @@ othrys.services.docs = {
 The docs are built from the flake source as a derivation, with no runtime build step. The built package is also accessible as `config.othrys.services.docs.package`.
 
 When `desktopEntry` is enabled, an "othrys.nix Docs" entry appears in application launchers, opening the docs in the default browser via `xdg-open`.
+
+## SSH
+
+`othrys.services.ssh` configures the client for the primary user and, with
+`server.enable`, the OpenSSH server with password login off.
+
+`knownHosts` passes host keys to `programs.ssh.knownHosts`, which writes
+`/etc/ssh/ssh_known_hosts` for every user. A listed host is verified against its
+listed key on the first connection, so nobody accepts it on trust.
+`includeForgeKeys` is on by default and adds the published ed25519 keys of
+github.com, gitlab.com, codeberg.org and git.sr.ht. An entry in `knownHosts`
+with the same name replaces a forge entry.
+
+The client defaults under `"*"` are `StrictHostKeyChecking ask`,
+`HashKnownHosts yes` and `UpdateHostKeys ask`, so an unknown host prompts and is
+never accepted silently. A directive set through `settings` replaces that one
+default and leaves the rest. Once `knownHosts` covers every host the machine
+connects to, this ends trust on first use.
+
+```nix
+othrys.services.ssh = {
+  knownHosts."nas.example.com".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...";
+  settings."*".StrictHostKeyChecking = "yes";
+};
+```
+
+There is no host certificate authority option. A CA needs a signing key whose
+custody belongs with the host configuration and not with a module library.
 
 ## Router
 

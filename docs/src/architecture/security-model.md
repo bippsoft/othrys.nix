@@ -93,9 +93,12 @@ a changed boot chain does not by itself prevent an unlock.
 
 ## SSH host trust
 
-The SSH module configures the server and the client defaults. It does not
-distribute host keys, so the first connection to a host is accepted on trust by
-whoever answers the prompt. There is no host certificate authority option.
+`othrys.services.ssh.knownHosts` distributes host keys to every user, and the
+published keys of four public forges are included by default. A host that is
+not listed still prompts on the first connection, and whoever answers accepts
+it on trust. Setting `StrictHostKeyChecking yes` through `settings` refuses
+unlisted hosts and ends that. There is no host certificate authority option, so
+each host key is listed one by one. See [Services](../modules/services.md).
 
 ## AI assistants
 
