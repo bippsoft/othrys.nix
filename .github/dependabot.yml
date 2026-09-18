@@ -1,0 +1,20 @@
+# Every action in .github/workflows is pinned to a commit sha, and a pin that
+# nothing moves goes stale. Dependabot raises the bumps as PRs, which run the
+# same checks as any other change. Nix inputs are not covered here, since
+# update-inputs.yml handles flake.lock.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - automated
+      - dependencies
+    groups:
+      actions:
+        patterns:
+          - "*"
