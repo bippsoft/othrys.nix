@@ -12,6 +12,7 @@
   ...
 }: let
   cfg = config.othrys.services.alerting;
+  sandbox = import ../lib/sandbox.nix;
   monitoringCfg = config.othrys.services.monitoring;
   vmCfg = config.othrys.services.victoriametrics;
   notifyCfg = config.othrys.services.notify;
@@ -182,14 +183,25 @@ in {
       description = "Render the ntfy bridge auth config from the notify token.";
       before = ["alertmanager-ntfy.service"];
       requiredBy = ["alertmanager-ntfy.service"];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-        UMask = "0077";
-        RuntimeDirectory = bridgeAuthDir;
-        RuntimeDirectoryMode = "0700";
-        RuntimeDirectoryPreserve = true;
-      };
+      serviceConfig =
+        sandbox.baseline
+        // {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          UMask = "0077";
+          RuntimeDirectory = bridgeAuthDir;
+          RuntimeDirectoryMode = "0700";
+          RuntimeDirectoryPreserve = true;
+
+          # Stays root, because PID 1 reads the rendered file for the bridge
+          # through LoadCredential and the token file belongs to whatever the
+          # secrets provider chose. CAP_DAC_READ_SEARCH lets root read a token
+          # owned by another user and grants no write. The unit has no use for
+          # a network.
+          CapabilityBoundingSet = ["CAP_DAC_READ_SEARCH"];
+          PrivateNetwork = true;
+          RestrictAddressFamilies = "none";
+        };
       script = ''
         token_file=${lib.escapeShellArg notifyCfg.tokenFile}
         if [ ! -r "$token_file" ]; then

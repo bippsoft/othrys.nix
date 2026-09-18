@@ -64,6 +64,18 @@ pkgs.testers.runNixOSTest {
     };
     othrys.services.firewall.enable = true;
     othrys.services.monitoring.enable = true;
+
+    # The two units below run under the shared sandbox baseline, so they are
+    # started here to show the baseline leaves them working.
+    othrys.services.docs.enable = true;
+    environment.etc."ntfy-token".text = "tk_integrationtest";
+    othrys.services.notify = {
+      enable = true;
+      url = "http://127.0.0.1:2586";
+      topic = "alerts";
+      tokenFile = "/etc/ntfy-token";
+    };
+    othrys.services.alerting.enable = true;
   };
 
   testScript = ''
@@ -100,5 +112,27 @@ pkgs.testers.runNixOSTest {
         machine.wait_for_unit("prometheus-node-exporter.service")
         machine.wait_for_open_port(9090)
         machine.wait_for_open_port(9100)
+
+    with subtest("the sandboxed docs server still serves"):
+        machine.wait_for_unit("othrys-docs.service")
+        machine.wait_for_open_port(3000)
+        # Saved to a file first. grep -q leaves at the first match, and curl
+        # still writing into the closed pipe would fail the pipeline.
+        machine.succeed("curl -fsS -o /tmp/docs-index.html http://127.0.0.1:3000/")
+        machine.succeed("grep -qi '<html' /tmp/docs-index.html")
+
+    with subtest("the sandboxed render unit writes the bridge auth file"):
+        machine.wait_for_unit("othrys-alerting-ntfy-auth.service")
+        machine.succeed("grep -q 'token: \"tk_integrationtest\"' /run/othrys-alerting/ntfy-auth.yml")
+        mode = machine.succeed("stat -c %a /run/othrys-alerting/ntfy-auth.yml").strip()
+        assert mode == "600", f"auth file mode is {mode}"
+        machine.wait_for_unit("alertmanager-ntfy.service")
+
+    with subtest("a token that would break the YAML fails the render unit"):
+        machine.succeed("cp /etc/ntfy-token /root/token.bak")
+        machine.succeed("rm /etc/ntfy-token && printf 'tk_a\"b' > /etc/ntfy-token")
+        machine.fail("systemctl restart othrys-alerting-ntfy-auth.service")
+        machine.succeed("rm /etc/ntfy-token")
+        machine.fail("systemctl restart othrys-alerting-ntfy-auth.service")
   '';
 }

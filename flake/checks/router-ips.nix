@@ -88,6 +88,13 @@ in
       wait_for_suricata(1)
       router.succeed("nft list chain inet router-filter forward | grep -q 'queue.*bypass'")
 
+      with subtest("the sandboxed offload unit still turns the offloads off"):
+          result = router.succeed("systemctl show -p Result --value suricata-disable-offload.service").strip()
+          assert result == "success", f"the offload unit ended with {result}"
+          for iface in ["eth1", "eth2", "eth3"]:
+              features = router.succeed(f"${pkgs.ethtool}/bin/ethtool -k {iface}")
+              assert "generic-receive-offload: off" in features, f"{iface} still has GRO on"
+
       with subtest("an ordinary request passes through a running Suricata"):
           assert fetch(lanA, wan_url) == "wan"
 

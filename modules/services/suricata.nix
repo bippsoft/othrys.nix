@@ -22,6 +22,7 @@
   ...
 }: let
   cfg = config.othrys.services.suricata;
+  sandbox = import ../lib/sandbox.nix;
 
   suricataPkg =
     if cfg.package != null
@@ -237,7 +238,15 @@ in {
       before = ["suricata.service"];
       wantedBy = ["suricata.service"];
       after = ["network-pre.target"];
-      serviceConfig.Type = "oneshot";
+      serviceConfig =
+        sandbox.baseline
+        // {
+          Type = "oneshot";
+          # ethtool changes NIC features over netlink, falling back to an
+          # ioctl on an inet socket, and both need CAP_NET_ADMIN.
+          CapabilityBoundingSet = ["CAP_NET_ADMIN"];
+          RestrictAddressFamilies = ["AF_NETLINK" "AF_INET" "AF_INET6"];
+        };
       script = lib.concatMapStringsSep "\n" (iface: "${pkgs.ethtool}/bin/ethtool -K ${iface} gro off gso off tso off lro off || true") cfg.offloadInterfaces;
     };
   };

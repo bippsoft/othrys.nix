@@ -16,6 +16,7 @@
   ...
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
+  sandbox = import ../lib/sandbox.nix;
   cfg = config.othrys.services.notify;
   ntfyCfg = config.othrys.services.ntfy;
 
@@ -114,25 +115,9 @@ in {
           ExecStart = "${notifyScript}/bin/othrys-notify \"%i failed on ${config.networking.hostName}\" \"systemd unit %i entered failed state on ${config.networking.hostName}\"";
 
           DynamicUser = true;
-          PrivateTmp = true;
-          PrivateDevices = true;
-          ProtectSystem = "strict";
-          ProtectHome = true;
-          ProtectKernelTunables = true;
-          ProtectKernelModules = true;
-          ProtectControlGroups = true;
-          RestrictNamespaces = true;
-          RestrictRealtime = true;
-          RestrictSUIDSGID = true;
           RestrictAddressFamilies = ["AF_INET" "AF_INET6"];
-          LockPersonality = true;
-          MemoryDenyWriteExecute = true;
-          SystemCallArchitectures = "native";
-          SystemCallFilter = ["@system-service" "~@privileged" "~@resources"];
-          CapabilityBoundingSet = [""];
-          AmbientCapabilities = [""];
-          NoNewPrivileges = true;
         }
+        // sandbox.baseline
         // lib.optionalAttrs (cfg.tokenFile != null) {
           LoadCredential = ["token:${cfg.tokenFile}"];
         };

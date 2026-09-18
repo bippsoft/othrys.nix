@@ -281,6 +281,13 @@ reaches `main`.
 
 Outside contributions do not need to be signed.
 
+## Systemd Units
+
+A unit a module defines itself merges `baseline` from `modules/lib/sandbox.nix`
+into its `serviceConfig`, then states its exceptions beside it with a comment
+saying why each is needed. The user and `RestrictAddressFamilies` are left to
+the unit. A unit that cannot take the baseline says so in a comment.
+
 ## Secrets
 
 This repository holds no secrets, and its flake has no `secrets` input. Modules

@@ -10,6 +10,12 @@
   ...
 }: let
   cfg = config.othrys.services.docs;
+  sandbox = import ../lib/sandbox.nix;
+  # A port below 1024 is the one case where the server takes a capability.
+  bindCapability =
+    if cfg.port < 1024
+    then ["CAP_NET_BIND_SERVICE"]
+    else [""];
 
   docsPackage =
     if othrysSelf == null
@@ -72,19 +78,21 @@ in {
       after = ["network.target"];
       wantedBy = ["multi-user.target"];
 
-      serviceConfig = {
-        Type = "simple";
-        ExecStart = "${pkgs.darkhttpd}/bin/darkhttpd ${cfg.package} --port ${toString cfg.port} --addr ${cfg.interface}";
-        Restart = "on-failure";
-        RestartSec = "5s";
-
-        # Hardening
-        DynamicUser = true;
-        NoNewPrivileges = true;
-        ProtectSystem = "strict";
-        ProtectHome = true;
-        PrivateTmp = true;
-      };
+      serviceConfig =
+        {
+          Type = "simple";
+          ExecStart = "${pkgs.darkhttpd}/bin/darkhttpd ${cfg.package} --port ${toString cfg.port} --addr ${cfg.interface}";
+          Restart = "on-failure";
+          RestartSec = "5s";
+        }
+        // sandbox.baseline
+        // {
+          # Serves a store path over HTTP and needs nothing else.
+          DynamicUser = true;
+          RestrictAddressFamilies = ["AF_INET" "AF_INET6"];
+          CapabilityBoundingSet = bindCapability;
+          AmbientCapabilities = bindCapability;
+        };
     };
 
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [cfg.port];
