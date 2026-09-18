@@ -173,14 +173,15 @@ in {
     # notify.tokenFile holds the bare token while the bridge wants a one-key
     # YAML document, so render it into /run at boot. The read and printf are
     # shell builtins, so the token is never an argv of a separate process.
-    # The token lands inside a double-quoted
+    # A missing file fails this unit instead of skipping it, because a skipped
+    # render leaves the bridge to fail on the absent auth file with a message
+    # that does not name the secret. The token lands inside a double-quoted
     # YAML scalar, so anything beyond the ntfy token alphabet is refused
     # rather than escaped.
     systemd.services.othrys-alerting-ntfy-auth = lib.mkIf (internalDelivery && notifyCfg.tokenFile != null) {
       description = "Render the ntfy bridge auth config from the notify token.";
       before = ["alertmanager-ntfy.service"];
       requiredBy = ["alertmanager-ntfy.service"];
-      unitConfig.ConditionPathExists = notifyCfg.tokenFile;
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
@@ -191,6 +192,10 @@ in {
       };
       script = ''
         token_file=${lib.escapeShellArg notifyCfg.tokenFile}
+        if [ ! -r "$token_file" ]; then
+          echo "token file $token_file is missing or unreadable" >&2
+          exit 1
+        fi
         token="$(< "$token_file")"
         case "$token" in
           "" | *[!A-Za-z0-9_]*)
