@@ -23,6 +23,7 @@
 }: let
   cfg = config.othrys.services.suricata;
   sandbox = import ../lib/sandbox.nix;
+  notifyEnabled = config.othrys.services.notify.enable;
 
   suricataPkg =
     if cfg.package != null
@@ -244,6 +245,44 @@ in {
         + lib.concatMapStrings (n: " -q ${toString n}") (lib.range 0 (cfg.nfqueue.queues - 1))
       )
     );
+
+    # nixpkgs restarts the unit on failure with no delay and no reachable start
+    # limit. One attempt takes about ten seconds, since the `suricata -T`
+    # pre-check loads the whole ruleset, so systemd's default limit of five
+    # starts in ten seconds never trips. A service with Restart= only enters
+    # `failed` once its limit is hit, so a start that kept failing looped
+    # forever in `activating`, showed up nowhere, and kept a core busy, while
+    # `bypass` kept the network looking healthy. Five attempts within fifteen
+    # minutes, thirty seconds apart, now end in `failed`, which is a state that
+    # `systemctl --failed`, monitoring and the hook below can all see.
+    systemd.services.suricata = {
+      startLimitIntervalSec = 900;
+      startLimitBurst = 5;
+      serviceConfig.RestartSec = "30s";
+      onFailure = lib.mkIf notifyEnabled ["notify-failure@%n.service"];
+    };
+
+    # A unit that stays down until someone restarts it would turn a silent loop
+    # into a silent outage the day after a bad ruleset is corrected upstream.
+    # This runs whenever suricata-update succeeds, which is at least daily, and
+    # starts the engine again if it was left in `failed`. When the cause is
+    # still there the unit fails again and reports again, once per rule update.
+    systemd.services.suricata-recover = {
+      description = "Start Suricata again after a rule update if it had failed.";
+      serviceConfig =
+        sandbox.baseline
+        // {
+          Type = "oneshot";
+          # Talks to systemd over its private socket, and needs nothing else.
+          RestrictAddressFamilies = ["AF_UNIX"];
+          ExecCondition = "${config.systemd.package}/bin/systemctl is-failed --quiet suricata.service";
+          ExecStart = [
+            "${config.systemd.package}/bin/systemctl reset-failed suricata.service"
+            "${config.systemd.package}/bin/systemctl start --no-block suricata.service"
+          ];
+        };
+    };
+    systemd.services.suricata-update.onSuccess = ["suricata-recover.service"];
 
     # Inline inspection requires the NIC to hand up physical-sized frames.
     systemd.services.suricata-disable-offload = lib.mkIf (cfg.offloadInterfaces != []) {
