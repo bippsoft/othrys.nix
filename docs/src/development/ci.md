@@ -18,7 +18,8 @@ get fast feedback while the exhaustive suite still gates what lands:
   header defaults read back), `eval-ssh` (the known hosts and client defaults
   read back), `eval-template` (the `nix flake init` template instantiated with
   only the inputs a consumer has), `eval-router-services` (the start-up defaults
-  of Suricata and CrowdSec read back), and `impermanence-test` (the persistence and
+  of Suricata and CrowdSec read back), `eval-dev-shells` (the hooks each dev
+  shell installs read back), and `impermanence-test` (the persistence and
   root-wipe invariant, the defining principle of the system). Small closures.
 - **Core on ARM** (`core-aarch64` job) runs on every PR/push/dispatch on an
   `ubuntu-24.04-arm` runner. It builds the portable host evaluations for

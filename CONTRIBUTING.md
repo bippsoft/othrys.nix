@@ -247,7 +247,10 @@ with `just build <hostname>`, `just diff <hostname>` and `just test <hostname>`.
 ## Linting
 
 Eight hooks run on every commit once the dev shell has installed them, and
-`pre-commit-check` runs the same set in `nix flake check`.
+`pre-commit-check` runs the same set in `nix flake check`. Both are built from
+the two hook sets named in `flake/checks/default.nix`. `comment-hygiene`,
+`contract-mirror` and `contract-guards` read this repository's own tree, so
+`devShells.consumer`, the shell a consuming flake re-exports, leaves them out.
 
 - **treefmt** formats Nix, shell, TOML, YAML and Markdown (`just fmt`)
 - **Statix** lints Nix
