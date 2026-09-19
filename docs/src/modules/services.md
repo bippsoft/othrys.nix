@@ -111,9 +111,18 @@ other case, a running Suricata whose queue is full. Setting `failOpen = false`
 therefore does not make a dead Suricata block traffic.
 
 The unit's pre-check, `suricata -T`, treats any rule that fails to load as
-fatal, and the unit restarts on failure. A ruleset with one bad rule therefore
-leaves Suricata in a restart loop that never starts the engine. Because of
-`bypass` the network shows no sign of it, so watch the unit and not the link.
+fatal, so a ruleset with one bad rule keeps the engine from starting. Because of
+`bypass` the network shows no sign of that, so watch the unit and not the link.
+
+A start that keeps failing does not loop for ever. The unit retries thirty
+seconds apart, and after five starts within fifteen minutes it stays in
+`failed`, where `systemctl --failed` and monitoring can see it. With
+`othrys.services.notify` enabled, that failure is sent through
+`notify-failure@`. `suricata-recover.service` runs after every successful
+`suricata-update`, which is at least daily, and starts the engine again if it
+was left in `failed`. When the cause is still there, the unit fails and reports
+again, once per rule update.
+
 The module states `modbus` and `dnp3` as `enabled = "no"`, which is Suricata's
 own default, so that `suricata-update` drops the rules naming them. Set either
 to `"yes"` through `settings` to get the parser and its rules back.
