@@ -48,6 +48,7 @@ jobs:
             '.#checks.x86_64-linux.eval-host-anonymous' \
             '.#checks.x86_64-linux.eval-host-server-account' \
             '.#checks.x86_64-linux.eval-bootloader' \
+            '.#checks.x86_64-linux.eval-rustdesk' \
             '.#checks.x86_64-linux.eval-dev-shells' \
             '.#checks.x86_64-linux.eval-router-services' \
             '.#checks.x86_64-linux.eval-template' \

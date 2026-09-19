@@ -871,6 +871,9 @@
       # Start-up defaults of Suricata and CrowdSec (see ./router-services.nix).
       eval-router-services = import ./router-services.nix {inherit hostConfig mkExpectations bootBase;};
 
+      # What the RustDesk module persists and launches (see ./rustdesk.nix).
+      eval-rustdesk = import ./rustdesk.nix {inherit hostConfig mkExpectations functioningHost;};
+
       # The SSH known hosts and client defaults (see ./ssh.nix).
       eval-ssh = import ./ssh.nix {inherit hostConfig mkExpectations functioningHost;};
 
