@@ -35,6 +35,13 @@ System-critical directories persisted in `persistence.nix`:
 systemd-networkd DHCP identity are both derived from it. Without it every boot
 produces a new id.
 
+A host that was already running when it first switches onto this gets its
+current id kept. impermanence refuses to mount over a machine-id file that
+already holds an id, so an activation step copies the running id into the
+persist root and bind-mounts it before impermanence looks. A persisted file that
+is missing, empty or a leftover symlink is replaced, and one holding a different
+id is kept beside it as `machine-id.replaced`. At boot the step does nothing.
+
 The SSH host keys are not bind-mounted. `services.openssh.hostKeys` points at
 `<persistRoot>/etc/ssh/` directly, which is also where sops-nix reads the
 ed25519 key. A bind mount over `/etc/ssh` would cover the `sshd_config` that
