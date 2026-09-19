@@ -110,6 +110,14 @@ is set unconditionally. `othrys.services.suricata.nfqueue.failOpen` covers the
 other case, a running Suricata whose queue is full. Setting `failOpen = false`
 therefore does not make a dead Suricata block traffic.
 
+The unit's pre-check, `suricata -T`, treats any rule that fails to load as
+fatal, and the unit restarts on failure. A ruleset with one bad rule therefore
+leaves Suricata in a restart loop that never starts the engine. Because of
+`bypass` the network shows no sign of it, so watch the unit and not the link.
+The module states `modbus` and `dnp3` as `enabled = "no"`, which is Suricata's
+own default, so that `suricata-update` drops the rules naming them. Set either
+to `"yes"` through `settings` to get the parser and its rules back.
+
 Both directions fail open on purpose, since an IPS crash on a router should not
 sever the network it protects. The consequence is worth stating plainly: while
 Suricata is down, forwarded traffic is uninspected rather than blocked, so the
