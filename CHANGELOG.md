@@ -1,3 +1,9 @@
+## v0.5.2 (2026-09-19)
+
+### Fix
+
+- **persistence**: migrate a running host's machine-id on its first switch
+
 ## v0.5.1 (2026-09-19)
 
 ### Fix
