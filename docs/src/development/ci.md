@@ -30,7 +30,8 @@ get fast feedback while the exhaustive suite still gates what lands:
 - **Extended** (`extended` job) runs on push to `main`, manual
   `workflow_dispatch`, and input-update PRs titled `chore(flake)`, since input
   bumps are exactly the changes that break deep surfaces. A matrix fans the suite out, one runner per check:
-  `eval-default` and the two desktop evals, `enable-matrix` (every module
+  `eval-default` and the two desktop evals, `eval-ashell` (the bar's generated
+  config for a desktop and a laptop), `enable-matrix` (every module
   enabled with defaults), and the runtime VM tests (`restic-test`,
   `headscale-test`, `auto-upgrade-test`, `crowdsec-test`, `router-test`, `router-ips-test`,
   `integration-test`, `impermanence-reboot-test`).
