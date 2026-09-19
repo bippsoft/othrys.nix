@@ -1,3 +1,17 @@
+## v0.7.0 (2026-09-19)
+
+### BREAKING CHANGE
+
+- the boot menu now keeps the 5 newest generations. Set
+othrys.system.bootloader.maxGenerations to another number, or to null for the
+bootloader's own default. A host that sets boot.loader.limine.maxGenerations or
+a configurationLimit itself has to move that value to this option, since the two
+definitions now conflict.
+
+### Feat
+
+- **bootloader**: limit the generations kept on the boot partition
+
 ## v0.6.0 (2026-09-19)
 
 ### Feat
