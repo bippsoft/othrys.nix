@@ -131,6 +131,15 @@ leaves a failed unit on every host within a day
 ([#473707](https://github.com/NixOS/nixpkgs/issues/473707),
 [#541058](https://github.com/NixOS/nixpkgs/issues/541058)).
 
+A sixth shows only during a switch. The engine's pre-start step fetches the hub
+index and a failed fetch is fatal, while `After=network-online.target` protects
+boot and nothing else. On a host that resolves through its own
+`othrys.services.unbound`, a switch restarts the resolver and the engine in one
+transaction, the fetch lands while the resolver is down, and both the engine and
+the bouncer are left failed. The module orders `crowdsec.service` after
+`unbound.service` whenever othrys Unbound is on, which a restart transaction
+honours. `eval-router-services` reads that ordering back.
+
 The `crowdsec-test` VM check boots a fresh machine, runs the update timer,
 restores a host from the broken `/var/lib/private` layout, and reboots; remove a
 workaround only when that check still passes without it.

@@ -136,6 +136,15 @@ in {
         StateDirectory = "crowdsec";
       };
     in {
+      # The engine's ExecStartPre fetches the hub index, and nixpkgs makes a
+      # failed fetch fatal. `After=network-online.target` covers boot and
+      # nothing else. During a switch on a host that resolves through its own
+      # unbound, systemd restarts both in one transaction with no order between
+      # them, the fetch lands while the resolver is down, and the engine and
+      # the bouncer are left failed. Restart transactions honour After=, so
+      # this makes the resolver come back first.
+      crowdsec.after = lib.optional config.othrys.services.unbound.enable "unbound.service";
+
       crowdsec.serviceConfig =
         staticUser
         // {
