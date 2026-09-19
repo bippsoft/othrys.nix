@@ -1,3 +1,35 @@
+## v0.4.0 (2026-09-18)
+
+### BREAKING CHANGE
+
+- othrys.apps.gaming.steam no longer opens TCP and UDP 27015 by
+default. A host that runs a Source dedicated server sets
+dedicatedServer.openFirewall = true.
+- every backup now ends with restic check reading a random 5%
+of the pack data. Set runCheck = false, or change checkOpts, on backups where
+that read costs too much.
+
+### Feat
+
+- **checks**: scan commits for secrets with gitleaks
+- **restic**: verify the repository after each backup by default
+- **steam**: add shader pre-caching thread options
+
+### Fix
+
+- **dev-shells**: install the same hooks the flake check runs
+- **notify**: write the header file under XDG_RUNTIME_DIR
+- **nix**: accept allowUnfreePredicate on an external nixpkgs instance
+- **alerting**: fail the render unit when the token file is missing
+- **alerting**: reject a token that would break the rendered YAML
+- **checks**: drop the drvPath string context in mkHostEval
+- **persistence**: keep SSH host keys on the persist volume
+- **persistence**: persist /etc/machine-id across the root wipe
+- **steam**: expose the installed package through the read-only package option
+- **steam**: drop the session-wide STEAM_EXTRA_COMPAT_TOOLS_PATHS
+- **steam**: stop opening the dedicated server ports by default
+- **floorp**: use the navbar value Firefox 155 accepts for default_area
+
 ## v0.3.1 (2026-09-04)
 
 ### Fix
