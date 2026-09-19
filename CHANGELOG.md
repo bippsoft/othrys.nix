@@ -1,3 +1,13 @@
+## v0.6.0 (2026-09-19)
+
+### Feat
+
+- **rustdesk**: add forceX11 to start the launcher through XWayland
+
+### Fix
+
+- **rustdesk**: persist the client's own config directory
+
 ## v0.5.2 (2026-09-19)
 
 ### Fix
