@@ -25,6 +25,7 @@
     type,
     secureBoot,
     extraModules ? [],
+    bootloader ? {},
   }:
     (lib.nixosSystem {
       inherit system;
@@ -40,10 +41,12 @@
           )
           {
             system.stateVersion = "26.05";
-            othrys.system.bootloader = {
-              enable = true;
-              inherit type secureBoot;
-            };
+            othrys.system.bootloader =
+              {
+                enable = true;
+                inherit type secureBoot;
+              }
+              // bootloader;
           }
         ];
     })
@@ -99,6 +102,10 @@
           actual = hasSbctl c;
           expected = false;
         };
+        "boot.loader.limine.maxGenerations" = {
+          actual = c.boot.loader.limine.maxGenerations;
+          expected = 5;
+        };
       }))
 
     (accepts "systemd-boot" {
@@ -109,6 +116,10 @@
           actual = c.boot.loader.systemd-boot.enable;
           expected = true;
         };
+        "boot.loader.systemd-boot.configurationLimit" = {
+          actual = c.boot.loader.systemd-boot.configurationLimit;
+          expected = 5;
+        };
       }))
 
     (accepts "grub" {
@@ -118,6 +129,56 @@
         "boot.loader.grub.enable" = {
           actual = c.boot.loader.grub.enable;
           expected = true;
+        };
+        "boot.loader.grub.configurationLimit" = {
+          actual = c.boot.loader.grub.configurationLimit;
+          expected = 5;
+        };
+      }))
+
+    # The generation limit. A host's own number reaches the bootloader, and
+    # null writes nothing, which leaves each bootloader on its upstream default.
+    (accepts "limine with maxGenerations = 3" {
+        type = "limine";
+        secureBoot = false;
+        bootloader.maxGenerations = 3;
+      } (c: {
+        "boot.loader.limine.maxGenerations" = {
+          actual = c.boot.loader.limine.maxGenerations;
+          expected = 3;
+        };
+      }))
+
+    (accepts "limine with maxGenerations = null" {
+        type = "limine";
+        secureBoot = false;
+        bootloader.maxGenerations = null;
+      } (c: {
+        "boot.loader.limine.maxGenerations" = {
+          actual = c.boot.loader.limine.maxGenerations;
+          expected = null;
+        };
+      }))
+
+    (accepts "systemd-boot with maxGenerations = null" {
+        type = "systemd-boot";
+        secureBoot = false;
+        bootloader.maxGenerations = null;
+      } (c: {
+        "boot.loader.systemd-boot.configurationLimit" = {
+          actual = c.boot.loader.systemd-boot.configurationLimit;
+          expected = null;
+        };
+      }))
+
+    (accepts "grub with maxGenerations = null" {
+        type = "grub";
+        secureBoot = false;
+        bootloader.maxGenerations = null;
+      } (c: {
+        "boot.loader.grub.configurationLimit" = {
+          actual = c.boot.loader.grub.configurationLimit;
+          expected = 100;
         };
       }))
 
@@ -161,6 +222,10 @@
         "boot.lanzaboote.pkiBundle" = {
           actual = c.boot.lanzaboote.pkiBundle;
           expected = "/var/lib/sbctl";
+        };
+        "boot.lanzaboote.configurationLimit" = {
+          actual = c.boot.lanzaboote.configurationLimit;
+          expected = 5;
         };
         "boot.loader.systemd-boot.enable" = {
           actual = c.boot.loader.systemd-boot.enable;
