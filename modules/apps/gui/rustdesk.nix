@@ -27,6 +27,22 @@ in {
         are not opened here.
       '';
     };
+
+    forceX11 = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Start the client from its desktop entry with `GDK_BACKEND=x11`, so it
+        runs as an X11 client through XWayland in a Wayland session. For setups
+        where the client behaves better that way than as a native Wayland
+        window.
+
+        Only the launcher changes. The `rustdesk` binary on the PATH is left
+        as it is, so a command such as `rustdesk --get-id` is unaffected. The
+        session has to provide XWayland, which Hyprland starts itself and niri
+        gets from `xwayland-satellite`.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -50,6 +66,23 @@ in {
 
     othrys.internal.homeConfig."apps.rustdesk" = {
       home.packages = with pkgs; [rustdesk];
+
+      # A Home Manager entry of the same name takes precedence over the one the
+      # package ships. It repeats that entry's fields and changes Exec alone.
+      # %u hands a rustdesk:// link to the client, which the MimeType line
+      # promises and the packaged Exec line leaves out.
+      xdg.desktopEntries = lib.mkIf cfg.forceX11 {
+        rustdesk = {
+          name = "RustDesk";
+          genericName = "Remote Desktop";
+          comment = "Remote desktop client";
+          exec = "env GDK_BACKEND=x11 rustdesk %u";
+          icon = "rustdesk";
+          terminal = false;
+          categories = ["Network"];
+          mimeType = ["x-scheme-handler/rustdesk"];
+        };
+      };
     };
   };
 }
