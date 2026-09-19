@@ -1,3 +1,33 @@
+## v0.5.0 (2026-09-18)
+
+### BREAKING CHANGE
+
+- every router behind websecure now refuses TLS below 1.2 and
+sends HSTS, nosniff, and X-Frame-Options SAMEORIGIN, and with ACME on a
+connection by IP address or unknown server name is refused. Set tls.minVersion
+= null, tls.sniStrict = false, or securityHeaders.enable = false to keep the
+old behaviour, or change the single header options.
+- secureBoot = true no longer evaluates with type "grub" or "none". With type "systemd-boot" it now requires the consuming flake to add a lanzaboote input and import lanzaboote.nixosModules.lanzaboote.
+
+### Feat
+
+- **flake**: evaluate the library on aarch64-linux
+- **auto-upgrade**: verify the flake ref's signature before switching
+- **templates**: add a default host template
+- **ssh**: distribute known hosts and set safe client defaults
+- **traefik**: set a TLS floor and security headers by default
+- **hardening**: add an opt-in kernel and sysctl hardening profile
+- **bootloader**: support Secure Boot on systemd-boot through lanzaboote
+
+### Fix
+
+- **niri**: import the niri module from this flake's own inputs
+
+### Refactor
+
+- **auto-upgrade**: take the verify unit's sandbox from the shared baseline
+- **services**: share one sandboxing baseline across custom units
+
 ## v0.4.0 (2026-09-18)
 
 ### BREAKING CHANGE
