@@ -1,3 +1,12 @@
+## v0.5.1 (2026-09-19)
+
+### Fix
+
+- **dev-shells**: give consuming flakes a shell without the repository hooks
+- **suricata**: end a failing start in failed and report it
+- **crowdsec**: start after the local resolver during a switch
+- **suricata**: state modbus and dnp3 as off so their rules are dropped
+
 ## v0.5.0 (2026-09-18)
 
 ### BREAKING CHANGE
