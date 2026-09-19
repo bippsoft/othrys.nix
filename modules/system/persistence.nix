@@ -16,6 +16,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }: let
   username = config.othrys.system.user.name;
@@ -58,6 +59,37 @@ in {
         bits = 4096;
       }
     ];
+
+    # impermanence bind-mounts the persisted /etc/machine-id, and its mount
+    # script refuses a mount point that is already a regular, non-empty file.
+    # At boot the root is fresh and the file is absent, so that never triggers.
+    # On a host that was running before /etc/machine-id joined the persisted
+    # set, the file holds this boot's id, and the first switch failed with "A
+    # file already exists at /etc/machine-id!". This step runs first and turns
+    # that state into the one the mount script accepts. The running id is the
+    # one kept, so the journal and the DHCP identity of this boot carry on. A
+    # persisted file that is missing, empty or a symlink is replaced, and one
+    # that holds a different id is kept beside it. At boot it does nothing.
+    system.activationScripts.othrys-persist-machine-id = {
+      deps = ["createPersistentStorageDirs"];
+      text = ''
+        machine_id=/etc/machine-id
+        persisted=${lib.escapeShellArg "${persistRoot}/etc/machine-id"}
+        if [ -f "$machine_id" ] && [ ! -L "$machine_id" ] && [ -s "$machine_id" ] \
+          && ! ${pkgs.util-linux}/bin/findmnt "$machine_id" > /dev/null \
+          && [ "$(${pkgs.coreutils}/bin/cat "$machine_id")" != uninitialized ]; then
+          if [ -f "$persisted" ] && [ ! -L "$persisted" ] && [ -s "$persisted" ] \
+            && ! ${pkgs.diffutils}/bin/cmp -s "$machine_id" "$persisted"; then
+            ${pkgs.coreutils}/bin/mv "$persisted" "$persisted.replaced"
+          fi
+          ${pkgs.coreutils}/bin/rm -f "$persisted"
+          ${pkgs.coreutils}/bin/install -D -m 0444 "$machine_id" "$persisted"
+          ${pkgs.util-linux}/bin/mount --bind "$persisted" "$machine_id"
+          echo "persisted the running machine-id to $persisted"
+        fi
+      '';
+    };
+    system.activationScripts.persist-files.deps = ["othrys-persist-machine-id"];
 
     # ANCHOR: system-persistence
     environment.persistence.${persistRoot} = {
