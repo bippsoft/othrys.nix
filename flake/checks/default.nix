@@ -793,6 +793,9 @@
           }).nixosConfigurations.myhost.config.system.build.toplevel.drvPath;
       } "echo \"$drv\" > \"$out\"";
 
+      # Start-up defaults of Suricata and CrowdSec (see ./router-services.nix).
+      eval-router-services = import ./router-services.nix {inherit hostConfig mkExpectations bootBase;};
+
       # The SSH known hosts and client defaults (see ./ssh.nix).
       eval-ssh = import ./ssh.nix {inherit hostConfig mkExpectations functioningHost;};
 
