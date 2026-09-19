@@ -31,7 +31,7 @@ Require a desktop environment.
 | OBS | `othrys.apps.obs` | Screen recording/streaming |
 | Picard | `othrys.apps.picard` | MusicBrainz tagger |
 | Plexamp | `othrys.apps.plexamp` | Plex music player |
-| RustDesk | `othrys.apps.rustdesk` | Remote desktop |
+| RustDesk | `othrys.apps.rustdesk` | Remote desktop client. Persists `~/.config/rustdesk`, and `forceX11` starts the launcher through XWayland |
 | LocalSend | `othrys.apps.localsend` | Local file sharing |
 | MPV | `othrys.apps.mpv` | Media player |
 
