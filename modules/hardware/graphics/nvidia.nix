@@ -15,7 +15,34 @@ in {
     openModules = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Use open-source kernel modules (RTX 20+ series).";
+      description = ''
+        Use NVIDIA's open kernel modules. They support Turing and newer, which
+        is GTX 16 and RTX 20 onward, and NVIDIA recommends them there.
+
+        A Maxwell, Pascal or Volta card, which is GTX 900, GTX 10 and Titan V,
+        needs `false` here together with a `package` from the 580 branch. With
+        the open modules the kernel module never binds to such a card, and
+        `nvidia-smi` reports that it cannot communicate with the driver.
+      '';
+    };
+
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = config.boot.kernelPackages.nvidiaPackages.stable;
+      defaultText = lib.literalExpression "config.boot.kernelPackages.nvidiaPackages.stable";
+      example = lib.literalExpression "config.boot.kernelPackages.nvidiaPackages.legacy_580";
+      description = ''
+        The driver to install, taken from the host's kernel packages so its
+        kernel modules match the running kernel.
+
+        The stable driver no longer drives every card. The 580 branch is the
+        last that supports Maxwell, Pascal and Volta, and nixpkgs ships it as
+        `nvidiaPackages.legacy_580`. Older cards have `legacy_470` and
+        `legacy_390`. A driver that does not support the card fails the same
+        way the wrong `openModules` does, with `nvidia-smi` unable to
+        communicate with the driver and `NVRM` lines in `dmesg` naming the
+        branch the card needs.
+      '';
     };
   };
 
@@ -47,7 +74,7 @@ in {
       else ["nvidia"];
 
     hardware.nvidia = {
-      package = config.boot.kernelPackages.nvidiaPackages.stable;
+      inherit (cfg) package;
       modesetting.enable = true;
       open = cfg.openModules;
       nvidiaSettings = true;
