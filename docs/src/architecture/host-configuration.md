@@ -56,6 +56,20 @@ inputs.nixpkgs.lib.nixosSystem {
 
 The five upstream modules above are required on every host, even when the matching othrys feature is off, because `nixosModules.default` writes into their option namespaces. Lanzaboote is an optional sixth. It is needed only for Secure Boot on `systemd-boot`, where the host adds a `lanzaboote` input and imports `inputs.lanzaboote.nixosModules.lanzaboote`. Every other host leaves it out and evaluates the same without it. See [Bootloader & Secure Boot](../system/bootloader.md).
 
+## Re-exporting the Dev Shell
+
+A consuming flake that wants the same tools and commit hooks re-exports
+`devShells.consumer`, not `devShells.default`:
+
+```nix
+devShells.default = inputs'.othrys.devShells.consumer;
+```
+
+Both shells carry the same packages. `consumer` installs the hooks that suit any
+Nix repository, which are `treefmt`, `statix`, `deadnix`, `commitizen` and
+`gitleaks`. `default` adds `comment-hygiene`, `contract-mirror` and
+`contract-guards`, which read this repository's own tree and reject any other.
+
 ## The specialArgs Contract
 
 othrys modules expect one argument via `specialArgs` (and `home-manager.extraSpecialArgs`):

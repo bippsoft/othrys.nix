@@ -487,6 +487,55 @@
         }
       ];
 
+    # The hooks come in two sets, named here once. Both the check below and the
+    # dev shells (../dev-shells.nix) are built from them, so a local commit in
+    # this repository meets exactly what CI runs.
+    #
+    # portableHooks suit any Nix repository. repositoryHooks read this
+    # repository's own tree, its contract prose, its module layout and its doc
+    # anchors, and fail in any other. A flake that re-exports the dev shell
+    # therefore takes devShells.consumer, which installs the portable set only.
+    portableHooks = {
+      treefmt = {
+        enable = true;
+        package = config.treefmt.build.wrapper;
+      };
+      statix.enable = true;
+      deadnix.enable = true;
+      commitizen.enable = true;
+
+      # contract-guards covers where a secret may be referenced. This covers
+      # content, scanning what is staged for anything shaped like a key or a
+      # token before it reaches a public history.
+      gitleaks = {
+        enable = true;
+        name = "gitleaks";
+        entry = "${pkgs.gitleaks}/bin/gitleaks git --pre-commit --staged --redact --no-banner";
+        pass_filenames = false;
+      };
+    };
+
+    repositoryHooks = {
+      comment-hygiene = {
+        enable = true;
+        name = "comment-hygiene";
+        entry = "${commentHygiene}/bin/comment-hygiene";
+        pass_filenames = false;
+      };
+      contract-mirror = {
+        enable = true;
+        name = "contract-mirror";
+        entry = "${contractMirror}/bin/contract-mirror";
+        pass_filenames = false;
+      };
+      contract-guards = {
+        enable = true;
+        name = "contract-guards";
+        entry = "${contractGuards}/bin/contract-guards";
+        pass_filenames = false;
+      };
+    };
+
     # x86_64-linux runs every check. Any other system keeps the host
     # evaluations that hold no platform-bound package, which is what shows the
     # module tree evaluates there. The VM tests need a hypervisor for that
@@ -505,12 +554,18 @@
       "eval-bootloader"
       "eval-traefik"
       "eval-ssh"
+      "eval-dev-shells"
     ];
     onThisSystem = all:
       if system == "x86_64-linux"
       then all
       else inputs.nixpkgs.lib.filterAttrs (name: _: builtins.elem name portableChecks) all;
   in {
+    # Handed to ../dev-shells.nix as module arguments. It cannot read them off
+    # config.checks, which holds no pre-commit-check on a system other than
+    # x86_64-linux.
+    _module.args = {inherit portableHooks repositoryHooks;};
+
     # ANCHOR: checks
     # Checks are split into two tiers. The GitHub workflow runs CORE on every PR
     # and EXTENDED only on main + manual dispatch (see .github/workflows).
@@ -793,6 +848,26 @@
           }).nixosConfigurations.myhost.config.system.build.toplevel.drvPath;
       } "echo \"$drv\" > \"$out\"";
 
+      # The dev shells, held to the hooks they claim to install. The default
+      # shell has to match pre-commit-check, and the consumer shell has to
+      # carry no hook that reads this repository's own tree. It is also the
+      # one check that evaluates the dev shells on every system.
+      eval-dev-shells = let
+        inherit (inputs.nixpkgs) lib;
+        default = config.devShells.default.hookIds;
+        consumer = config.devShells.consumer.hookIds;
+        portable = builtins.attrNames portableHooks;
+        repository = builtins.attrNames repositoryHooks;
+      in
+        mkExpectations "othrys-eval-dev-shells" {
+          "the default shell installs every portable hook" = lib.all (hook: builtins.elem hook default) portable;
+          "the default shell installs every repository hook" = lib.all (hook: builtins.elem hook default) repository;
+          "the default shell installs what pre-commit-check runs and nothing else" = default == lib.sort builtins.lessThan (portable ++ repository);
+          "the consumer shell installs every portable hook" = lib.all (hook: builtins.elem hook consumer) portable;
+          "the consumer shell installs no repository hook" = !(lib.any (hook: builtins.elem hook consumer) repository);
+          "the three repository hooks are the ones expected" = repository == ["comment-hygiene" "contract-guards" "contract-mirror"];
+        };
+
       # Start-up defaults of Suricata and CrowdSec (see ./router-services.nix).
       eval-router-services = import ./router-services.nix {inherit hostConfig mkExpectations bootBase;};
 
@@ -821,44 +896,7 @@
       # comment-hygiene enforces the CONTRIBUTING.md comment conventions).
       pre-commit-check = inputs.git-hooks.lib.${system}.run {
         src = inputs.self;
-        hooks = {
-          treefmt = {
-            enable = true;
-            package = config.treefmt.build.wrapper;
-          };
-          statix.enable = true;
-          deadnix.enable = true;
-          commitizen.enable = true;
-          comment-hygiene = {
-            enable = true;
-            name = "comment-hygiene";
-            entry = "${commentHygiene}/bin/comment-hygiene";
-            pass_filenames = false;
-          };
-          contract-mirror = {
-            enable = true;
-            name = "contract-mirror";
-            entry = "${contractMirror}/bin/contract-mirror";
-            pass_filenames = false;
-          };
-
-          contract-guards = {
-            enable = true;
-            name = "contract-guards";
-            entry = "${contractGuards}/bin/contract-guards";
-            pass_filenames = false;
-          };
-
-          # contract-guards covers where a secret may be referenced. This
-          # covers content, scanning what is staged for anything shaped like
-          # a key or a token before it reaches a public history.
-          gitleaks = {
-            enable = true;
-            name = "gitleaks";
-            entry = "${pkgs.gitleaks}/bin/gitleaks git --pre-commit --staged --redact --no-banner";
-            pass_filenames = false;
-          };
-        };
+        hooks = portableHooks // repositoryHooks;
       };
 
       # CORE. The hook above only sees what one commit stages. This scans every
