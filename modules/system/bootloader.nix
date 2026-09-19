@@ -15,6 +15,10 @@
   # so its option namespace exists only when the consuming flake imports
   # lanzaboote.nixosModules.lanzaboote itself.
   hasLanzaboote = options.boot ? lanzaboote;
+
+  # The generation limit under the name each bootloader gives it. With null
+  # nothing is written and the bootloader keeps its own default.
+  limit = name: lib.optionalAttrs (cfg.maxGenerations != null) {${name} = cfg.maxGenerations;};
 in {
   options.othrys.system.bootloader = {
     enable = lib.mkEnableOption "Bootloader configuration";
@@ -34,6 +38,32 @@ in {
         consuming flake must import as `lanzaboote.nixosModules.lanzaboote`.
         GRUB and `"none"` are rejected. The keys must exist before the first
         rebuild, and the firmware enforces nothing until they are enrolled.
+      '';
+    };
+
+    maxGenerations = lib.mkOption {
+      type = lib.types.nullOr lib.types.ints.positive;
+      default = 5;
+      description = ''
+        How many of the newest generations the bootloader keeps on the boot
+        partition and lists in its menu. Generations beyond it stay in the
+        system profile and only leave the boot menu.
+
+        Every listed generation has its kernel and its initrd copied to the
+        boot partition, and with no limit that is every generation in the
+        profile, so the partition fills. Limine removes unused files only at
+        the end of an install that succeeds, so once the partition is full a
+        switch can no longer complete and nothing frees the space.
+
+        An install copies the new generation before it removes an old one, so
+        the partition has to hold this number plus one. A generation costs the
+        size of its kernel plus its initrd. At 40M a generation, 5 needs 240M.
+        A host with a 200M initrd needs 1.3G for the same 5, so on a 1G
+        partition it sets 3. `du -sh /boot/limine/kernels` shows the cost on a
+        running Limine host.
+
+        `null` leaves the limit to the bootloader's own default, which is no
+        limit for Limine and systemd-boot and 100 for GRUB.
       '';
     };
 
@@ -69,25 +99,37 @@ in {
 
       boot.loader.efi.canTouchEfiVariables = true;
 
-      boot.loader.limine = lib.mkIf (cfg.type == "limine") {
-        enable = true;
-        secureBoot.enable = cfg.secureBoot;
-        inherit (cfg) extraEntries;
-      };
+      boot.loader.limine = lib.mkIf (cfg.type == "limine") (
+        {
+          enable = true;
+          secureBoot.enable = cfg.secureBoot;
+          inherit (cfg) extraEntries;
+        }
+        // limit "maxGenerations"
+      );
 
       # Lanzaboote installs and signs systemd-boot itself, so the stock module
       # goes off whenever lanzaboote takes over. Without the lanzaboote import
       # it stays on. Turning it off there leaves NixOS on its default GRUB,
       # whose own assertion then fails beside the one above.
-      boot.loader.systemd-boot = lib.mkIf (cfg.type == "systemd-boot") {
-        enable = !(cfg.secureBoot && hasLanzaboote);
-      };
+      #
+      # Lanzaboote reads its own limit from this option, so the one write
+      # covers both.
+      boot.loader.systemd-boot = lib.mkIf (cfg.type == "systemd-boot") (
+        {
+          enable = !(cfg.secureBoot && hasLanzaboote);
+        }
+        // limit "configurationLimit"
+      );
 
-      boot.loader.grub = lib.mkIf (cfg.type == "grub") {
-        enable = true;
-        efiSupport = true;
-        device = "nodev";
-      };
+      boot.loader.grub = lib.mkIf (cfg.type == "grub") (
+        {
+          enable = true;
+          efiSupport = true;
+          device = "nodev";
+        }
+        // limit "configurationLimit"
+      );
 
       environment.systemPackages = lib.mkIf cfg.secureBoot [
         pkgs.sbctl
