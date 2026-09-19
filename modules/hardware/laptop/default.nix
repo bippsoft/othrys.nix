@@ -42,6 +42,10 @@ in {
       };
     };
 
+    # The battery state over D-Bus, which the ashell battery indicator and
+    # most desktop battery readouts use. TLP does not provide it.
+    services.upower.enable = lib.mkDefault true;
+
     # Touchpad support
     services.libinput.enable = cfg.touchpad.enable;
 
