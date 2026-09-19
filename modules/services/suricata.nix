@@ -83,7 +83,20 @@
       nfq = {fail-open = cfg.nfqueue.failOpen;};
     };
 
-  suricataSettings = lib.recursiveUpdate (postureSettings // modeSettings) cfg.settings;
+  # Suricata leaves modbus and dnp3 detection off unless the configuration
+  # turns them on, so a rule naming either protocol fails to parse, and the
+  # unit's `suricata -T` pre-check treats any rule that fails to load as fatal.
+  # suricata-update drops the rules of a protocol by itself, but only for one
+  # it can read as off in this file. With no key here it kept all of them, and
+  # the engine never started once a ruleset had been fetched. Stating the
+  # default closes that gap. A host that wants the parsers sets "yes" through
+  # `settings`, and the rules come back with them.
+  protocolSettings.app-layer.protocols = {
+    modbus.enabled = "no";
+    dnp3.enabled = "no";
+  };
+
+  suricataSettings = lib.recursiveUpdate (protocolSettings // postureSettings // modeSettings) cfg.settings;
 in {
   # ANCHOR: suricata-options
   options.othrys.services.suricata = {
