@@ -72,7 +72,8 @@ Every commit on main evaluates: the three server-contract host shapes
 `othrys.*.enable` flipped on with defaults (the enable matrix), the
 impermanence wipe-script behavior against real btrfs, and a reboot of a VM with
 an empty root that compares the machine-id, the SSH host key and the journal
-directory before and after. The router stack also runs in a VM, where two LAN
+directory before and after, and then makes the first live switch of a host that
+predates the persisted machine-id. The router stack also runs in a VM, where two LAN
 clients take Kea leases, resolve a local name through Unbound and reach a WAN
 host through the masquerade, while the default-drop input and forward chains are
 probed from the WAN and from the other LAN. A second VM puts Suricata inline on
