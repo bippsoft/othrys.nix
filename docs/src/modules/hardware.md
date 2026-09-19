@@ -29,11 +29,40 @@ Hardware modules under `othrys.hardware.*`.
 Key features:
 
 - Modesetting enabled (required for Wayland)
-- Open kernel modules for RTX 20+ series
+- Open kernel modules by default, which suit Turing and newer (GTX 16, RTX 20 onward)
+- The driver is an option, `package`, defaulting to the stable branch
 - VA-API and VDPAU drivers for hardware video decode
 - 32-bit support for Steam/gaming
 - Kernel modules loaded in initrd to claim DRM device early
 - Blacklists `i915` and `nouveau` to prevent conflicts
+
+### Older cards
+
+The stable driver and the open kernel modules both leave older cards behind, and
+nothing at evaluation can tell which card a host has. With either one wrong, the
+kernel module never binds to the card. The symptom is
+`NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver`,
+and `sudo dmesg | grep -i nvrm` names the branch the card needs.
+
+| Card generation | `openModules` | `package` |
+|-----------------|---------------|-----------|
+| Turing and newer (GTX 16, RTX 20 onward) | `true`, the default | the default |
+| Maxwell, Pascal, Volta (GTX 900, GTX 10, Titan V) | `false` | `nvidiaPackages.legacy_580` |
+| Kepler (GTX 600 and 700) | `false` | `nvidiaPackages.legacy_470` |
+
+```nix
+{config, ...}: {
+  othrys.hardware.nvidia = {
+    enable = true;
+    openModules = false;
+    package = config.boot.kernelPackages.nvidiaPackages.legacy_580;
+  };
+}
+```
+
+Take the package from `config.boot.kernelPackages`, so its kernel modules are
+built for the kernel the host runs. A switch does not replace a kernel module
+that is already loaded, so reboot after changing either option.
 
 ## NVIDIA PRIME (Hybrid Offload)
 
