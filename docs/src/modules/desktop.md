@@ -23,6 +23,18 @@ Status bar for Hyprland or Niri (either compositor satisfies its assertion, and 
 
 Bundles: wofi (launcher), cliphist/wl-clipboard (clipboard), pavucontrol (audio), hyprlock (lock screen), hyprpicker (color picker), rofimoji (emoji picker).
 
+The settings group at the right of the bar follows the host. A desktop shows the
+idle inhibitor, peripheral batteries, audio and the microphone. A host with
+`othrys.hardware.laptop.enable` also shows its own battery, the screen
+brightness and the network, shows Bluetooth when `hardware.bluetooth.enable`
+holds, and shows the power profile when `services.power-profiles-daemon.enable`
+holds, which leaves it out on a host that uses TLP. On a laptop the settings menu
+keeps its airplane mode button, and the clock drops its seconds so the bar does
+not redraw once a second on battery. `indicators`, `airplaneButton` and
+`clockFormat` override each of these.
+
+The battery indicator reads UPower, which the laptop module enables.
+
 ### Options
 
 ```nix

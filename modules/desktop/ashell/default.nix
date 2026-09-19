@@ -27,6 +27,20 @@
   # hl.dispatch(...), so the argument is a Lua expression, not a hyprlang
   # dispatcher name.
   lockCmd = config.othrys.desktop.lockCommand;
+
+  # What a laptop adds to the bar. Each entry is listed only when the host runs
+  # the service the indicator reads, so nothing sits in the bar empty.
+  laptop = config.othrys.hardware.laptop.enable;
+  # The desktop list is the one the bar always had, in its old order.
+  defaultIndicators =
+    if !laptop
+    then ["IdleInhibitor" "PeripheralBattery" "Audio" "Microphone"]
+    else
+      ["IdleInhibitor"]
+      ++ lib.optional config.services.power-profiles-daemon.enable "PowerProfile"
+      ++ ["Audio" "Microphone" "Brightness" "Network"]
+      ++ lib.optional config.hardware.bluetooth.enable "Bluetooth"
+      ++ ["PeripheralBattery" "Battery"];
   logoutCmd =
     if hyprlandEnabled
     then "hyprctl dispatch 'hl.dsp.exit()'"
@@ -123,7 +137,7 @@
     alert_threshold = 176
 
     [tempo]
-    clock_format = "%a %b %d  %I:%M:%S %p"
+    clock_format = "${cfg.clockFormat}"
     weather_location = ${cfg.weatherLocation}
     weather_indicator = "IconAndTemperature"
     wind_speed_unit = "Mph"
@@ -135,12 +149,12 @@
     suspend_cmd = "systemctl suspend"
     logout_cmd = "${logoutCmd}"
     remove_idle_btn = false
-    remove_airplane_btn = true
+    remove_airplane_btn = ${lib.boolToString (!cfg.airplaneButton)}
     audio_sinks_more_cmd = "pavucontrol -t 3"
     audio_sources_more_cmd = "pavucontrol -t 4"
     peripheral_battery_format = "IconAndPercentage"
     peripheral_indicators = "All"
-    indicators = ["IdleInhibitor", "PeripheralBattery", "Audio", "Microphone"]
+    indicators = [${lib.concatMapStringsSep ", " (name: "\"${name}\"") cfg.indicators}]
 
     [notifications]
     format = "%I:%M %p"
@@ -177,6 +191,65 @@ in {
       default = "{ Coordinates = [0.0, 0.0] }";
       example = "{ Coordinates = [40.7128, -74.0060] }";
       description = "ashell weather_location value, e.g. { Coordinates = [lat, lng] }.";
+    };
+
+    indicators = lib.mkOption {
+      type = lib.types.listOf (lib.types.enum [
+        "IdleInhibitor"
+        "PowerProfile"
+        "Audio"
+        "Microphone"
+        "Network"
+        "Vpn"
+        "Bluetooth"
+        "Battery"
+        "PeripheralBattery"
+        "Brightness"
+      ]);
+      default = defaultIndicators;
+      defaultText = lib.literalExpression ''
+        ["IdleInhibitor" "PeripheralBattery" "Audio" "Microphone"], and with
+        othrys.hardware.laptop.enable also "Brightness", "Network" and
+        "Battery", plus "Bluetooth" and "PowerProfile" when the host runs
+        bluetooth and power-profiles-daemon
+      '';
+      example = ["Audio" "Network" "Battery"];
+      description = ''
+        The indicators in the settings group at the right of the bar, in the
+        order given. The default follows the host. A desktop gets the idle
+        inhibitor, audio, the microphone and peripheral batteries. A host with
+        `othrys.hardware.laptop.enable` also gets its own battery, the screen
+        brightness and the network, and Bluetooth and the power profile when it
+        runs those services.
+
+        `Battery` reads UPower, which the laptop module enables. `Network` reads
+        NetworkManager or iwd. `PowerProfile` reads power-profiles-daemon, so
+        it is left out on a host that uses TLP.
+      '';
+    };
+
+    airplaneButton = lib.mkOption {
+      type = lib.types.bool;
+      default = laptop;
+      defaultText = lib.literalExpression "config.othrys.hardware.laptop.enable";
+      description = "Show the airplane mode button in the settings menu.";
+    };
+
+    clockFormat = lib.mkOption {
+      type = lib.types.str;
+      default =
+        if laptop
+        then "%a %b %d  %I:%M %p"
+        else "%a %b %d  %I:%M:%S %p";
+      defaultText = lib.literalExpression ''
+        "%a %b %d  %I:%M:%S %p", and without the seconds when
+        othrys.hardware.laptop.enable is set
+      '';
+      description = ''
+        `strftime` format of the clock. A format with seconds makes the bar
+        redraw once a second, which a laptop on battery pays for, so the
+        default leaves them out there.
+      '';
     };
 
     bar = {
