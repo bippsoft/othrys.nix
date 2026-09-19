@@ -78,7 +78,9 @@ host through the masquerade, while the default-drop input and forward chains are
 probed from the WAN and from the other LAN. A second VM puts Suricata inline on
 the router's NFQUEUE hook and shows a local rule dropping a request, then stops
 Suricata and shows forwarded traffic still passing, which is the fail-open
-behavior the router documents. A third VM serves a git repository to the
+behavior the router documents. It then plants a rule that cannot load and shows
+the unit ending in `failed`, the failure hook firing, and the recovery unit
+bringing the engine back. A third VM serves a git repository to the
 auto-upgrade signature gate, which refuses unsigned refs, refs signed by an
 unlisted key, and a rollback.
 
