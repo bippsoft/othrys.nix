@@ -1,3 +1,9 @@
+## v0.8.1 (2026-10-08)
+
+### Inputs
+
+- **flake**: update inputs, nixpkgs e554fab to a7868a7. Also moved: aquamarine, ashell, flake-parts, home-manager, hyprgraphics, hyprland, hyprtoolkit, hyprutils, nix-index-database, nixos-hardware, nixpkgs, nixvim, noctalia, sops-nix, stylix, treefmt-nix, xdph.
+
 ## v0.8.0 (2026-10-08)
 
 ### Feat
