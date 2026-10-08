@@ -1,3 +1,10 @@
+## v0.8.0 (2026-10-08)
+
+### Feat
+
+- **ashell**: show battery, brightness, and network on a laptop
+- **nvidia**: make the driver package an option
+
 ## v0.7.0 (2026-09-19)
 
 ### BREAKING CHANGE
