@@ -1,3 +1,46 @@
+## v0.9.0 (2026-10-09)
+
+### BREAKING CHANGE
+
+- a systemd-boot or lanzaboote host loses the menu
+editor. A host that wants it back sets
+boot.loader.systemd-boot.editor = true. A host with type = "none" that
+relied on the module setting canTouchEfiVariables sets it itself.
+- a host with othrys.desktop.login.autoLogin and no idle
+module or noctalia fails to evaluate until one of them is enabled. A
+host that relied on the greeter running as the primary user, for
+example to read that user's files from a greeter command, has to move
+that to the session.
+- a noctalia host now locks after
+othrys.desktop.idle.timeouts.lock seconds, 300 by default, turns its
+screen off after screenOff, and suspends after suspend when that is
+set. A host that wants noctalia's previous behaviour sets the stages it
+does not want to null. A host whose idle stages are out of order fails
+to evaluate until they are reordered.
+- /nix/var is no longer bind-mounted from the persist
+root. A generation built before this release still carries that mount
+unit; booted after the move, the unit fails because its source was
+renamed, the host comes up on the live copy with one failed unit, and
+that generation must not be used to make changes. /nix/var.install and
+<persistRoot>/nix/var.migrated are kept for the operator to remove. A
+host installed under the old configuration that rebooted but never
+switched holds its install-time database in var.install; compare the
+two before removing either.
+- every host with othrys.system.impermanence.enable now
+boots with the systemd initrd, and its root is wiped on every boot as
+documented. A host that relied on the scripted initrd, for example
+through boot.initrd.postDeviceCommands or boot.initrd.network, has to
+move those settings to their systemd-initrd equivalents before taking
+this release.
+
+### Fix
+
+- **bootloader**: turn the systemd-boot menu editor off and scope the EFI variable write
+- **login**: start a session that exists, run the greeter as its own account, and tie autologin to a lock
+- **idle**: declare the locker's PAM service and order the idle stages
+- **persistence**: keep /nix/var on the nix subvolume and move existing hosts onto it
+- **impermanence**: run the wipe unit on every host and keep it from failing the boot
+
 ## v0.8.1 (2026-10-08)
 
 ### Inputs
