@@ -42,7 +42,14 @@
     closed = 8080;
     # Listens on every router address and is opened nowhere.
     router = 8080;
+    # Arrives on the router's WAN address and is forwarded to lanA's static
+    # address on `interLan`.
+    forwarded = 8082;
   };
+
+  # lanA's lease comes from a pool, so the port forward points at a second,
+  # fixed address the client adds beside it.
+  forwardTarget = "10.10.1.50";
 
   # Served by Unbound from local-data, since the sandbox has no upstream to ask.
   localName = "wan.example.com";
@@ -111,7 +118,7 @@
     environment.systemPackages = [pkgs.dig];
   };
 in {
-  inherit net ports localName;
+  inherit net ports localName forwardTarget;
   wanLog = httpLog ports.wan;
 
   # Python shared by the test scripts, spliced in ahead of the subtests.
@@ -151,6 +158,18 @@ in {
         extraForwardRules = ''
           iifname "eth3" oifname "eth2" tcp dport ${toString ports.interLan} accept
           iifname "eth2" oifname "eth3" ct state established,related accept
+        '';
+        portForwards = [
+          {
+            port = ports.forwarded;
+            destination = forwardTarget;
+            destinationPort = ports.interLan;
+          }
+        ];
+        # A source rewrite is what the postrouting chain is for. It is here so
+        # the ruleset loads with something in that passthrough.
+        extraNat = ''
+          oifname "eth1" ip saddr ${forwardTarget} masquerade
         '';
       };
 
@@ -199,6 +218,8 @@ in {
         (httpd ports.interLan "lanA\n")
         (httpd ports.closed "lanA\n")
       ];
+      # The fixed address the port forward points at, beside the lease.
+      networking.localCommands = "ip addr add ${forwardTarget}/24 dev eth1";
     };
 
     lanB = client 3;

@@ -875,6 +875,7 @@
 
       # Start-up defaults of Suricata and CrowdSec (see ./router-services.nix).
       eval-router-services = import ./router-services.nix {inherit hostConfig mkExpectations bootBase;};
+      eval-router = import ./router-eval.nix {inherit hostConfig mkExpectations bootBase;};
 
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};

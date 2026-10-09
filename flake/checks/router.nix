@@ -26,9 +26,11 @@ in
 
 
       def lease(client):
-          client.wait_until_succeeds("ip -4 -o addr show dev eth1 | grep -q 'inet '")
+          # The leased address is the dynamic one; lanA also carries the fixed
+          # address its port forward points at.
+          client.wait_until_succeeds("ip -4 -o addr show dev eth1 | grep -q 'dynamic'")
           info = json.loads(client.succeed("ip -j -4 addr show dev eth1"))
-          return info[0]["addr_info"][0]["local"]
+          return next(a["local"] for a in info[0]["addr_info"] if a.get("dynamic"))
 
 
       ${topology.scriptHelpers}
@@ -83,5 +85,19 @@ in
           assert fetch(lanA, "http://${net.lanA.router}:${toString ports.router}/") == "router"
           wan.succeed("ping -c 1 -W 3 ${net.wan.router}")
           assert_dropped(wan, "http://${net.wan.router}:${toString ports.router}/")
+
+      with subtest("the ruleset loaded as one, with both NAT chains"):
+          router.succeed("systemctl is-active nftables.service")
+          tables = router.succeed("nft list tables")
+          assert "inet router-filter" in tables and "ip router-nat" in tables, tables
+          nat = router.succeed("nft list table ip router-nat")
+          assert "hook prerouting" in nat and "hook postrouting" in nat, nat
+
+      with subtest("a declared port forward reaches the LAN host from the WAN"):
+          lanA.wait_until_succeeds("ip -4 -o addr show dev eth1 | grep -q '${topology.forwardTarget}'")
+          assert fetch(wan, "http://${net.wan.router}:${toString ports.forwarded}/") == "lanA"
+          # The same listener is still unreachable on the address the forward
+          # does not name, so the accept is the forward's and not a hole.
+          assert_dropped(wan, f"http://{address['lanA']}:${toString ports.interLan}/")
     '';
   }
