@@ -70,9 +70,9 @@ Scrollable-tiling compositor via [niri-flake](https://github.com/sodiboo/niri-fl
 for consumers). The option surface mirrors hyprland where concepts map (chords,
 terminal/browser, outputs, touchpad, screenshots) and is niri-native where they
 do not (columns scroll, and `Mod+S` opens the overview). Niri manages its own
-systemd session: point the login module at it with
-`othrys.desktop.login.sessionCommand = "niri-session"`. Stylix themes borders
-and cursor through niri-flake's auto-imported target.
+systemd session, and the login module starts `niri-session` by default on a
+host where niri is the only compositor. Stylix themes borders and cursor
+through niri-flake's auto-imported target.
 
 ```nix
 othrys.desktop.compositors.niri = {
@@ -83,7 +83,6 @@ othrys.desktop.compositors.niri = {
     refresh = 144.0;
   };
 };
-othrys.desktop.login.sessionCommand = "niri-session";
 ```
 
 #### Options

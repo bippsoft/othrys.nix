@@ -6,7 +6,7 @@
 # they don't (columns scroll, so there is no workspace split to configure).
 #
 # Session: niri manages its own systemd session (`niri-session`), so no uwsm.
-# Point othrys.desktop.login.sessionCommand at "niri-session".
+# login.nix starts it by default on a host where niri is the only compositor.
 {
   config,
   lib,

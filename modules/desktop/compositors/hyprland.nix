@@ -327,7 +327,11 @@ in {
         nautilus
       ];
 
-      programs.uwsm.waylandCompositors.hyprland = lib.mkIf config.othrys.desktop.uwsm.enable {
+      # withUWSM below turns programs.uwsm on for every hyprland host, and
+      # the login module's default session is `uwsm start` of this entry, so
+      # the entry exists whenever hyprland does. othrys.desktop.uwsm adds the
+      # session environment on top and is not what makes this path work.
+      programs.uwsm.waylandCompositors.hyprland = {
         prettyName = "Hyprland";
         comment = "Hyprland compositor managed by UWSM";
         binPath = "/run/current-system/sw/bin/Hyprland";
