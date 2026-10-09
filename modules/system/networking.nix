@@ -96,17 +96,23 @@
   interfaceNetworks = lib.mapAttrs' (name: iface:
     lib.nameValuePair "10-${name}" {
       matchConfig.Name = iface.match;
+      # A bridge member port carries no addresses of its own; the bridge
+      # does. DHCP and router advertisements on the port would address the
+      # port beside the bridge.
       networkConfig =
-        {
+        if iface.bridge != null
+        then {
+          Bridge = iface.bridge;
+          ConfigureWithoutCarrier = true;
+          DHCP = "no";
+          IPv6AcceptRA = false;
+        }
+        else {
           DHCP =
             if iface.dhcp
             then "ipv4"
             else "no";
           IPv6AcceptRA = iface.ipv6;
-        }
-        // lib.optionalAttrs (iface.bridge != null) {
-          Bridge = iface.bridge;
-          ConfigureWithoutCarrier = true;
         };
       inherit (iface) address;
       vlan = iface.vlans;

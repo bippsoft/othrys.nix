@@ -144,7 +144,9 @@ in {
 
     # Pod networking prerequisites.
     boot.kernelModules = ["br_netfilter" "overlay"];
-    boot.kernel.sysctl = {
+    # Defaults, so a host that owns forwarding, such as the router module,
+    # keeps the one definition it makes.
+    boot.kernel.sysctl = lib.mapAttrs (_: lib.mkDefault) {
       "net.ipv4.ip_forward" = 1;
       "net.bridge.bridge-nf-call-iptables" = 1;
       "net.bridge.bridge-nf-call-ip6tables" = 1;

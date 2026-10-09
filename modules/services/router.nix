@@ -48,6 +48,10 @@
 
   # sysctl names an interface with its dots turned into slashes.
   sysctlInterface = lib.replaceStrings ["."] ["/"] cfg.wan.interface;
+
+  # The last rule of a default-drop chain. The counter shows what the policy
+  # dropped, and the log says which packets when a host asks.
+  dropRule = chain: "${lib.optionalString cfg.logDrops ''log prefix "router ${chain} drop: " ''}counter drop";
   # nftables interface set literal, e.g. { "br-lan", "eth1" }
   lanSet = "{ " + lib.concatMapStringsSep ", " (i: "\"${i}\"") cfg.lan.interfaces + " }";
 
@@ -127,6 +131,18 @@ in {
         default = 1;
         description = "NFQUEUE count; must match othrys.services.suricata.nfqueue.queues.";
       };
+    };
+
+    logDrops = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Log every packet the input and forward chains drop, through the
+        kernel log with a `router input drop:` or `router forward drop:`
+        prefix. The counters on those rules are always on; this adds the
+        packets themselves, which is useful while bringing a host up and
+        noisy on a WAN link afterwards.
+      '';
     };
 
     extraInputRules = lib.mkOption {
@@ -222,6 +238,13 @@ in {
         assertion = !config.othrys.services.firewall.enable;
         message = "othrys.services.router installs its own nftables ruleset and disables networking.firewall; do not also enable othrys.services.firewall.";
       }
+      {
+        # A router with no LAN set, no port list and no input rule accepts
+        # nothing but replies and ICMP, which is a host that can be reached
+        # from the console alone.
+        assertion = hasLan || openPorts != "" || cfg.extraInputRules != "";
+        message = "othrys.services.router: with lan.interfaces empty, no firewall port list and no extraInputRules, nothing can reach this host. Name the LAN interfaces, or open a port.";
+      }
     ];
 
     networking.firewall.enable = lib.mkForce false;
@@ -241,6 +264,10 @@ in {
       }
       // lib.optionalAttrs cfg.ipv6 {
         "net.ipv6.conf.all.forwarding" = 1;
+        # A forwarding host ignores router advertisements, so the WAN would
+        # get no IPv6 default route from the upstream router. 2 accepts them
+        # on that interface with forwarding on.
+        "net.ipv6.conf.${sysctlInterface}.accept_ra" = 2;
       }
     );
 
@@ -255,12 +282,21 @@ in {
             ct state established,related accept
             ct state invalid drop
 
-            ip protocol icmp accept
-            ip6 nexthdr icmpv6 accept
+            # ICMP from inside is unrestricted. From the WAN it is the types a
+            # host needs to be reachable and to learn its path, with echo
+            # requests rate-limited. `meta l4proto` matches ICMPv6 behind
+            # extension headers, where `ip6 nexthdr` saw only the first one.
+            iifname != "${cfg.wan.interface}" ip protocol icmp accept
+            iifname != "${cfg.wan.interface}" meta l4proto ipv6-icmp accept
+            iifname "${cfg.wan.interface}" ip protocol icmp icmp type echo-request limit rate 10/second accept
+            iifname "${cfg.wan.interface}" ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+            iifname "${cfg.wan.interface}" meta l4proto ipv6-icmp icmpv6 type echo-request limit rate 10/second accept
+            iifname "${cfg.wan.interface}" meta l4proto ipv6-icmp icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
 
             ${lib.optionalString hasLan ''iifname ${lanSet} accept''}
             ${openPorts}
             ${cfg.extraInputRules}
+            ${dropRule "input"}
           }
 
           chain forward {
@@ -273,6 +309,7 @@ in {
           ''}
             ${lib.concatMapStringsSep "\n" forwardRule cfg.portForwards}
             ${cfg.extraForwardRules}
+            ${dropRule "forward"}
           }
         '';
       };
