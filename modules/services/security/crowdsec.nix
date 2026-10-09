@@ -16,6 +16,12 @@
 # sits at the config block that repairs it and names its upstream issue, and the
 # `crowdsec-test` check in flake/checks/crowdsec.nix boots a fresh VM and is the
 # regression guard, so drop a workaround only when that test still passes.
+#
+# On a router the bouncer's own chains hook input only, so a banned address
+# could still be forwarded to the LAN. This module adds a forward hook to the
+# bouncer's tables there. What the engine watches is the sshd journal, plus
+# Traefik's access log when that module is on. Tailscale SSH has no CrowdSec
+# parser, so its logins are not watched.
 {
   config,
   lib,
@@ -23,8 +29,22 @@
   ...
 }: let
   cfg = config.othrys.services.security.crowdsec;
+  routerEnabled = config.othrys.services.router.enable;
+  traefikEnabled = config.othrys.services.traefik.enable;
+  bouncer = config.services.crowdsec-firewall-bouncer.settings;
+  forwardHook = cfg.firewallBouncer.enable && routerEnabled && bouncer.mode == "nftables";
 
   stateDir = "/var/lib/crowdsec/state";
+
+  # A chain in the bouncer's own table, where its set lives, hooked on forward
+  # just ahead of the router's chain. mkAfter keeps it behind the set
+  # declaration upstream renders, which nft needs to come first.
+  forwardChain = set: family: ''
+    chain crowdsec-forward {
+      type filter hook forward priority filter - 1; policy accept;
+      ${family} saddr @${set} drop
+    }
+  '';
 
   # The very file nixpkgs generates for the daemon's `crowdsec -c …` (same
   # name and value, so the same store path), regenerated here because
@@ -54,7 +74,9 @@ in {
         Log sources CrowdSec parses (see the CrowdSec data-sources docs).
         Setting this replaces the curated default outright, including the sshd
         journal source, so list every source the host should watch rather than
-        only the ones being added.
+        only the ones being added. Traefik's access log is added beside this
+        list on a host with `othrys.services.traefik`, and the module turns
+        that log on. Tailscale SSH has no CrowdSec parser and is not watched.
       '';
     };
 
@@ -83,8 +105,14 @@ in {
       enable = true;
       autoUpdateService = cfg.autoUpdate;
       inherit (cfg) openFirewall;
-      hub.collections = cfg.collections;
-      localConfig.acquisitions = cfg.acquisitions;
+      hub.collections = cfg.collections ++ lib.optional traefikEnabled "crowdsecurity/traefik";
+      localConfig.acquisitions =
+        cfg.acquisitions
+        ++ lib.optional traefikEnabled {
+          source = "journalctl";
+          journalctl_filter = ["_SYSTEMD_UNIT=traefik.service"];
+          labels.type = "traefik";
+        };
 
       # A single-host engine is its own Local API, so the agent authenticates to
       # it with machine credentials, and the bouncer reads decisions from it
@@ -105,6 +133,15 @@ in {
       # Register with the locally running engine (no manual API key needed).
       registerBouncer.enable = true;
     };
+
+    networking.nftables.tables = lib.mkIf forwardHook {
+      ${bouncer.nftables.ipv4.table}.content = lib.mkAfter (forwardChain bouncer.blacklists_ipv4 "ip");
+      ${bouncer.nftables.ipv6.table}.content = lib.mkAfter (forwardChain bouncer.blacklists_ipv6 "ip6");
+    };
+
+    # The traefik parser reads access-log lines, which Traefik writes only
+    # when asked. JSON to stdout lands in the journal the acquisition reads.
+    services.traefik.staticConfigOptions.accessLog = lib.mkIf traefikEnabled (lib.mkDefault {format = "json";});
 
     # `cscli` defaults to /etc/crowdsec/config.yaml, but nixpkgs only ever
     # passes `-c <store path>`, and nothing populates that path, so every cscli
@@ -145,18 +182,10 @@ in {
       # this makes the resolver come back first.
       crowdsec.after = lib.optional config.othrys.services.unbound.enable "unbound.service";
 
-      crowdsec.serviceConfig =
-        staticUser
-        // {
-          # nixpkgs clears the packaged unit's ExecReload without providing
-          # one, so the engine cannot be reloaded at all, which is what the
-          # hub-update unit below tries to do every day (nixpkgs #541058).
-          # CrowdSec reloads on SIGHUP, as its own packaged unit does.
-          ExecReload = lib.mkForce [
-            " " # clear the definitions inherited from the upstream unit
-            "${pkgs.coreutils}/bin/kill -HUP $MAINPID"
-          ];
-        };
+      # nixpkgs used to clear the packaged unit's ExecReload without
+      # providing one (nixpkgs #541058); the pinned revision ships its own,
+      # so the override that once lived here is gone.
+      crowdsec.serviceConfig = staticUser;
 
       crowdsec-update-hub = lib.mkIf cfg.autoUpdate {
         serviceConfig =

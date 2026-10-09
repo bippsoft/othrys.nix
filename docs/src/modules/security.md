@@ -90,7 +90,12 @@ upstream `services.crowdsec.*` / `services.crowdsec-firewall-bouncer.*` options.
 The engine runs its own Local API on loopback (`127.0.0.1:8080`), which is what
 the agent authenticates against and what the bouncer reads decisions from,
 machine credentials are minted on first start under
-`/var/lib/crowdsec/state/`. Enable `openFirewall` only if a remote bouncer or a
+`/var/lib/crowdsec/state/`. On a router host the bouncer's own chains hook
+`input` only, so the module adds a `forward` hook to the bouncer's tables there
+and a banned address is no longer forwarded to the LAN. The engine watches the
+sshd journal by default and Traefik's access log when that module is on, which
+the crowdsec module turns on in JSON; Tailscale SSH has no CrowdSec parser and
+is not watched. Enable `openFirewall` only if a remote bouncer or a
 second engine has to reach that API.
 
 ### Options
@@ -126,10 +131,11 @@ bouncer `Requires=` its register unit without ordering after it, so it dies at
 step `CREDENTIALS` reading an API key that does not exist yet
 ([#526506](https://github.com/NixOS/nixpkgs/issues/526506)). A fifth defect
 surfaces only later: the daily hub-update unit reloads the engine as an
-unprivileged user, and the engine has no `ExecReload` to run, so the timer
-leaves a failed unit on every host within a day
-([#473707](https://github.com/NixOS/nixpkgs/issues/473707),
-[#541058](https://github.com/NixOS/nixpkgs/issues/541058)).
+unprivileged user, so the timer leaves a failed unit on every host within a
+day ([#473707](https://github.com/NixOS/nixpkgs/issues/473707)). The missing
+`ExecReload` that went with it
+([#541058](https://github.com/NixOS/nixpkgs/issues/541058)) is fixed at the
+pinned nixpkgs revision, and the module no longer carries that override.
 
 A sixth shows only during a switch. The engine's pre-start step fetches the hub
 index and a failed fetch is fatal, while `After=network-online.target` protects
