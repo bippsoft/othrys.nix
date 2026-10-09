@@ -9,6 +9,7 @@
   cfg = config.othrys.services.tailscale;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
+  router = config.othrys.services.router;
 in {
   options.othrys.services.tailscale = {
     enable = lib.mkEnableOption "Tailscale VPN mesh networking";
@@ -64,6 +65,13 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # On a router the global port list reaches every interface but the WAN,
+    # and a direct path from a peer on the internet arrives on the WAN, so the
+    # port is opened there by name as well.
+    networking.firewall.interfaces = lib.mkIf (cfg.openFirewall && router.enable) {
+      ${router.wan.interface}.allowedUDPPorts = [41641];
+    };
+
     # Persistence for Tailscale state (node keys, etc.)
     environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
       directories = [

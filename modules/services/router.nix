@@ -9,6 +9,13 @@
 # chains that have to agree. Anything else the generated ruleset doesn't cover
 # goes through the raw extraInputRules / extraForwardRules / extraPrerouting /
 # extraNat passthroughs.
+#
+# networking.firewall is off on a router, since this ruleset is the firewall,
+# but its port lists are still read. Every module's openFirewall writes
+# networking.firewall.allowedTCPPorts or allowedUDPPorts, and on a router
+# those open the port on every interface but the WAN. A port reaches the WAN
+# only through networking.firewall.interfaces.<wan>.allowed*, which is what
+# the tailscale module uses for its own port.
 {
   config,
   lib,
@@ -18,6 +25,29 @@
 
   hasLan = cfg.lan.interfaces != [];
   hasPrerouting = cfg.portForwards != [] || cfg.extraPrerouting != "";
+
+  # The firewall's port lists, rendered as nftables accepts. The global lists
+  # apply to every interface but the WAN; a per-interface list applies to the
+  # interface it names, which is how a port is opened on the WAN on purpose.
+  fw = config.networking.firewall;
+  portSet = ports: ranges: let
+    items = map toString ports ++ map (r: "${toString r.from}-${toString r.to}") ranges;
+  in
+    if items == []
+    then null
+    else "{ ${lib.concatStringsSep ", " items} }";
+  acceptRules = match: lists: let
+    tcp = portSet lists.allowedTCPPorts lists.allowedTCPPortRanges;
+    udp = portSet lists.allowedUDPPorts lists.allowedUDPPortRanges;
+  in
+    lib.optionalString (tcp != null) "${match} tcp dport ${tcp} accept\n"
+    + lib.optionalString (udp != null) "${match} udp dport ${udp} accept\n";
+  openPorts =
+    acceptRules ''iifname != "${cfg.wan.interface}"'' fw
+    + lib.concatStrings (lib.mapAttrsToList (name: lists: acceptRules ''iifname "${name}"'' lists) fw.interfaces);
+
+  # sysctl names an interface with its dots turned into slashes.
+  sysctlInterface = lib.replaceStrings ["."] ["/"] cfg.wan.interface;
   # nftables interface set literal, e.g. { "br-lan", "eth1" }
   lanSet = "{ " + lib.concatMapStringsSep ", " (i: "\"${i}\"") cfg.lan.interfaces + " }";
 
@@ -102,7 +132,14 @@ in {
     extraInputRules = lib.mkOption {
       type = lib.types.lines;
       default = "";
-      description = "Raw nftables rules appended to the filter input chain (e.g. management ports from the WAN).";
+      description = ''
+        Raw nftables rules appended to the filter input chain. A port that a
+        module opens through `openFirewall` needs nothing here, since the
+        firewall's port lists are rendered into this chain for every interface
+        but the WAN. A port that must reach the WAN is opened with
+        `networking.firewall.interfaces.<wan>.allowedTCPPorts` or the UDP
+        list, which this chain renders for that interface alone.
+      '';
     };
 
     extraForwardRules = lib.mkOption {
@@ -190,11 +227,17 @@ in {
     networking.firewall.enable = lib.mkForce false;
     networking.nftables.enable = true;
 
+    # Reverse-path filtering is strict on the WAN, where a packet claiming a
+    # LAN source is a spoof, and loose everywhere else. Strict on every
+    # interface dropped the routes Tailscale installs and the replies of any
+    # multi-homed path, since those arrive on an interface the route back
+    # does not use.
     boot.kernel.sysctl = lib.mkIf cfg.forwarding (
       {
         "net.ipv4.conf.all.forwarding" = 1;
-        "net.ipv4.conf.all.rp_filter" = 1;
-        "net.ipv4.conf.default.rp_filter" = 1;
+        "net.ipv4.conf.all.rp_filter" = 2;
+        "net.ipv4.conf.default.rp_filter" = 2;
+        "net.ipv4.conf.${sysctlInterface}.rp_filter" = 1;
       }
       // lib.optionalAttrs cfg.ipv6 {
         "net.ipv6.conf.all.forwarding" = 1;
@@ -216,6 +259,7 @@ in {
             ip6 nexthdr icmpv6 accept
 
             ${lib.optionalString hasLan ''iifname ${lanSet} accept''}
+            ${openPorts}
             ${cfg.extraInputRules}
           }
 

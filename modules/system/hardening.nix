@@ -12,7 +12,8 @@
   # values agree, and NixOS already writes kernel.kptr_restrict at mkDefault
   # while security.protectKernelImage writes kernel.kexec_load_disabled at
   # mkDefault. 900 beats both and still loses to a plain host assignment at
-  # 100, which is also how othrys.services.router keeps its strict rp_filter.
+  # 100, which is also how othrys.services.router keeps strict rp_filter on
+  # its WAN interface.
   mkProfile = lib.mkOverride 900;
 
   # A host that names a resume device, or passes resume= to the kernel, is
@@ -44,8 +45,8 @@ in {
           multi-homed routers. It also overrides the loose
           `networking.firewall.checkReversePath` that the Tailscale module
           selects, since the kernel check runs regardless of the firewall.
-          `othrys.services.router` assigns strict mode itself and that
-          assignment wins over the profile.
+          `othrys.services.router` assigns loose mode to `all` and `default`
+          as well, and strict mode to its WAN interface alone.
 
           `lockKernelModules` and `protectKernelImage` are separate options
           because each one breaks something, and neither is implied by

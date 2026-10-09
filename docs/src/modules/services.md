@@ -108,7 +108,17 @@ filter table at all. A `dnat` or `redirect` rule goes in `extraPrerouting`.
 With `suricata.enable`, forwarded traffic is handed to Suricata via NFQUEUE
 (`queue num 0-<N-1> bypass`) instead of plain `accept`. Pair it with
 `othrys.services.suricata` (`mode = "nfqueue"`, matching `nfqueue.queues`).
-It disables `networking.firewall` (and asserts `othrys.services.firewall` is off).
+It disables `networking.firewall` (and asserts `othrys.services.firewall` is
+off), and still reads the firewall's port lists. A port a module opens through
+`openFirewall` lands in `networking.firewall.allowedTCPPorts` or the UDP list,
+and the input chain accepts it on every interface but the WAN, so SSH,
+headscale, WireGuard and the rest work on a router as on any host without
+reaching the internet. A port that must reach the WAN is opened by naming the
+interface, `networking.firewall.interfaces.<wan>.allowedTCPPorts`, which the
+chain renders for that interface alone; the tailscale module does this for its
+own UDP port so direct paths work from outside. Reverse-path filtering is
+strict on the WAN interface and loose on `all` and `default`, so routes that
+Tailscale installs and multi-homed replies are not dropped.
 
 Two separate mechanisms decide what happens when inspection stops, and they are
 easy to confuse. The `bypass` flag above accepts packets when no process is bound
