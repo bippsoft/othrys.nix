@@ -11,6 +11,10 @@
 }: let
   sid = 1000001;
   marker = "othrys-ips-drop-marker";
+  # A second rule a subtest plants after the engine is up, to show a reload
+  # picks it up without a restart.
+  lateSid = 1000002;
+  lateMarker = "othrys-ips-late-marker";
   extraRules = "/var/lib/suricata-extra/extra.rules";
 
   localRules = pkgs.writeText "local.rules" ''
@@ -138,6 +142,19 @@ in
           assert fetch(lanA, wan_url) == "wan"
           assert_dropped(lanA, marker_url)
           assert drops() > before, "the restarted engine logged no new drop"
+
+      with subtest("a rule planted after start is enforced by a reload, with no restart"):
+          pid = router.succeed("systemctl show -p MainPID --value suricata.service").strip()
+          late_url = "http://${net.wan.host}:${toString ports.wan}/${lateMarker}"
+          lanA.succeed(f"curl -s -o /dev/null --max-time 5 {late_url}")
+          router.succeed(
+              "echo 'drop http any any -> any any (msg:\"late\"; flow:to_server,established; http.uri; content:\"${lateMarker}\"; sid:${toString lateSid}; rev:1;)' > ${extraRules}"
+          )
+          router.succeed("systemctl start suricata-blocking-reload.service")
+          assert_dropped(lanA, late_url)
+          assert router.succeed("systemctl show -p MainPID --value suricata.service").strip() == pid, "the reload restarted the engine"
+          router.succeed(": > ${extraRules}")
+          router.succeed("systemctl start suricata-blocking-reload.service")
 
       with subtest("a rule that cannot load ends in a failed unit, not an endless loop"):
           router.succeed("echo 'alert modbus any any -> any any (msg:\"cannot load\"; sid:1000099;)' > ${extraRules}")
