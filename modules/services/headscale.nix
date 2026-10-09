@@ -13,25 +13,49 @@
 # The nixpkgs module reads this Headscale instance's configFile/port/user, so the
 # UI just needs `ui.enable` plus a couple of secret paths.
 #
-# Every credential-bearing field (oidc.clientSecretFile,
-# ui.apiKeyFile, ui.cookieSecretFile, ui.oidc.clientSecretFile,
-# ui.agent.preAuthKeyFile) is a runtime FILE PATH, not an inline value, so point it
-# at a secret from a secrets provider (e.g. a sops secret:
-# `config.sops.secrets."headscale/oidc-secret".path`). Never inline a secret or
-# pass a /nix/store path, since those are world-readable.
+# Every credential-bearing field (oidc.clientSecretFile, ui.apiKeyFile,
+# ui.cookieSecretFile, ui.oidc.clientSecretFile) is a runtime FILE PATH, not
+# an inline value, so point it at a secret from a secrets provider (e.g. a
+# sops secret: `config.sops.secrets."headscale/oidc-secret".path`). Never
+# inline a secret or pass a /nix/store path, since those are world-readable.
+# Both services run as the headscale user, so every such file has to be
+# readable by it.
 {
   config,
   lib,
+  pkgs,
   ...
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.headscale;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
+  docs = config.othrys.services.docs;
+  scrutiny = config.othrys.services.scrutiny;
+  crowdsec = config.othrys.services.security.crowdsec;
+
+  # The host part of serverUrl, which is what Headscale compares base_domain
+  # against: it refuses a base_domain equal to that host or a suffix of it.
+  serverHost = builtins.head (lib.splitString ":" (builtins.head (lib.splitString "/" (lib.removePrefix "https://" (lib.removePrefix "http://" cfg.serverUrl)))));
+  baseDomainClashes = cfg.baseDomain != null && cfg.baseDomain != "" && (serverHost == cfg.baseDomain || lib.hasSuffix ".${cfg.baseDomain}" serverHost);
+
+  # Upstream requires nameservers only when it overrides the clients' local
+  # DNS, which it does by default.
+  overrideLocalDns = cfg.settings.dns.override_local_dns or true;
+
+  # The ACL policy as a file. An attribute set is written out as JSON, a path
+  # is used as given. Neither is a secret, so the store is the right place.
+  policyFile =
+    if builtins.isAttrs cfg.policy
+    then pkgs.writeText "headscale-policy.json" (builtins.toJSON cfg.policy)
+    else cfg.policy;
+
+  # Every account at the issuer can register unless one of these narrows it.
+  oidcRestricted = cfg.oidc.allowedDomains != [] || cfg.oidc.allowedUsers != [] || cfg.oidc.allowedGroups != [];
 
   # nixpkgs' services.headplane already defaults headscale.url (local API),
   # public_url (= server_url), and config_path (= this instance's configFile), so
-  # we only set what it cannot infer, meaning the listen socket, the API key, the agent,
+  # we only set what it cannot infer, meaning the listen socket, the API key
   # and OIDC.
   uiSettings = lib.foldl' lib.recursiveUpdate {} [
     {
@@ -40,18 +64,6 @@
         cookie_secret_path = cfg.ui.cookieSecretFile;
       };
     }
-    # The agent submodule (integration.agent) is nullOr and defaults to null;
-    # writing it at all, even with enabled = false, materializes it and trips
-    # the upstream api_key_path assertion. So only emit it when the agent is on.
-    # The agent authenticates to Headscale with an API key, now taken from
-    # headscale.api_key_path (the settings-side pre-auth key field was removed).
-    # The agent ALSO needs a tailnet pre-auth key to join the tailnet;
-    # upstream passes that via the service environment, not settings, so wiring
-    # ui.agent.preAuthKeyFile through systemd is a follow-up (agent stays off here).
-    (lib.optionalAttrs cfg.ui.agent.enable {
-      integration.agent.enabled = true;
-      headscale.api_key_path = cfg.ui.apiKeyFile;
-    })
     (lib.optionalAttrs (cfg.ui.configPath != null) {
       headscale.config_path = cfg.ui.configPath;
     })
@@ -79,15 +91,30 @@
     (lib.optionalAttrs (cfg.baseDomain != null) {dns.base_domain = cfg.baseDomain;})
     (lib.optionalAttrs (cfg.nameservers != []) {dns.nameservers.global = cfg.nameservers;})
     (lib.optionalAttrs cfg.oidc.enable {
-      oidc = {
-        inherit (cfg.oidc) issuer;
-        client_id = cfg.oidc.clientId;
-        client_secret_path = cfg.oidc.clientSecretFile;
+      oidc =
+        {
+          inherit (cfg.oidc) issuer;
+          client_id = cfg.oidc.clientId;
+          client_secret_path = cfg.oidc.clientSecretFile;
+        }
+        // lib.optionalAttrs (cfg.oidc.allowedDomains != []) {allowed_domains = cfg.oidc.allowedDomains;}
+        // lib.optionalAttrs (cfg.oidc.allowedUsers != []) {allowed_users = cfg.oidc.allowedUsers;}
+        // lib.optionalAttrs (cfg.oidc.allowedGroups != []) {allowed_groups = cfg.oidc.allowedGroups;};
+    })
+    (lib.optionalAttrs (cfg.policy != null) {
+      policy = {
+        mode = "file";
+        path = toString policyFile;
       };
     })
     cfg.settings
   ];
 in {
+  imports = [
+    (lib.mkRemovedOptionModule ["othrys" "services" "headscale" "ui" "agent" "enable"] "The Headplane agent needs a tailnet pre-auth key that nixpkgs' services.headplane cannot be handed, so the option never started a working agent and has been removed.")
+    (lib.mkRemovedOptionModule ["othrys" "services" "headscale" "ui" "agent" "preAuthKeyFile"] "Removed with othrys.services.headscale.ui.agent.enable.")
+  ];
+
   # ANCHOR: headscale-options
   options.othrys.services.headscale = {
     enable = lib.mkEnableOption "Headscale self-hosted Tailscale control server";
@@ -162,8 +189,63 @@ in {
         type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression ''config.sops.secrets."headscale/oidc-secret".path'';
-        description = "Path to a runtime file holding the OIDC client secret (a secrets-provider path). Never inline the secret.";
+        description = ''
+          Path to a runtime file holding the OIDC client secret (a
+          secrets-provider path). Never inline the secret. Headscale reads it
+          as its own user, so the file must be readable by `headscale`; with
+          sops-nix that is `owner = "headscale"` on the secret.
+        '';
       };
+
+      allowedDomains = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        example = ["example.com"];
+        description = "Email domains whose accounts may register (settings.oidc.allowed_domains).";
+      };
+
+      allowedUsers = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        example = ["alice@example.com"];
+        description = "Accounts that may register (settings.oidc.allowed_users).";
+      };
+
+      allowedGroups = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        example = ["tailnet"];
+        description = ''
+          Groups whose members may register (settings.oidc.allowed_groups).
+          The issuer has to put a groups claim in the token for this to apply.
+
+          With none of the three lists set, every account the issuer knows
+          can register a node, and the module warns about it.
+        '';
+      };
+    };
+
+    policy = lib.mkOption {
+      type = lib.types.nullOr (lib.types.either lib.types.path (lib.types.attrsOf lib.types.anything));
+      default = null;
+      example = lib.literalExpression ''
+        {
+          acls = [
+            {
+              action = "accept";
+              src = ["group:admins"];
+              dst = ["*:*"];
+            }
+          ];
+          groups."group:admins" = ["alice@example.com"];
+        }
+      '';
+      description = ''
+        The tailnet ACL policy (settings.policy), as a path to a HuJSON file
+        or as an attribute set written out as JSON. Null leaves Headscale on
+        its default, which lets every node reach every other node. The
+        policy is not a secret and lives in the store.
+      '';
     };
 
     settings = lib.mkOption {
@@ -207,11 +289,11 @@ in {
         description = ''
           Path to a runtime file holding a Headscale API key (from
           `headscale apikeys create`). Written to Headplane's
-          `headscale.api_key_path`, which it uses server-side both to mint OIDC
-          sessions and for the agent integration, so it is required when
-          `ui.oidc` or `ui.agent` is enabled. With neither, Headplane
-          authenticates via its in-browser API-key login and this is unused.
-          Use a secrets-provider path.
+          `headscale.api_key_path`, which it uses server-side to mint OIDC
+          sessions, so it is required when `ui.oidc` is enabled. Without it,
+          Headplane authenticates via its in-browser API-key login and this
+          is unused. Use a secrets-provider path readable by the `headscale`
+          user, which Headplane runs as.
         '';
       };
 
@@ -219,7 +301,7 @@ in {
         type = lib.types.nullOr othrysTypes.secretPath;
         default = null;
         example = lib.literalExpression ''config.sops.secrets."headscale/headplane-cookie".path'';
-        description = "Path to a runtime file holding the cookie-signing secret (a random string). Required when the UI is enabled. Use a secrets-provider path.";
+        description = "Path to a runtime file holding the cookie-signing secret (a random string). Required when the UI is enabled. Use a secrets-provider path readable by the `headscale` user.";
       };
 
       configPath = lib.mkOption {
@@ -227,17 +309,6 @@ in {
         default = null;
         defaultText = lib.literalExpression "config.services.headscale.configFile";
         description = "Path to the Headscale config.yaml Headplane reads. Null uses the NixOS-generated config file for this instance.";
-      };
-
-      agent = {
-        enable = lib.mkEnableOption "the Headplane agent integration (richer per-node data: OS, version). Off by default to keep the surface small";
-
-        preAuthKeyFile = lib.mkOption {
-          type = lib.types.nullOr othrysTypes.secretPath;
-          default = null;
-          example = lib.literalExpression ''config.sops.secrets."headscale/headplane-preauth".path'';
-          description = "Path to a runtime file holding a Headscale pre-auth key the agent joins the tailnet with. Required when the agent is enabled. Use a secrets-provider path.";
-        };
       };
 
       oidc = {
@@ -261,7 +332,7 @@ in {
           type = lib.types.nullOr othrysTypes.secretPath;
           default = null;
           example = lib.literalExpression ''config.sops.secrets."headscale/headplane-oidc".path'';
-          description = "Path to a runtime file holding Headplane's OIDC client secret. Never inline the secret.";
+          description = "Path to a runtime file holding Headplane's OIDC client secret. Never inline the secret. Readable by the `headscale` user.";
         };
 
         disableApiKeyLogin = lib.mkOption {
@@ -288,17 +359,34 @@ in {
           message = "othrys.services.headscale.oidc: set issuer, clientId, and clientSecretFile (a secrets-provider path) when OIDC is enabled.";
         }
         {
-          assertion = cfg.baseDomain == null || cfg.baseDomain == "" || !(lib.hasInfix cfg.baseDomain cfg.serverUrl);
-          message = "othrys.services.headscale: baseDomain (MagicDNS) must differ from the serverUrl host; Headscale rejects a base_domain that is a suffix of server_url.";
+          assertion = !baseDomainClashes;
+          message = "othrys.services.headscale: baseDomain (MagicDNS) must not be the serverUrl host or a suffix of it; Headscale rejects that. A base domain that merely shares letters with the host, such as example.com beside hs.notexample.com, is fine.";
         }
-        # Surface upstream's requirements with an actionable message, since MagicDNS
-        # (on by default) needs a base domain and global nameservers, or the
-        # eval fails deep inside the nixpkgs headscale module.
+        # Surface upstream's requirements with an actionable message, or the
+        # eval fails deep inside the nixpkgs headscale module. MagicDNS needs
+        # a base domain, and overriding the clients' DNS, which is on by
+        # default, needs nameservers to hand them.
         {
-          assertion = !cfg.magicDns || (cfg.baseDomain != null && cfg.nameservers != []);
-          message = "othrys.services.headscale: MagicDNS (magicDns, on by default) requires baseDomain and at least one entry in nameservers. Set both, or set magicDns = false.";
+          assertion = !cfg.magicDns || cfg.baseDomain != null;
+          message = "othrys.services.headscale: MagicDNS (magicDns, on by default) requires baseDomain. Set it, or set magicDns = false.";
+        }
+        {
+          assertion = !overrideLocalDns || cfg.nameservers != [];
+          message = "othrys.services.headscale: overriding the clients' DNS (settings.dns.override_local_dns, on by default) requires at least one entry in nameservers. Set one, or set settings.dns.override_local_dns = false.";
+        }
+        # Three services default to 8080 on loopback, and whichever starts
+        # second fails to bind.
+        {
+          assertion = !(scrutiny.enable && scrutiny.port == cfg.port);
+          message = "othrys.services.headscale: port ${toString cfg.port} is also othrys.services.scrutiny.port. Give one of them another port.";
+        }
+        {
+          assertion = !(crowdsec.enable && cfg.port == 8080);
+          message = "othrys.services.headscale: port 8080 is where the CrowdSec local API listens on this host. Give Headscale another port.";
         }
       ];
+
+      warnings = lib.optional (cfg.oidc.enable && !oidcRestricted) "othrys.services.headscale: OIDC is on with none of oidc.allowedDomains, allowedUsers or allowedGroups set, so every account at ${cfg.oidc.issuer} can register a node on this tailnet.";
 
       # Node keys, the SQLite database, and generated DERP/noise keys live here.
       environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
@@ -307,7 +395,9 @@ in {
             directory = "/var/lib/headscale";
             user = "headscale";
             group = "headscale";
-            mode = "0700";
+            # What upstream's StateDirectoryMode creates, so the CLI run by a
+            # member of the headscale group keeps its access.
+            mode = "0750";
           }
         ];
       };
@@ -332,12 +422,12 @@ in {
           message = "othrys.services.headscale.ui.oidc: set issuer, clientId, clientSecretFile, and apiKeyFile (the Headscale API key the OIDC flow mints sessions with), all secrets-provider paths, when the UI's OIDC login is enabled.";
         }
         {
-          assertion = !cfg.ui.agent.enable || (cfg.ui.apiKeyFile != null && cfg.ui.agent.preAuthKeyFile != null);
-          message = "othrys.services.headscale.ui.agent: enabling the agent needs apiKeyFile (the Headscale API key it queries with, written to headscale.api_key_path) and preAuthKeyFile (the pre-auth key it joins the tailnet with), both secrets-provider paths.";
+          assertion = !(docs.enable && docs.port == cfg.ui.port);
+          message = "othrys.services.headscale.ui: port ${toString cfg.ui.port} is also othrys.services.docs.port. Give one of them another port.";
         }
       ];
 
-      # Headplane runs as the headscale user, and its state (agent cache) lives here.
+      # Headplane runs as the headscale user, and its state lives here.
       environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
         directories = [
           {

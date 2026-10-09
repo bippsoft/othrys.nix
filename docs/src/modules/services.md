@@ -418,6 +418,19 @@ resolve. A node then registers against this server by pointing the Tailscale
 module at it:
 `othrys.services.tailscale = { enable = true; baseURL = "https://headscale.example.com"; }`.
 
+With OIDC on and none of `oidc.allowedDomains`, `allowedUsers` or
+`allowedGroups` set, every account the issuer knows can register a node, and
+the module warns about it. Set at least one. `policy` is the tailnet ACL, as
+a HuJSON file or an attribute set written out as JSON; without it every node
+reaches every other node.
+
+Headscale and Headplane both run as the `headscale` user, so every secret
+file named above has to be readable by it, which with sops-nix is
+`owner = "headscale"` on the secret. Headscale's default port, 8080, is also
+the default of Scrutiny's web UI and of the CrowdSec local API, and
+Headplane's default, 3000, is the documentation server's; the module refuses
+each clash on the same host.
+
 ## Mounts
 
 Non-system filesystem mounts, grouped under `othrys.services.mounts.*`.
