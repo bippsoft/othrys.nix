@@ -139,5 +139,68 @@ pkgs.testers.runNixOSTest {
         machine.succeed("/run/current-system/activate")
         assert machine.succeed("cat /persist/etc/machine-id").strip() == first_id
         assert machine.succeed("cat /persist/etc/machine-id.replaced").strip() == "0123456789abcdef0123456789abcdef"
+
+    # /nix/var used to be in the persisted set. A host that ran under that
+    # configuration has its live database under the persist root, bind-mounted
+    # over the nix subvolume's own copy, which still holds the install-time
+    # state. The state is staged here the same way: the subvolume copy is
+    # marked, the live copy is put under the persist root and mounted over it.
+    def db_sum():
+        return machine.succeed("sha256sum /nix/var/nix/db/db.sqlite").split()[0]
+
+    with subtest("a host with /nix/var still persisted moves onto the nix subvolume at its first switch"):
+        machine.succeed("echo install-time > /nix/var/.origin")
+        machine.succeed("mkdir -p /persist/nix && cp -a /nix/var /persist/nix/var && rm /persist/nix/var/.origin")
+        machine.succeed("mount --bind /persist/nix/var /nix/var")
+        machine.succeed("echo live > /nix/var/.live")
+        before = db_sum()
+        generations = machine.succeed("ls -1 /nix/var/nix/profiles").split()
+        machine.succeed("/run/current-system/activate")
+        machine.fail("findmnt /nix/var")
+        machine.succeed("test -e /nix/var/.live")
+        machine.fail("test -e /nix/var/.origin")
+        machine.succeed("test -e /nix/var.install/.origin")
+        machine.fail("test -e /persist/nix/var")
+        machine.succeed("test -e /persist/nix/var.migrated/.live")
+        assert db_sum() == before, "the database changed during the move"
+        assert machine.succeed("ls -1 /nix/var/nix/profiles").split() == generations, "a profile went missing"
+        machine.succeed("nix-store --verify")
+        machine.succeed("nix-store --store daemon -q --hash /run/current-system")
+
+    with subtest("a refused unmount keeps the mount and the move finishes at the next boot"):
+        machine.succeed("cp -a /nix/var /persist/nix/var")
+        machine.succeed("mount --bind /persist/nix/var /nix/var")
+        machine.succeed("echo busy > /nix/var/.busy")
+        # systemd-run resolves a bare command through systemd's own PATH,
+        # which has no NixOS entries, so both programs are named in full.
+        machine.succeed(
+            "systemd-run --unit=holder /bin/sh -c 'exec ${pkgs.coreutils}/bin/sleep infinity < /nix/var/.busy'"
+        )
+        machine.wait_until_succeeds(
+            "ls -l /proc/$(systemctl show -p MainPID --value holder)/fd | grep -q /nix/var/.busy"
+        )
+        machine.succeed("/run/current-system/activate")
+        machine.succeed("findmnt /nix/var")
+        machine.succeed("test -d /persist/nix/var")
+        # A write after the refused unmount lands on the persisted copy, which
+        # is still the live one, and must survive the move.
+        machine.succeed("echo late > /nix/var/.late")
+        machine.succeed("systemctl stop holder")
+        # The next boot has no mount and the persisted copy still there.
+        machine.succeed("umount /nix/var")
+        machine.fail("test -e /nix/var/.late")
+        machine.succeed("test -e /nix/var/.othrys-interim-copy")
+        machine.succeed("/run/current-system/activate")
+        machine.fail("findmnt /nix/var")
+        machine.succeed("test -e /nix/var/.late")
+        machine.fail("test -e /nix/var/.othrys-interim-copy")
+        machine.fail("test -e /persist/nix/var")
+        machine.succeed("test -e /persist/nix/var.migrated.1/.late")
+        machine.succeed("nix-store --verify")
+
+    with subtest("a host that never had the mount is left alone"):
+        machine.succeed("/run/current-system/activate")
+        machine.fail("findmnt /nix/var")
+        machine.succeed("test -e /nix/var/.late")
   '';
 }
