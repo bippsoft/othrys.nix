@@ -138,7 +138,18 @@ othrys.desktop.noctalia = {
 Staged idle policy via hypridle (ext-idle-notify, which works on Hyprland and
 Niri): optional backlight dim, lock (via the shared
 `othrys.desktop.lockCommand` signal), screen off (compositor-flavored DPMS),
-and optional suspend. Conflicts with Noctalia, which manages idle itself.
+and optional suspend. The stages must increase in that order, and the module
+refuses a configuration where a later stage fires first. Conflicts with
+Noctalia, which manages idle itself. Noctalia reads the same `timeouts` for
+its own lock, screen-off and suspend behaviors, so a Noctalia host locks on
+the same schedule without enabling this module; the dim stage has no Noctalia
+equivalent.
+
+The module declares the PAM service of the locker it installs, `hyprlock` on
+Hyprland and `swaylock` otherwise, and so does ashell for its lock button. A
+locker whose PAM service is missing rejects the correct password, and the only
+way out is a VT switch. On a Noctalia host the lock command falls back to that
+locker when the shell is not running.
 
 ### Options
 

@@ -3,7 +3,8 @@
 # (ext-idle-notify, which works on hyprland and niri alike). The lock command
 # comes from the othrys.desktop.lockCommand signal, while the screen-off dispatch
 # is compositor-flavored. Noctalia hosts are excluded, since the shell owns idle
-# behavior there.
+# behavior there, and noctalia.nix reads the timeouts declared here for its
+# own idle behaviors, so one set of numbers describes every host.
 {
   config,
   lib,
@@ -43,6 +44,9 @@ in {
       description = "Command the lock stage runs (and before-sleep lock).";
     };
 
+    # Read by noctalia.nix as well, which runs its own idle manager, so the
+    # stages below describe a noctalia host too even though idle.enable is off
+    # there.
     timeouts = {
       dim = lib.mkOption {
         type = lib.types.nullOr lib.types.ints.positive;
@@ -80,20 +84,31 @@ in {
         assertion = !config.othrys.desktop.noctalia.enable;
         message = "othrys.desktop.idle conflicts with othrys.desktop.noctalia, which manages idle and locking itself.";
       }
+      {
+        # A later stage that fires before an earlier one makes the earlier
+        # one pointless, and a screen that is off before it is locked is an
+        # unlocked session nobody is looking at.
+        assertion = let
+          stages = builtins.filter (t: t != null) [cfg.timeouts.dim cfg.timeouts.lock cfg.timeouts.screenOff cfg.timeouts.suspend];
+          ordered = l: builtins.length l < 2 || (builtins.head l < builtins.elemAt l 1 && ordered (builtins.tail l));
+        in
+          ordered stages;
+        message = "othrys.desktop.idle.timeouts must increase from dim to lock to screenOff to suspend; a stage set to null is skipped.";
+      }
     ];
 
+    # The locker is a PAM client, and a PAM service that is not declared
+    # denies every attempt, so a lock screen with no service cannot be
+    # unlocked. programs.hyprlock declares hyprlock's and installs the
+    # package. swaylock has no NixOS module, and niri-flake declares its
+    # service only on niri hosts, so it is declared here for every host that
+    # locks with it.
+    programs.hyprlock.enable = hyprlandEnabled;
+    security.pam.services = lib.mkIf (!hyprlandEnabled) {swaylock = {};};
+    environment.systemPackages = lib.optional (!hyprlandEnabled) pkgs.swaylock;
+
     othrys.internal.homeConfig."desktop.idle" = {
-      # The lock stage needs its locker on PATH even on bar-less hosts
-      # (deduplicated with ashell's copy when both are enabled).
-      home.packages =
-        [
-          (
-            if hyprlandEnabled
-            then pkgs.hyprlock
-            else pkgs.swaylock
-          )
-        ]
-        ++ lib.optional (cfg.timeouts.dim != null) pkgs.brightnessctl;
+      home.packages = lib.optional (cfg.timeouts.dim != null) pkgs.brightnessctl;
 
       services.hypridle = {
         enable = true;

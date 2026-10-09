@@ -15,6 +15,7 @@
 {
   config,
   lib,
+  pkgs,
   inputs,
   ...
 }: let
@@ -24,6 +25,37 @@
   niriEnabled = config.othrys.desktop.compositors.niri.enable;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
+  idleTimeouts = config.othrys.desktop.idle.timeouts;
+
+  # noctalia owns the lock screen, and the lock command is an IPC call to it.
+  # With the shell not running that call fails and every lock consumer would
+  # leave the session unlocked, so the compositor's locker takes over. Its
+  # PAM service is declared below, since an undeclared one denies every
+  # unlock.
+  fallbackLocker =
+    if hyprlandEnabled
+    then lib.getExe pkgs.hyprlock
+    else lib.getExe pkgs.swaylock;
+  lockCommand = pkgs.writeShellScript "noctalia-lock" ''
+    if ! noctalia msg session lock; then
+      exec ${fallbackLocker}
+    fi
+  '';
+
+  # The staged idle policy is declared once, in othrys.desktop.idle.timeouts,
+  # and rendered here as noctalia's own idle behaviors. A stage set to null
+  # is rendered disabled with upstream's example timeout, since the table
+  # needs a number. The dim stage has no noctalia equivalent.
+  idleBehavior = name: action: timeout: fallback: {
+    ${name} = {
+      inherit action;
+      enabled = timeout != null;
+      timeout =
+        if timeout == null
+        then fallback
+        else timeout;
+    };
+  };
 
   # A single action keybinding. The module defines the IPC dispatcher and the
   # consumer picks the chord (or null to drop the bind entirely). Chords use
@@ -135,6 +167,11 @@
       blur_intensity = cfg.lockscreen.blurIntensity;
       tint_intensity = cfg.lockscreen.tintIntensity;
     };
+
+    idle.behavior =
+      idleBehavior "lock" "lock" idleTimeouts.lock 600
+      // idleBehavior "screen-off" "screen_off" idleTimeouts.screenOff 660
+      // idleBehavior "suspend" "suspend" idleTimeouts.suspend 1800;
 
     # Toast/dock opacity comes from Stylix (stylix.opacity.popups/desktop)
     # when stylix-themed, and only the layer is a noctalia-specific choice.
@@ -427,8 +464,11 @@ in {
         }
       ];
 
-      # Noctalia owns the lock screen, and every lock consumer dispatches to it.
-      othrys.desktop.lockCommand = "noctalia msg session lock";
+      # Noctalia owns the lock screen, and every lock consumer dispatches to
+      # it, with the compositor's locker behind it when the shell is down.
+      othrys.desktop.lockCommand = "${lockCommand}";
+      programs.hyprlock.enable = hyprlandEnabled;
+      security.pam.services = lib.mkIf (!hyprlandEnabled) {swaylock = {};};
     })
     (lib.mkIf (cfg.enable && config.othrys.system.stylix.enable) {
       # The GUI's runtime overrides (settings.toml) live in the state dir, so

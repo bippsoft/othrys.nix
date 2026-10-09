@@ -299,11 +299,20 @@ in {
         ];
       };
 
-      security.pam.services = lib.mkIf yubikeyEnabled (
-        if hyprlandEnabled
-        then {hyprlock.u2fAuth = true;}
-        else {swaylock.u2fAuth = true;}
-      );
+      # The bar's lock button runs the shared lock command, so the locker and
+      # its PAM service exist here as well as in the idle module, since a
+      # host can run the bar without idle management. The YubiKey branch adds
+      # the touch factor on top of the service the locker needs either way.
+      programs.hyprlock.enable = hyprlandEnabled;
+      environment.systemPackages = lib.optional (!hyprlandEnabled) pkgs.swaylock;
+      security.pam.services = lib.mkMerge [
+        (lib.mkIf (!hyprlandEnabled) {swaylock = {};})
+        (lib.mkIf yubikeyEnabled (
+          if hyprlandEnabled
+          then {hyprlock.u2fAuth = true;}
+          else {swaylock.u2fAuth = true;}
+        ))
+      ];
 
       systemd.user.services.ashell = {
         description = "Ashell status bar.";
@@ -328,14 +337,9 @@ in {
             pkgs.rofimoji
             pkgs.wtype
           ]
-          # Hyprland-ecosystem tools on hyprland hosts, swaylock on niri
-          # (niri-flake wires its pam entry). Idle management lives in
-          # othrys.desktop.idle, not here.
-          ++ lib.optionals hyprlandEnabled [
-            pkgs.hyprlock
-            pkgs.hyprpicker
-          ]
-          ++ lib.optional (!hyprlandEnabled) pkgs.swaylock;
+          # The locker is installed at system level above, beside its PAM
+          # service. Idle management lives in othrys.desktop.idle, not here.
+          ++ lib.optional hyprlandEnabled pkgs.hyprpicker;
 
         home.file.".config/ashell/config.toml".text = configToml;
 
