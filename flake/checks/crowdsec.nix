@@ -62,6 +62,18 @@ in
         enable = true;
         collections = [];
       };
+
+      # The deployment this module targets is a router, where the bouncer's
+      # input-only chains would leave forwarded traffic unfiltered. eth1 is a
+      # VLAN of the test driver that stands in for the LAN.
+      virtualisation.vlans = [1];
+      othrys.services.router = {
+        enable = true;
+        wan.interface = "eth0";
+        lan.interfaces = ["eth1"];
+        # The driver reaches the VM over eth0, which is the WAN here.
+        extraInputRules = ''iifname "eth0" accept'';
+      };
     };
 
     testScript = ''
@@ -93,6 +105,12 @@ in
 
       with subtest("the bouncer registered with the local engine"):
           machine.succeed("cscli bouncers list -o json | grep -q crowdsec-firewall-bouncer")
+
+      with subtest("on a router a decision lands in a set the forward chain reads"):
+          table = machine.succeed("nft list table ip crowdsec")
+          assert "hook forward" in table and "@crowdsec-blacklists drop" in table, table
+          machine.succeed("cscli decisions add -i 192.0.2.99 -d 1h --reason test")
+          machine.wait_until_succeeds("nft list set ip crowdsec crowdsec-blacklists | grep -q 192.0.2.99")
 
       with subtest("the daily hub-update timer completes and reloads the engine"):
           # autoUpdate is on by default, so this unit runs on every host
