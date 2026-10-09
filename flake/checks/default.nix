@@ -739,6 +739,7 @@
       eval-impermanence = import ./impermanence-eval.nix {inherit hostConfig mkExpectations bootBase;};
 
       eval-lock = import ./lock.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
+      eval-login = import ./login.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
 
       # EXTENDED, heavy, main and manual dispatch
 
