@@ -142,7 +142,13 @@ again, once per rule update.
 
 The module states `modbus` and `dnp3` as `enabled = "no"`, which is Suricata's
 own default, so that `suricata-update` drops the rules naming them. Set either
-to `"yes"` through `settings` to get the parser and its rules back.
+to `"yes"` through `settings` to get the parser and its rules back. A running
+engine reloads its rules after every `suricata-update` run, through upstream's
+blocking reload, so a fetched ruleset is live without a restart. `dropRules`
+lists the rules `suricata-update` turns from alert into drop. With the router's
+NFQUEUE hook on, the module refuses an af-packet Suricata and a queue count
+that differs from the router's, since a queue nobody listens on accepts its
+packets uninspected.
 
 Both directions fail open on purpose, since an IPS crash on a router should not
 sever the network it protects. The consequence is worth stating plainly: while

@@ -19,9 +19,11 @@
   config,
   lib,
   pkgs,
+  utils,
   ...
 }: let
   cfg = config.othrys.services.suricata;
+  router = config.othrys.services.router;
   sandbox = import ../lib/sandbox.nix;
   notifyEnabled = config.othrys.services.notify.enable;
 
@@ -80,6 +82,8 @@
       # `pcap` entry is an inert placeholder so the upstream module's
       # "at least one capture interface" assertion passes, and ExecStart is
       # overridden below to run in NFQUEUE mode, so `lo` is never captured.
+      # The `suricata -T` pre-check parses the file and opens no interface,
+      # so the placeholder costs nothing there either.
       pcap = [{interface = "lo";}];
       nfq = {fail-open = cfg.nfqueue.failOpen;};
     };
@@ -198,10 +202,22 @@ in {
       };
 
       clusterType = lib.mkOption {
-        type = lib.types.str;
+        type = lib.types.enum ["cluster_flow" "cluster_cpu" "cluster_qm" "cluster_ebpf"];
         default = "cluster_flow";
-        description = "af-packet cluster-type (e.g. cluster_flow, cluster_qm).";
+        description = "af-packet cluster-type, which decides how packets are spread over the capture threads.";
       };
+    };
+
+    dropRules = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      example = ["re:trojan" "2019401"];
+      description = ''
+        Rules that `suricata-update` turns from alert into drop, one
+        `drop.conf` line each: a signature id, or a `re:` regular expression
+        over the rule text. Only an IPS posture drops; in IDS they stay
+        alerts.
+      '';
     };
 
     settings = lib.mkOption {
@@ -228,13 +244,28 @@ in {
         assertion = !(cfg.mode == "af-packet" && isIps) || cfg.afPacket.copyInterface != null;
         message = "othrys.services.suricata: af-packet IPS mode requires afPacket.copyInterface (the bridge peer).";
       }
+      # The router hands forwarded traffic to queues 0 to N-1 with bypass,
+      # so a queue nobody listens on accepts its packets uninspected. The two
+      # counts were described as having to match and nothing checked it.
+      {
+        assertion = !router.suricata.enable || cfg.mode == "nfqueue";
+        message = "othrys.services.router.suricata hands traffic to NFQUEUE, which needs othrys.services.suricata.mode = \"nfqueue\".";
+      }
+      {
+        assertion = !router.suricata.enable || router.suricata.queues == cfg.nfqueue.queues;
+        message = "othrys.services.router.suricata.queues (${toString router.suricata.queues}) and othrys.services.suricata.nfqueue.queues (${toString cfg.nfqueue.queues}) differ; packets sent to a queue Suricata is not bound to bypass inspection.";
+      }
     ];
 
     services.suricata = {
       enable = true;
       package = suricataPkg;
-      inherit (cfg) enabledSources disabledRules;
+      inherit (cfg) enabledSources disabledRules dropRules;
       settings = suricataSettings;
+      # A running engine kept the rules it started with until a restart,
+      # and suricata-recover only restarts a failed one. Upstream's blocking
+      # reload after every suricata-update run keeps it current.
+      reloadOnRulesetUpdate = lib.mkDefault true;
     };
 
     # NFQUEUE runmode, where the upstream service captures via `-i`, so override it to
@@ -285,11 +316,16 @@ in {
     systemd.services.suricata-update.onSuccess = ["suricata-recover.service"];
 
     # Inline inspection requires the NIC to hand up physical-sized frames.
+    # The unit is bound to the interfaces' device units, so it runs once they
+    # exist, which network-pre.target did not promise for a VLAN or a bridge
+    # created later in the boot. A mistyped interface fails the unit, where
+    # it is visible, instead of being swallowed.
     systemd.services.suricata-disable-offload = lib.mkIf (cfg.offloadInterfaces != []) {
       description = "Disable NIC offloads on Suricata-inspected interfaces.";
       before = ["suricata.service"];
       wantedBy = ["suricata.service"];
-      after = ["network-pre.target"];
+      bindsTo = map (iface: "sys-subsystem-net-devices-${utils.escapeSystemdPath iface}.device") cfg.offloadInterfaces;
+      after = ["network-pre.target"] ++ map (iface: "sys-subsystem-net-devices-${utils.escapeSystemdPath iface}.device") cfg.offloadInterfaces;
       serviceConfig =
         sandbox.baseline
         // {
@@ -299,7 +335,7 @@ in {
           CapabilityBoundingSet = ["CAP_NET_ADMIN"];
           RestrictAddressFamilies = ["AF_NETLINK" "AF_INET" "AF_INET6"];
         };
-      script = lib.concatMapStringsSep "\n" (iface: "${pkgs.ethtool}/bin/ethtool -K ${iface} gro off gso off tso off lro off || true") cfg.offloadInterfaces;
+      script = lib.concatMapStringsSep "\n" (iface: "${pkgs.ethtool}/bin/ethtool -K ${iface} gro off gso off tso off lro off") cfg.offloadInterfaces;
     };
   };
 }
