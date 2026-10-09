@@ -736,6 +736,8 @@
           "a host that does not hibernate is accepted" = !rejectedWith needle hardenedHost;
         };
 
+      eval-impermanence = import ./impermanence-eval.nix {inherit hostConfig mkExpectations bootBase;};
+
       # EXTENDED, heavy, main and manual dispatch
 
       # The same contract over every app and desktop module that writes per-user
@@ -900,6 +902,7 @@
       crowdsec-test = import ./crowdsec.nix {inherit pkgs inputs;};
       headscale-test = import ./headscale.nix {inherit pkgs inputs;};
       impermanence-reboot-test = import ./impermanence-reboot.nix {inherit pkgs inputs;};
+      impermanence-wipe-test = import ./impermanence-wipe.nix {inherit pkgs inputs;};
       router-test = import ./router.nix {inherit pkgs inputs;};
       router-ips-test = import ./router-ips.nix {inherit pkgs inputs;};
       auto-upgrade-test = import ./auto-upgrade.nix {inherit pkgs inputs;};

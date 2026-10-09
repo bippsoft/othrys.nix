@@ -15,7 +15,16 @@
   # variants of the generated script are exercised.
   mkWipeEval = usersOn:
     inputs.nixpkgs.lib.evalModules {
-      specialArgs = {inherit pkgs;};
+      specialArgs = {
+        inherit pkgs;
+        # The module names its device unit through escapeSystemdPath, which
+        # lives in nixpkgs' NixOS utils rather than in lib.
+        utils = import "${inputs.nixpkgs}/nixos/lib/utils.nix" {
+          inherit pkgs;
+          inherit (inputs.nixpkgs) lib;
+          config = {};
+        };
+      };
       modules = [
         inputs.self.nixosModules.impermanence
         ({lib, ...}: {
@@ -82,7 +91,7 @@ in
 
       # The real script mounts /dev/mapper/cryptroot, so back it with /dev/vdb.
       machine.succeed("mkfs.btrfs -f /dev/vdb")
-      machine.succeed("ln -sf /dev/vdb /dev/mapper/cryptroot")
+      machine.succeed("mkdir -p /dev/mapper && ln -sf /dev/vdb /dev/mapper/cryptroot")
 
       with subtest("script variants: only the managed-user script touches /persist/home"):
           machine.succeed("grep -q 'persist/home/testuser' ${wipeScript}")

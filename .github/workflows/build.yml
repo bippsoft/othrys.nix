@@ -57,6 +57,7 @@ jobs:
             '.#checks.x86_64-linux.eval-traefik' \
             '.#checks.x86_64-linux.eval-host-hardening' \
             '.#checks.x86_64-linux.eval-host-hardening-hibernate' \
+            '.#checks.x86_64-linux.eval-impermanence' \
             '.#checks.x86_64-linux.impermanence-test'
   # The portable host evaluations on a native ARM runner. It shows that the
   # module tree evaluates for aarch64-linux and nothing more. No VM test runs
@@ -138,6 +139,7 @@ jobs:
           - router-ips-test
           - integration-test
           - impermanence-reboot-test
+          - impermanence-wipe-test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
       - name: Reclaim disk space
