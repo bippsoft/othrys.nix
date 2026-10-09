@@ -19,6 +19,12 @@
     wan = {
       router = "192.0.2.1";
       host = "192.0.2.10";
+      # The WAN link also carries IPv6. The WAN host advertises the prefix
+      # and itself as the default router, which is how an upstream hands a
+      # router its IPv6 route.
+      prefix6 = "2001:db8:1::";
+      router6 = "2001:db8:1::1";
+      host6 = "2001:db8:1::10";
     };
     lanA = {
       subnet = "10.10.1.0/24";
@@ -84,6 +90,20 @@
       }
     ];
     ipv6.addresses = lib.mkForce [];
+  };
+  static6 = address: address6: {
+    ipv4.addresses = lib.mkForce [
+      {
+        inherit address;
+        prefixLength = 24;
+      }
+    ];
+    ipv6.addresses = lib.mkForce [
+      {
+        address = address6;
+        prefixLength = 64;
+      }
+    ];
   };
 
   common = {
@@ -155,7 +175,7 @@ in {
       networking.firewall.interfaces.eth1.allowedTCPPorts = [ports.wanOpened];
       virtualisation.vlans = [1 2 3];
       networking.interfaces = {
-        eth1 = static net.wan.router;
+        eth1 = static6 net.wan.router net.wan.router6;
         eth2 = static net.lanA.router;
         eth3 = static net.lanB.router;
       };
@@ -242,8 +262,25 @@ in {
       ];
       virtualisation.vlans = [1];
       networking.firewall.enable = false;
+      # The upstream router's half: advertise the prefix and a default
+      # route, which the router under test only takes with accept_ra = 2.
+      services.radvd = {
+        enable = true;
+        config = ''
+          interface eth1 {
+            AdvSendAdvert on;
+            MinRtrAdvInterval 3;
+            MaxRtrAdvInterval 4;
+            AdvDefaultLifetime 60;
+            prefix ${net.wan.prefix6}/64 {
+              AdvOnLink on;
+              AdvAutonomous off;
+            };
+          };
+        '';
+      };
       networking.interfaces.eth1 = lib.mkMerge [
-        (static net.wan.host)
+        (static6 net.wan.host net.wan.host6)
         {
           # Without a route the WAN host could not address a LAN at all, and the
           # forward-drop assertions would pass without the router seeing a packet.

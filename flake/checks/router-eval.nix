@@ -7,6 +7,7 @@
 {
   hostConfig,
   mkExpectations,
+  rejectedWith,
   bootBase,
 }: let
   host = extra:
@@ -74,6 +75,20 @@
   natOf = cfg: (tables cfg).router-nat.content;
   filterOf = cfg: (tables cfg).router-filter.content;
 
+  logged = host {othrys.services.router.logDrops = true;};
+  consoleOnly = host ({lib, ...}: {othrys.services.router.lan.interfaces = lib.mkForce [];});
+  bridged = host {
+    othrys.system.networking = {
+      enable = true;
+      bridges.br-lan = {};
+      interfaces.port = {
+        match = "lan0";
+        bridge = "br-lan";
+      };
+    };
+  };
+  portNetwork = bridged.systemd.network.networks."10-port".networkConfig;
+
   # Ports opened the way every module does it, through the firewall's lists,
   # and one opened on the WAN by naming the interface.
   opened = host {
@@ -104,6 +119,16 @@ in
     "rp_filter is loose on all" = plain.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 2;
     "rp_filter is strict on the WAN interface" = plain.boot.kernel.sysctl."net.ipv4.conf.wan0.rp_filter" == 1;
     "a WAN interface with a dot is named with a slash for sysctl" = vlanWan.boot.kernel.sysctl ? "net.ipv4.conf.eth0/100.rp_filter";
+    "the WAN accepts router advertisements while forwarding" = plain.boot.kernel.sysctl."net.ipv6.conf.wan0.accept_ra" == 2;
+    "ICMPv6 is matched by protocol and not by the first header" = hasInfix "meta l4proto ipv6-icmp" (chain "input" (filterOf plain)) && !hasInfix "ip6 nexthdr icmpv6 accept" (filterOf plain);
+    "echo requests from the WAN are rate-limited" = hasInfix ''iifname "wan0" meta l4proto ipv6-icmp icmpv6 type echo-request limit rate'' (chain "input" (filterOf plain));
+    "neighbour discovery is accepted from the WAN" = hasInfix "nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert" (chain "input" (filterOf plain));
+    "the input chain ends in a counted drop" = builtins.match ".*counter drop[[:space:]]*" (chain "input" (filterOf plain)) != null;
+    "the forward chain ends in a counted drop" = builtins.match ".*counter drop[[:space:]]*" (chain "forward" (filterOf plain)) != null;
+    "drops are not logged by default" = !hasInfix "log prefix" (filterOf plain);
+    "logDrops logs both chains" = hasInfix ''log prefix "router input drop: " counter drop'' (filterOf logged) && hasInfix ''log prefix "router forward drop: " counter drop'' (filterOf logged);
+    "a router nothing can reach is rejected" = rejectedWith "nothing can reach this host" consoleOnly;
+    "a bridge member port gets no addressing of its own" = portNetwork.DHCP == "no" && portNetwork.IPv6AcceptRA == false && portNetwork.Bridge == "br-lan";
     "no prerouting chain is rendered without a port forward" = !hasInfix "prerouting" (natOf plain);
     "the masquerade is in postrouting" = hasInfix "masquerade" (chain "postrouting" (natOf plain));
     "a port forward renders its dnat rule in prerouting" = hasInfix ''iifname "wan0" tcp dport 25565 dnat to 10.0.0.42:25565'' (chain "prerouting" (natOf forwarded));

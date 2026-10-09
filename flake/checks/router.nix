@@ -97,6 +97,15 @@ in
           assert router.succeed("sysctl -n net.ipv4.conf.eth1.rp_filter").strip() == "1"
           assert router.succeed("sysctl -n net.ipv4.conf.all.rp_filter").strip() == "2"
 
+      with subtest("the router takes an IPv6 default route from the WAN's advertisements"):
+          router.wait_until_succeeds("ip -6 route show default | grep -q 'dev eth1'")
+          router.succeed("ping -6 -c 1 -W 3 ${net.wan.host6}")
+          wan.succeed("ping -6 -c 1 -W 3 ${net.wan.router6}")
+
+      with subtest("the drop rules count what the policy dropped"):
+          dropped = router.succeed("nft -j list chain inet router-filter input")
+          assert '"counter"' in dropped and dropped.count('"drop"') >= 1, dropped
+
       with subtest("the ruleset loaded as one, with both NAT chains"):
           router.succeed("systemctl is-active nftables.service")
           tables = router.succeed("nft list tables")
