@@ -86,6 +86,17 @@ in
           wan.succeed("ping -c 1 -W 3 ${net.wan.router}")
           assert_dropped(wan, "http://${net.wan.router}:${toString ports.router}/")
 
+      with subtest("a port opened through the firewall list reaches the LAN and not the WAN"):
+          assert fetch(lanA, "http://${net.lanA.router}:${toString ports.opened}/") == "router"
+          assert_dropped(wan, "http://${net.wan.router}:${toString ports.opened}/")
+
+      with subtest("a port opened on the WAN interface by name reaches it from the WAN"):
+          assert fetch(wan, "http://${net.wan.router}:${toString ports.wanOpened}/") == "router"
+
+      with subtest("reverse-path filtering is strict on the WAN and loose elsewhere"):
+          assert router.succeed("sysctl -n net.ipv4.conf.eth1.rp_filter").strip() == "1"
+          assert router.succeed("sysctl -n net.ipv4.conf.all.rp_filter").strip() == "2"
+
       with subtest("the ruleset loaded as one, with both NAT chains"):
           router.succeed("systemctl is-active nftables.service")
           tables = router.succeed("nft list tables")

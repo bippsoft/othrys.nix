@@ -73,8 +73,37 @@
 
   natOf = cfg: (tables cfg).router-nat.content;
   filterOf = cfg: (tables cfg).router-filter.content;
+
+  # Ports opened the way every module does it, through the firewall's lists,
+  # and one opened on the WAN by naming the interface.
+  opened = host {
+    othrys.services.ssh = {
+      enable = true;
+      server.enable = true;
+    };
+    othrys.services.tailscale.enable = true;
+    networking.firewall.allowedUDPPortRanges = [
+      {
+        from = 60000;
+        to = 61000;
+      }
+    ];
+    networking.firewall.interfaces.wan0.allowedTCPPorts = [8443];
+    networking.firewall.interfaces."eth0.100".allowedTCPPorts = [8080];
+  };
+  input = chain "input" (filterOf opened);
+  vlanWan = host ({lib, ...}: {othrys.services.router.wan.interface = lib.mkForce "eth0.100";});
 in
   mkExpectations "othrys-eval-router" {
+    "a port opened by a module reaches every interface but the WAN" = hasInfix ''iifname != "wan0" tcp dport [{] 22 [}] accept'' input;
+    "a UDP range opened by the host reaches every interface but the WAN" = hasInfix ''iifname != "wan0" udp dport [{] 41641, 60000-61000 [}] accept'' input;
+    "a port named on the WAN interface is opened there" = hasInfix ''iifname "wan0" tcp dport [{] 8443 [}] accept'' input;
+    "tailscale opens its port on the WAN of a router" = hasInfix ''iifname "wan0" udp dport [{] 41641 [}] accept'' input;
+    "a port named on another interface is opened there alone" = hasInfix ''iifname "eth0.100" tcp dport [{] 8080 [}] accept'' input;
+    "no port list is rendered when none is set" = !hasInfix "dport" (chain "input" (filterOf plain));
+    "rp_filter is loose on all" = plain.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 2;
+    "rp_filter is strict on the WAN interface" = plain.boot.kernel.sysctl."net.ipv4.conf.wan0.rp_filter" == 1;
+    "a WAN interface with a dot is named with a slash for sysctl" = vlanWan.boot.kernel.sysctl ? "net.ipv4.conf.eth0/100.rp_filter";
     "no prerouting chain is rendered without a port forward" = !hasInfix "prerouting" (natOf plain);
     "the masquerade is in postrouting" = hasInfix "masquerade" (chain "postrouting" (natOf plain));
     "a port forward renders its dnat rule in prerouting" = hasInfix ''iifname "wan0" tcp dport 25565 dnat to 10.0.0.42:25565'' (chain "prerouting" (natOf forwarded));

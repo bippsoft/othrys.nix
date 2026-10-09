@@ -458,7 +458,8 @@
       }
     ];
 
-    # The profile next to the router module, which assigns strict rp_filter.
+    # The profile next to the router module, which assigns strict rp_filter
+    # to its WAN interface and loose to the rest.
     hardenedRouter = hostConfig [
       bootBase
       {
@@ -679,8 +680,8 @@
       # boot.kernel.sysctl rejects two definitions at one priority and NixOS
       # itself defines kernel.kptr_restrict and, under protectKernelImage,
       # kernel.kexec_load_disabled at mkDefault. The host's plain ptrace_scope
-      # assignment has to win, and the router's strict rp_filter has to survive
-      # the profile's loose one.
+      # assignment has to win, and the router's strict rp_filter on its WAN
+      # interface has to survive beside the profile's loose one.
       eval-host-hardening = let
         sysctl = hardenedHost.boot.kernel.sysctl;
         expected = {
@@ -719,8 +720,9 @@
             "security.protectKernelImage is set" = hardenedHost.security.protectKernelImage;
             "Tailscale keeps the firewall reverse path check loose" = hardenedHost.networking.firewall.checkReversePath == "loose";
             "the hardened router evaluates" = hardenedRouter.system.build.toplevel.drvPath != null;
-            "the router keeps strict rp_filter on all" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 1;
-            "the router keeps strict rp_filter on default" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.default.rp_filter" == 1;
+            "the router keeps loose rp_filter on all" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 2;
+            "the router keeps loose rp_filter on default" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.default.rp_filter" == 2;
+            "the router keeps strict rp_filter on its WAN interface" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.wan0.rp_filter" == 1;
           }
         );
 

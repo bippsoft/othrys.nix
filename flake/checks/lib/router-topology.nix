@@ -45,6 +45,13 @@
     # Arrives on the router's WAN address and is forwarded to lanA's static
     # address on `interLan`.
     forwarded = 8082;
+    # Listens on every router address. Opened through the firewall's global
+    # list, the way a module's openFirewall does it, so it reaches the LAN and
+    # not the WAN.
+    opened = 8083;
+    # Listens on every router address and is opened on the WAN interface by
+    # name, which is the only way a port reaches the WAN.
+    wanOpened = 8084;
   };
 
   # lanA's lease comes from a pool, so the port forward points at a second,
@@ -141,7 +148,11 @@ in {
         common
         routerModule
         (httpd ports.router "router\n")
+        (httpd ports.opened "router\n")
+        (httpd ports.wanOpened "router\n")
       ];
+      networking.firewall.allowedTCPPorts = [ports.opened];
+      networking.firewall.interfaces.eth1.allowedTCPPorts = [ports.wanOpened];
       virtualisation.vlans = [1 2 3];
       networking.interfaces = {
         eth1 = static net.wan.router;
