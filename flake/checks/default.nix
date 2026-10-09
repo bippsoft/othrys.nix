@@ -470,6 +470,7 @@
         othrys.services.router = {
           enable = true;
           wan.interface = "wan0";
+          lan.interfaces = ["lan0"];
         };
         othrys.system.hardening.enable = true;
       }
