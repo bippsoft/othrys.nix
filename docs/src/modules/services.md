@@ -94,9 +94,16 @@ An L3 router firewall + NAT built on `networking.nftables`. It generates a
 default-drop `inet` filter (input/forward) and an `ip` masquerade from the WAN
 and LAN interface options. LAN interfaces are trusted (input accepted, forwarded
 to the WAN), while the WAN is default-drop except established/related. Interface names
-and subnets are identity and come from the fleet host, and anything the generated
-ruleset doesn't cover goes through `extraInputRules` / `extraForwardRules` /
-`extraNat`.
+and subnets are identity and come from the fleet host. Port forwards are
+declared through `portForwards`, which renders the `dnat` rule in the NAT
+prerouting chain and the forward accept the rewritten connection needs.
+Anything else the generated ruleset doesn't cover goes through
+`extraInputRules` / `extraForwardRules` / `extraPrerouting` / `extraNat`.
+
+`extraNat` is the postrouting chain, after the masquerade, and a `dnat` verb is
+invalid there. `nft --check` accepts it, so the build passes, and the kernel
+refuses the whole ruleset at load, so the router comes up forwarding with no
+filter table at all. A `dnat` or `redirect` rule goes in `extraPrerouting`.
 
 With `suricata.enable`, forwarded traffic is handed to Suricata via NFQUEUE
 (`queue num 0-<N-1> bypass`) instead of plain `accept`. Pair it with
@@ -148,8 +155,11 @@ othrys.services.router = {
   nat.enable = true;          # IPv4 masquerade
   # Inline IPS: feed forwarded traffic to Suricata's NFQUEUE
   suricata = { enable = true; queues = 4; };
-  # Raw escape hatches for port-forwards / policy:
-  extraNat = "iifname \"enp1s0f0\" tcp dport 25565 dnat to 10.0.0.42:25565";
+  # A port forward: the dnat rule and the forward accept it needs, through
+  # the IPS like any other forwarded traffic.
+  portForwards = [{ port = 25565; destination = "10.0.0.42"; }];
+  # Raw escape hatches for policy the options do not express:
+  extraForwardRules = "iifname \"br-lan\" oifname \"br-iot\" drop";
 };
 ```
 
