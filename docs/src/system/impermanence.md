@@ -47,6 +47,21 @@ persist root and bind-mounts it before impermanence looks. A persisted file that
 is missing, empty or a leftover symlink is replaced, and one holding a different
 id is kept beside it as `machine-id.replaced`. At boot the step does nothing.
 
+`/nix/var` is not in the set. The `nix` subvolume survives the wipe on its own,
+so the database, the profiles and the GC roots stay where the installer put
+them. Earlier releases persisted it, which hid the install-time database on a
+fresh host's first boot. A host that ran under that configuration is moved
+onto the subvolume by an activation step at its first switch: the live copy is
+reflinked onto the subvolume under Nix's own lock, the bind mount is dropped,
+and the two copies that existed before are kept as `/nix/var.install` and
+`<persistRoot>/nix/var.migrated` for the operator to remove. If the unmount is
+refused because something holds a file under `/nix/var`, the mount stays and
+the move finishes at the next boot. A host that was installed under the old
+configuration and rebooted but never switched holds its install-time database
+in `var.install` and a near-empty one under the persist root; compare the two
+before removing either. The step is transitional and is removed in a release
+before v1.0.0.
+
 The SSH host keys are not bind-mounted. `services.openssh.hostKeys` points at
 `<persistRoot>/etc/ssh/` directly, which is also where sops-nix reads the
 ed25519 key. A bind mount over `/etc/ssh` would cover the `sshd_config` that
