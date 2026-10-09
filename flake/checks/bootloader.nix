@@ -120,6 +120,27 @@
           actual = c.boot.loader.systemd-boot.configurationLimit;
           expected = 5;
         };
+        "boot.loader.systemd-boot.editor" = {
+          actual = c.boot.loader.systemd-boot.editor;
+          expected = false;
+        };
+        "boot.loader.efi.canTouchEfiVariables" = {
+          actual = c.boot.loader.efi.canTouchEfiVariables;
+          expected = true;
+        };
+      }))
+
+    # The editor is a default, so a host that wants it back gets it with a
+    # plain assignment.
+    (accepts "systemd-boot with the editor turned back on" {
+        type = "systemd-boot";
+        secureBoot = false;
+        extraModules = [{boot.loader.systemd-boot.editor = true;}];
+      } (c: {
+        "boot.loader.systemd-boot.editor" = {
+          actual = c.boot.loader.systemd-boot.editor;
+          expected = true;
+        };
       }))
 
     (accepts "grub" {
@@ -194,6 +215,10 @@
           actual = c.boot.loader.systemd-boot.enable;
           expected = false;
         };
+        "boot.loader.efi.canTouchEfiVariables" = {
+          actual = c.boot.loader.efi.canTouchEfiVariables;
+          expected = false;
+        };
       }))
 
     (accepts "limine with secureBoot" {
@@ -226,6 +251,10 @@
         "boot.lanzaboote.configurationLimit" = {
           actual = c.boot.lanzaboote.configurationLimit;
           expected = 5;
+        };
+        "boot.loader.systemd-boot.editor, which lanzaboote copies" = {
+          actual = c.boot.loader.systemd-boot.editor;
+          expected = false;
         };
         "boot.loader.systemd-boot.enable" = {
           actual = c.boot.loader.systemd-boot.enable;
