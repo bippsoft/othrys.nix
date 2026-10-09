@@ -738,6 +738,8 @@
 
       eval-impermanence = import ./impermanence-eval.nix {inherit hostConfig mkExpectations bootBase;};
 
+      eval-lock = import ./lock.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
+
       # EXTENDED, heavy, main and manual dispatch
 
       # The same contract over every app and desktop module that writes per-user
