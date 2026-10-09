@@ -19,6 +19,20 @@ Set in host config via `othrys.system.bootloader.type`:
 | `"grub"` | GRUB | Rejected | EFI support, `device = "nodev"`. |
 | `"none"` | None | Rejected | The module manages no bootloader and the host configures one itself. |
 
+## Menu Editor
+
+systemd-boot lets anyone at the keyboard edit the kernel command line from the
+menu, and `init=/bin/sh` there is a root shell. nixpkgs leaves that editor on.
+This module sets `boot.loader.systemd-boot.editor` to `false` as a default,
+and lanzaboote copies the flag into its own `loader.conf`, so both paths get
+the same answer. A host that wants the editor back assigns the option itself.
+Limine ships with its editor off. GRUB has no such switch; only a menu
+password, `boot.loader.grub.users`, keeps a present attacker off the command
+line, and the module leaves that to the host.
+
+`boot.loader.efi.canTouchEfiVariables` is a default of `true` for the three
+loaders the module installs and is not set for `"none"`.
+
 ## Generation Limit
 
 `maxGenerations` is how many of the newest generations the bootloader keeps on

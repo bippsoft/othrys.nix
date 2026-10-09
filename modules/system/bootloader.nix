@@ -72,9 +72,9 @@ in {
       default = "";
       description = "Extra boot entries (e.g., Windows dual-boot, for Limine).";
       example = ''
-        :Windows 11
-            PROTOCOL=chainload_efi
-            PATH=boot:///efi/Microsoft/Boot/bootmgfw.efi
+        /Windows 11
+            protocol: efi
+            path: uuid(0123-ABCD):/EFI/Microsoft/Boot/bootmgfw.efi
       '';
     };
   };
@@ -97,7 +97,9 @@ in {
         }
       ];
 
-      boot.loader.efi.canTouchEfiVariables = true;
+      # Only a loader this module installs needs to write boot entries, and a
+      # host can still say otherwise.
+      boot.loader.efi.canTouchEfiVariables = lib.mkIf (cfg.type != "none") (lib.mkDefault true);
 
       boot.loader.limine = lib.mkIf (cfg.type == "limine") (
         {
@@ -115,13 +117,23 @@ in {
       #
       # Lanzaboote reads its own limit from this option, so the one write
       # covers both.
+      #
+      # The menu editor lets anyone at the keyboard append `init=/bin/sh` to
+      # the kernel command line, which is a root shell on a disk that is not
+      # encrypted and a way around the login on one that is. nixpkgs leaves
+      # it on; lanzaboote copies this flag into its own loader.conf. Limine
+      # ships with its editor off.
       boot.loader.systemd-boot = lib.mkIf (cfg.type == "systemd-boot") (
         {
           enable = !(cfg.secureBoot && hasLanzaboote);
+          editor = lib.mkDefault false;
         }
         // limit "configurationLimit"
       );
 
+      # GRUB has no switch for its editor. Only a menu password keeps a
+      # present attacker off the command line, and that is the host's own
+      # `boot.loader.grub.users` to set.
       boot.loader.grub = lib.mkIf (cfg.type == "grub") (
         {
           enable = true;
