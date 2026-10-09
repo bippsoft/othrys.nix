@@ -5,9 +5,14 @@ The root filesystem is wiped on every boot. Only explicitly declared state persi
 ## How It Works
 
 1. BTRFS root subvolume is mounted as `/`
-1. On boot, the initrd script moves the old root to `old_roots/` with a timestamp
-1. Old roots older than 30 days are deleted
+1. On boot, a systemd stage-1 unit moves the old root to `old_roots/` with a timestamp
 1. A fresh empty root subvolume is created
+1. Old roots older than `retentionDays` are deleted, and a delete that fails is reported and the entry kept
+
+The module turns the systemd initrd on, since the unit exists only there. It
+waits for the device named by `othrys.system.impermanence.device`, which is the
+disko LUKS mapping by default, and runs after a resume from hibernation would
+have taken over, so a resumed system never meets a wiped root.
 
 ## Options
 
@@ -78,4 +83,6 @@ old-roots umount
 ```
 
 The recovery path is exercised by the impermanence VM test alongside the
-wipe behavior itself.
+wipe behavior itself. A second VM test boots the unit itself from a btrfs root
+across three boots, so the initrd rendering, the device dependency and the
+stage-1 PATH are covered as well as the script.
