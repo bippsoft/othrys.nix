@@ -2,24 +2,33 @@
 # Exports nixosModules for use by other flakes.
 #
 # `default` aggregates the entire module tree (system, desktop, hardware,
-# services, apps). Every reusable *infrastructure* module (system, desktop,
-# hardware, services) is ALSO exported individually below so a consumer can
+# services, apps). Every reusable infrastructure module (system, desktop,
+# hardware, services) is also exported individually below so a consumer can
 # import just one without the whole tree. App modules (modules/apps/**) are
 # personal-workflow-shaped and reachable only via `default`.
 #
-# Rule of thumb when adding a module. If it lives outside modules/apps/, add an
-# individual export here. The `eval-default` check (flake/checks/) fails if
-# the aggregate stops evaluating, but it does NOT verify this list is complete,
-# keep it in sync by following the rule above.
+# Rule when adding a module. If it lives outside modules/apps/, add an
+# individual export here. The `eval-exports` check (flake/checks/) lists the
+# tree and fails when a module file is missing from this list or an export
+# points at a file that no longer exists.
 #
-# Several modules write into option namespaces
-# owned by upstream flakes (disko, home-manager, stylix, sops-nix,
-# impermanence). A consumer of `default` must also import those flakes'
-# nixosModules, see docs/src/architecture/host-configuration.md. This holds
-# even when the corresponding othrys feature is disabled.
+# An individual export is one file, and most of them read options declared
+# in other files. The primary user and the home-manager registry come from
+# system/user.nix and system/users.nix, the persist root from
+# system/impermanence.nix, the default editor from system/shell, the
+# graphical signal from desktop/default.nix and the notification hook from
+# services/notify.nix. Import `system` beside any individual export, and
+# `desktop` beside a desktop or hardware one, or use `default`.
+#
+# Several modules write into option namespaces owned by upstream flakes
+# (disko, home-manager, stylix, sops-nix, impermanence). A consumer of
+# `default` must also import those flakes' nixosModules, see
+# docs/src/architecture/host-configuration.md. This holds even when the
+# corresponding othrys feature is disabled.
 #
 # Usage from another flake:
 #   inputs.othrys.nixosModules.default
+#   inputs.othrys.nixosModules.system
 #   inputs.othrys.nixosModules.impermanence
 {inputs, ...}: {
   flake.nixosModules = {
@@ -40,6 +49,10 @@
       _module.args.othrysSelf = inputs.self;
     };
 
+    # The option-declaring groups, imported beside an individual export.
+    system = ../modules/system;
+    desktop = ../modules/desktop;
+
     # System fundamentals
     disko = ../modules/system/disko.nix;
     locale = ../modules/system/locale.nix;
@@ -54,11 +67,18 @@
     persistence = ../modules/system/persistence.nix;
     bootloader = ../modules/system/bootloader.nix;
     git = ../modules/system/git.nix;
+    auto-upgrade = ../modules/system/auto-upgrade.nix;
 
     # Desktop environment and compositors
     hyprland = ../modules/desktop/compositors/hyprland.nix;
+    niri = ../modules/desktop/compositors/niri.nix;
     stylix = ../modules/system/stylix.nix;
     uwsm = ../modules/desktop/uwsm.nix;
+    login = ../modules/desktop/login.nix;
+    idle = ../modules/desktop/idle.nix;
+    night-light = ../modules/desktop/night-light.nix;
+    noctalia = ../modules/desktop/noctalia.nix;
+    ashell = ../modules/desktop/ashell;
 
     # Hardware-specific
     audio = ../modules/hardware/audio.nix;
@@ -66,7 +86,14 @@
     wifi = ../modules/hardware/wireless/wifi.nix;
     nvidia = ../modules/hardware/graphics/nvidia.nix;
     nvidia-prime = ../modules/hardware/graphics/prime.nix;
+    shader-cache = ../modules/hardware/graphics/shader-cache.nix;
     laptop = ../modules/hardware/laptop/default.nix;
+    powerspec-1710 = ../modules/hardware/laptop/powerspec-1710.nix;
+    scanner = ../modules/hardware/scanner.nix;
+    smart = ../modules/hardware/smart.nix;
+    ups = ../modules/hardware/ups.nix;
+    usb = ../modules/hardware/usb.nix;
+    webcam = ../modules/hardware/webcam.nix;
 
     # Background services
     printing = ../modules/services/printing.nix;
@@ -74,6 +101,15 @@
     tailscale = ../modules/services/tailscale.nix;
     headscale = ../modules/services/headscale.nix;
     monitoring = ../modules/services/monitoring.nix;
+    alerting = ../modules/services/alerting.nix;
+    notify = ../modules/services/notify.nix;
+    ntfy = ../modules/services/ntfy.nix;
+    grafana = ../modules/services/grafana.nix;
+    victoriametrics = ../modules/services/victoriametrics.nix;
+    victorialogs = ../modules/services/victorialogs.nix;
+    scrutiny = ../modules/services/scrutiny.nix;
+    wireguard = ../modules/services/wireguard.nix;
+    ddns = ../modules/services/ddns.nix;
     firewall = ../modules/services/firewall.nix;
     router = ../modules/services/router.nix;
     suricata = ../modules/services/suricata.nix;
@@ -100,6 +136,8 @@
     crowdsec = ../modules/services/security/crowdsec.nix;
 
     # Shell environment
+    shell = ../modules/system/shell;
+    bash = ../modules/system/shell/bash.nix;
     zsh = ../modules/system/shell/zsh.nix;
     starship = ../modules/system/shell/starship.nix;
   };

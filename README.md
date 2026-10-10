@@ -164,8 +164,11 @@ Every option is published in the [generated reference](https://bippsoft.github.i
 built from the module tree so it cannot drift.
 
 Infrastructure modules are also exported individually, so
-`inputs.othrys.nixosModules.impermanence` works if you want one without the tree.
-App modules are reachable only through `default`.
+`inputs.othrys.nixosModules.impermanence` works if you want one without the tree,
+and a check holds the export list to the module tree. An individual module reads
+options that `nixosModules.system` declares, among them the primary user and the
+persist root, so import that beside it, and `nixosModules.desktop` beside a
+desktop or hardware module. App modules are reachable only through `default`.
 
 ## Cross-module signals
 
