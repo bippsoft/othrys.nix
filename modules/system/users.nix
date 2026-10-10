@@ -81,6 +81,15 @@ in {
       default = [];
       description = "Additional groups for the user (merged with [\"wheel\"]).";
     };
+
+    wheel = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Put the primary user in `wheel`, which is sudo. Off for a host whose
+        primary user is not its administrator.
+      '';
+    };
   };
 
   # Every othrys module that configures the primary user's environment writes
@@ -164,7 +173,7 @@ in {
         isNormalUser = true;
         description = username;
 
-        extraGroups = ["wheel"] ++ cfg.extraGroups;
+        extraGroups = lib.optional cfg.wheel "wheel" ++ cfg.extraGroups;
 
         shell = cfg.defaultShell;
 

@@ -5,10 +5,14 @@
   options,
   lib,
   pkgs,
+  inputs,
   ...
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.system.nix;
+  # The consumer's nixpkgs, which is what every host is built from, so the
+  # registry and NIX_PATH point at the same revision as the system.
+  pinnedNixpkgs = inputs.nixpkgs or null;
   # Whether an externally supplied nixpkgs instance admits unfree packages by
   # an allowlist instead of the blanket switch.
   externalAllowlist =
@@ -44,12 +48,14 @@ in {
 
     trustedUsers = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      default = ["root" "@wheel"];
+      default = ["root"];
       description = ''
-        nix.settings.trusted-users. Trusted users can set arbitrary
-        substituters and import unsigned store paths, effectively root over
-        the store. Hardened multi-admin hosts should restrict this to
-        ["root"].
+        nix.settings.trusted-users. A trusted user can set any substituter
+        and import unsigned store paths, which is root over the store and so
+        over the host, with no password and no YubiKey in the way. Root alone
+        by default. A host that wants its administrators trusted adds
+        "@wheel", and `nixos-rebuild switch` through sudo needs nothing, since
+        it runs as root.
       '';
     };
 
@@ -115,6 +121,18 @@ in {
       };
     };
 
+    communityCache = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Trust nix-community.cachix.org as a substituter. A trusted cache can
+        serve any store path, so it is a trust root, and this one is added
+        only when a host asks. The hyprland and niri caches are added with
+        their compositors, since those flakes build nothing from
+        cache.nixos.org.
+      '';
+    };
+
     extraSubstituters = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [];
@@ -164,6 +182,10 @@ in {
     # works, so either one satisfies allowUnfree = true here.
     assertions = [
       {
+        assertion = !cfg.cachix.enable || (cfg.cachix.name != "" && cfg.cachix.publicKey != "");
+        message = "othrys.system.nix.cachix: set name and publicKey when the cache is enabled. An empty name pushed to nowhere, and an empty key left the substituter untrusted and silently ignored.";
+      }
+      {
         assertion =
           !options.nixpkgs.pkgs.isDefined
           || (pkgs.config.allowUnfree or false) == cfg.allowUnfree
@@ -209,37 +231,35 @@ in {
       # would be discarded wholesale, silently dropping nix-community and
       # every curated entry. Hosts behind an internal mirror use lib.mkForce.
       substituters =
-        [
-          "https://cache.nixos.org"
-          "https://nix-community.cachix.org"
-        ]
+        ["https://cache.nixos.org"]
+        ++ lib.optional cfg.communityCache "https://nix-community.cachix.org"
         ++ lib.optionals config.othrys.desktop.compositors.hyprland.enable [
           "https://hyprland.cachix.org"
         ]
         ++ lib.optionals config.othrys.desktop.compositors.niri.enable [
           "https://niri.cachix.org"
         ]
-        ++ lib.optionals (cfg.cachix.enable && cfg.cachix.name != "") [
-          "https://${cfg.cachix.name}.cachix.org"
-        ]
+        ++ lib.optional cfg.cachix.enable "https://${cfg.cachix.name}.cachix.org"
         ++ cfg.extraSubstituters;
 
       trusted-public-keys =
-        [
-          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-          "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-        ]
+        ["cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="]
+        ++ lib.optional cfg.communityCache "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         ++ lib.optionals config.othrys.desktop.compositors.hyprland.enable [
           "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
         ]
         ++ lib.optionals config.othrys.desktop.compositors.niri.enable [
           "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
         ]
-        ++ lib.optionals (cfg.cachix.enable && cfg.cachix.publicKey != "") [
-          cfg.cachix.publicKey
-        ]
+        ++ lib.optional cfg.cachix.enable cfg.cachix.publicKey
         ++ cfg.extraTrustedPublicKeys;
     };
+
+    # The registry and NIX_PATH point at the nixpkgs the host is built from,
+    # so `nix run nixpkgs#foo` and `<nixpkgs>` resolve to that revision
+    # instead of whatever the global registry fetches.
+    nix.registry.nixpkgs.flake = lib.mkIf (pinnedNixpkgs != null) (lib.mkDefault pinnedNixpkgs);
+    nix.nixPath = lib.mkIf (pinnedNixpkgs != null) ["nixpkgs=flake:nixpkgs"];
 
     programs.nh = lib.mkIf cfg.nh.enable {
       enable = true;
@@ -272,7 +292,7 @@ in {
       (pkgs.writeShellScriptBin "cachix-push" ''
         set -euo pipefail
         ${cachixTokenLoad}
-        exec ${pkgs.cachix}/bin/cachix push ${cfg.cachix.name} "$@"
+        exec ${pkgs.cachix}/bin/cachix push ${lib.escapeShellArg cfg.cachix.name} "$@"
       '')
     ];
   };

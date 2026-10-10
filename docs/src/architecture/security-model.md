@@ -49,9 +49,16 @@ repository can reduce that set.
   flake's `flake.lock`, this repository included. A changed input cannot reach a
   host without a changed lock.
 - **Binary caches.** A substituter with a trusted public key can serve any store
-  path. `othrys.system.nix.cachix.*` lets a consumer add their own cache and
-  adds none by default. The cache this repository's CI pushes to is a build
-  cache for CI and is not meant for hosts.
+  path. Every host trusts `cache.nixos.org`. `othrys.system.nix.communityCache`
+  adds `nix-community.cachix.org` when a host asks, the hyprland and niri
+  caches come with their compositor modules, and `othrys.system.nix.cachix.*`
+  lets a consumer add their own cache. The cache this repository's CI pushes
+  to is a build cache for CI and is not meant for hosts.
+- **Trusted Nix users.** `nix.settings.trusted-users` is root alone by
+  default. A trusted user can point the daemon at any substituter and import
+  unsigned paths, which is root over the host with no password and no second
+  factor, so `@wheel` is added only by a host that wants it. The primary user
+  is in `wheel` by default, which is sudo and nothing more.
 - **Release tags.** Tags from `v0.4.0` onward are signed. Earlier tags are not,
   and a consumer pinning one of them relies on GitHub alone.
 - **CI credentials.** `CACHIX_AUTH_TOKEN` can write to the CI cache, and
