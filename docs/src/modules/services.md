@@ -572,11 +572,22 @@ whichever stores are enabled on the same host ([Monitoring](#monitoring)'s
 Prometheus, [VictoriaMetrics](#victoriametrics), and
 [VictoriaLogs](#victorialogs), the last with its datasource plugin
 installed, since that type is not built into Grafana). Enabling Grafana
-beside any of them wires them together with zero configuration. The admin
-password and the secret key arrive as secrets-provider file paths, read by
-the `grafana` user, so both secrets need `owner = "grafana"`. The admin
-password is applied when the database is first created and ignored on later
-starts.
+beside any of them wires them together with zero configuration.
+
+Two secrets arrive as runtime file paths, both readable by the `grafana`
+user, which with sops-nix is `owner = "grafana"` on each. `secretKeyFile` is required, since Grafana encrypts stored credentials
+with it and upstream ships no default. `adminPasswordFile` is read on first
+start only, after which the hash lives in the database. Without it Grafana
+serves the stock `admin`/`admin` credential, which the module warns about on
+a loopback listener and refuses once the listener leaves loopback or
+`openFirewall` is on.
+
+A host that exposes Grafana, by setting `listenAddress` off loopback, must
+also set `rootUrl` to the public URL, as `https://grafana.example.com/`.
+Grafana builds redirects and OIDC callbacks from it, and the secure flag on
+the session cookie follows its scheme, so an `https://` URL marks the cookie
+secure and a plain `http://` one leaves it off. Sign-up from the login page
+is off on every host.
 
 ### Options
 
