@@ -7,11 +7,19 @@
   othrys.system.user.name = "alice";
   othrys.system.users = {
     enable = true;
-    # A runtime path written by your secrets provider, so nothing reaches the
-    # Nix store. To bring a host up before secrets decrypt, set
-    # initialHashedPassword to a `mkpasswd -m yescrypt` hash instead and move
-    # to passwordFile afterwards.
-    passwordFile = "/run/secrets/users/alice/password";
+    # The bootstrap password, as a `mkpasswd -m yescrypt` hash. It lands in
+    # the world-readable Nix store, so treat it as public and replace it once
+    # a secrets provider decrypts on boot. The replacement is a runtime path
+    # that exists before the users activation step; with sops-nix that is a
+    # secret declared with `neededForUsers = true`:
+    #
+    #   sops.secrets."users/alice/password".neededForUsers = true;
+    #   othrys.system.users.passwordFile =
+    #     config.sops.secrets."users/alice/password".path;
+    #
+    # A path under /run/secrets/ is installed after the account is created
+    # and leaves it with no usable password.
+    initialHashedPassword = "$y$j9T$REPLACE-WITH-YOUR-OWN-HASH";
   };
 
   othrys.system.nix = {
@@ -26,8 +34,13 @@
   othrys.system.bootloader.enable = true;
   othrys.system.locale.enable = true;
 
+  # sshd accepts keys only, so a host reached over the network needs one here
+  # or the console is the only way in.
   othrys.services.ssh = {
     enable = true;
     server.enable = true;
   };
+  users.users.alice.openssh.authorizedKeys.keys = [
+    # "ssh-ed25519 AAAA... alice@example.com"
+  ];
 }

@@ -48,6 +48,11 @@ in {
         syntax, typically a single `password = <token>` line. A
         secrets-provider path; never inline the token. Must be set when this
         module is enabled.
+
+        inadyn opens the file at run time as its own user inside a private
+        user namespace, so a file that is root-owned and mode 0400 is
+        unreadable and the service fails at its first update. With sops-nix
+        set `owner = "inadyn"` on the secret.
       '';
     };
 

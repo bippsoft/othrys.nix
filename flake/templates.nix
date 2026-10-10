@@ -6,7 +6,8 @@
     description = "A minimal NixOS host built from othrys.nix modules";
     welcomeText = ''
       Replace hardware.nix with your own hardware configuration, then set the
-      host name, the user and stateVersion in configuration.nix.
+      host name, the user, the password hash, an ssh key and stateVersion in
+      configuration.nix.
 
       Build with `nixos-rebuild build --flake .#myhost`.
     '';

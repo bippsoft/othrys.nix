@@ -51,7 +51,15 @@ in {
       type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression ''config.sops.secrets."grafana/admin-password".path'';
-      description = "Path to a runtime file holding the admin password (a secrets-provider path). Null keeps Grafana's initial-setup default.";
+      description = ''
+        Path to a runtime file holding the admin password (a secrets-provider
+        path). Null keeps Grafana's initial-setup default.
+
+        Grafana reads the file as the `grafana` user, so with sops-nix set
+        `owner = "grafana"` on the secret. The value is applied when the
+        database is first created and ignored afterwards. The password of an
+        existing instance changes with `grafana cli admin reset-admin-password`.
+      '';
     };
 
     secretKeyFile = lib.mkOption {
@@ -59,7 +67,13 @@ in {
       default = null;
       defaultText = lib.literalMD "none, and an assertion rejects an unset value once the module is enabled";
       example = lib.literalExpression ''config.sops.secrets."grafana/secret-key".path'';
-      description = "Path to a runtime file holding Grafana's secret_key (encrypts stored credentials, so generate a random string). Must be set when this module is enabled, since upstream no longer ships a default. Use a secrets-provider path.";
+      description = ''
+        Path to a runtime file holding Grafana's secret_key (encrypts stored
+        credentials, so generate a random string). Must be set when this
+        module is enabled, since upstream no longer ships a default. Use a
+        secrets-provider path, readable by the `grafana` user, which with
+        sops-nix is `owner = "grafana"` on the secret.
+      '';
     };
 
     extraDatasources = lib.mkOption {

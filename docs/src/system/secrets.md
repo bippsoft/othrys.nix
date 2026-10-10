@@ -42,6 +42,36 @@ to use whenever the identity is itself secret.
 
 Secrets are declared in host configs (not in modules) using `othrys.system.secrets` for infrastructure and `sops.secrets.*` for individual secret declarations. See [Host Configuration](../architecture/host-configuration.md) for a real example.
 
+## When a secret is installed
+
+sops-nix installs secrets in two rounds. Secrets declared with
+`neededForUsers = true` land under `/run/secrets-for-users/` before the
+`users` activation step, and every other secret lands under `/run/secrets/`
+after it. The user password is read in that step, so
+`othrys.system.users.passwordFile` has to name a secret from the first round.
+A path under `/run/secrets/` does not exist yet when the account is created,
+which leaves it with no usable password, and the module warns on that prefix.
+
+```nix
+sops.secrets."users/alice/password".neededForUsers = true;
+othrys.system.users.passwordFile = config.sops.secrets."users/alice/password".path;
+```
+
+A secret defaults to `root` and mode `0400`. A service that reads its secret
+as its own user needs `owner` set on the secret, which `inadyn`, `headscale`
+and `grafana` all do. Each of those options says so in its description.
+
+## The decryption key
+
+sops-nix decrypts with the host's ed25519 ssh key, read through
+`sops.age.sshKeyPaths`, and falls back to an age key it generates at
+`sops.age.keyFile`. On an impermanence host both paths sit under the persist
+root, where `othrys.system.persistence` keeps the ssh host keys, so the module
+asserts that `persistence.enable` and `services.openssh.enable` are on
+whenever impermanence is. Without them the key is regenerated on every boot
+and nothing decrypts. The three `sops.age` values are set with `mkDefault`,
+so a host that keeps its key elsewhere overrides them directly.
+
 ## Secret Files
 
 | File | Purpose |

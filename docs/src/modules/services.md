@@ -551,7 +551,10 @@ Prometheus, [VictoriaMetrics](#victoriametrics), and
 [VictoriaLogs](#victorialogs), the last with its datasource plugin
 installed, since that type is not built into Grafana). Enabling Grafana
 beside any of them wires them together with zero configuration. The admin
-password arrives as a secrets-provider file path.
+password and the secret key arrive as secrets-provider file paths, read by
+the `grafana` user, so both secrets need `owner = "grafana"`. The admin
+password is applied when the database is first created and ignored on later
+starts.
 
 ### Options
 
@@ -708,7 +711,8 @@ othrys.services.traefik = {
 
 Dynamic DNS via inadyn, keeping hostnames pointing at a dynamic residential
 IP, pairing with [Traefik](#traefik)'s DNS-01 ACME. Credentials arrive as an
-inadyn include snippet (`password = <token>`) from a secrets provider.
+inadyn include snippet (`password = <token>`) from a secrets provider. inadyn
+reads it as its own user, so the secret needs `owner = "inadyn"`.
 
 ### Options
 

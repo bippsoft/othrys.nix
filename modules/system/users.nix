@@ -59,7 +59,18 @@ in {
       type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression "config.sops.secrets.\"users/alice/password\".path";
-      description = "Path to a runtime file holding the hashed password, injected by the host configuration. The preferred form, since nothing reaches the store.";
+      description = ''
+        Path to a runtime file holding the hashed password, injected by the
+        host configuration. The preferred form, since nothing reaches the
+        store.
+
+        The file is read in the `users` activation step, before ordinary
+        secrets are installed. With sops-nix only a secret declared with
+        `neededForUsers = true` exists in time, and such a secret lives under
+        `/run/secrets-for-users/`, not `/run/secrets/`. A path that is absent
+        when the step runs leaves the account with no usable password, and
+        the module warns on a `/run/secrets/` prefix for that reason.
+      '';
     };
 
     mutableUsers = lib.mkOption {
@@ -167,6 +178,20 @@ in {
           message = "othrys.system.users: set passwordFile or initialHashedPassword, or the '${username}' account is created with no password.";
         }
       ];
+
+      # NixOS reads hashedPasswordFile in the `users` activation step, and
+      # sops-nix installs ordinary secrets after it. A sops secret declared
+      # with neededForUsers lands under /run/secrets-for-users/ instead, so a
+      # /run/secrets/ path is the one that is missing at the moment it is
+      # read. The result is a shadow entry nobody can log in with, and the
+      # host reports nothing, so this says so at evaluation.
+      warnings = lib.optional (cfg.passwordFile != null && lib.hasPrefix "/run/secrets/" cfg.passwordFile) ''
+        othrys.system.users.passwordFile is ${cfg.passwordFile}, under /run/secrets/.
+        sops-nix installs that path after the users activation step reads it,
+        so the '${username}' account comes up with no usable password. Declare
+        the secret with neededForUsers = true and use its path, which is under
+        /run/secrets-for-users/.
+      '';
 
       # User creation, secrets-agnostic since passwordFile is injected by the host config
       users.users.${username} = {

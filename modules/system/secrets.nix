@@ -126,14 +126,26 @@ in {
         assertion = cfg.ageIdentityStubs == null || cfg.ageIdentityFile == null;
         message = "othrys.system.secrets: set ageIdentityStubs or ageIdentityFile, not both. They both claim SOPS_AGE_KEY_FILE.";
       }
+      # The decryption key below is the persisted ssh host key. On an
+      # impermanence host that key only exists under the persist root when
+      # othrys.system.persistence moves it there, and it only exists at all
+      # when sshd generates it. Without either, every secret fails to decrypt
+      # at activation with an error about the key rather than about this
+      # option, so the pairing is checked here.
+      {
+        assertion = !impermanenceEnabled || (config.othrys.system.persistence.enable && config.services.openssh.enable);
+        message = "othrys.system.secrets: on an impermanence host sops-nix decrypts with the ssh host key under ${config.othrys.system.impermanence.persistRoot}/etc/ssh, which exists only with othrys.system.persistence.enable and services.openssh.enable both on. Enable both, or set sops.age.sshKeyPaths and sops.age.keyFile to a key that is present at activation.";
+      }
     ];
 
-    # Configure sops-nix decryption paths (persisted across the root wipe on
-    # impermanence hosts, standard FHS locations otherwise)
+    # sops-nix decryption paths, persisted across the root wipe on
+    # impermanence hosts and the standard FHS locations otherwise. mkDefault,
+    # so a host that keeps its ssh host key elsewhere, or that decrypts with a
+    # dedicated age key, points sops-nix at it without mkForce.
     sops.age = {
-      sshKeyPaths = ["${persistPrefix}/etc/ssh/ssh_host_ed25519_key"];
-      keyFile = "${persistPrefix}/var/lib/sops-nix/key.txt";
-      generateKey = true;
+      sshKeyPaths = lib.mkDefault ["${persistPrefix}/etc/ssh/ssh_host_ed25519_key"];
+      keyFile = lib.mkDefault "${persistPrefix}/var/lib/sops-nix/key.txt";
+      generateKey = lib.mkDefault true;
     };
 
     # Tools for secrets management
