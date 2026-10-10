@@ -190,6 +190,10 @@ in {
       enable = true;
       listenAddress = "127.0.0.1";
       port = alertmanagerPort;
+      # One alertmanager, so no cluster. Its gossip listener otherwise binds
+      # 9094 on every interface, TCP and UDP, and an empty address turns
+      # clustering off.
+      extraFlags = ["--cluster.listen-address="];
       configuration = {
         route = {
           receiver = "ntfy";

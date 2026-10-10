@@ -148,6 +148,7 @@ jobs:
           - router-test
           - router-ips-test
           - integration-test
+          - listeners-test
           - impermanence-reboot-test
           - impermanence-wipe-test
     steps:

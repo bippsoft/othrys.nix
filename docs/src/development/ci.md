@@ -23,7 +23,8 @@ tier reports early while the whole suite still gates what lands:
   config for a desktop and a laptop), `enable-matrix` (every module
   enabled with defaults), and the runtime VM tests (`restic-test`,
   `headscale-test`, `auto-upgrade-test`, `crowdsec-test`, `router-test`, `router-ips-test`,
-  `integration-test`, `impermanence-reboot-test`, `impermanence-wipe-test`).
+  `integration-test`, `listeners-test`, `impermanence-reboot-test`,
+  `impermanence-wipe-test`).
 - **Extended verdict** (`extended-ok` job) turns the matrix into one status
   that branch protection can require. It passes only when every matrix leg
   succeeded, so a failed, cancelled or skipped leg fails it.
@@ -88,6 +89,7 @@ pass.
 | `crowdsec-test` | The CrowdSec engine and bouncer on a fresh host |
 | `router-test`, `router-ips-test` | The router, Kea and Unbound on a virtual network, and Suricata inline on the NFQUEUE hook |
 | `integration-test` | A booted machine with a representative set of modules |
+| `listeners-test` | The listening sockets and the firewall accept rules of a booted server, compared with a list written in the test |
 | `impermanence-reboot-test`, `impermanence-wipe-test` | Host identity across a reboot with an empty root, and the wipe unit booted from a btrfs root |
 
 Unchanged derivations are pulled from the cache and not rebuilt.

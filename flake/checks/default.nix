@@ -1087,6 +1087,7 @@
 
       # EXTENDED. Runtime VM tests, one file each.
       integration-test = import ./integration.nix {inherit pkgs inputs;};
+      listeners-test = import ./listeners.nix {inherit pkgs inputs;};
       restic-test = import ./restic.nix {inherit pkgs inputs hostConfig rejectedWith bootBase;};
       crowdsec-test = import ./crowdsec.nix {inherit pkgs inputs;};
       headscale-test = import ./headscale.nix {inherit pkgs inputs;};
