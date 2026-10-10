@@ -63,6 +63,7 @@ jobs:
             '.#checks.x86_64-linux.eval-nix' \
             '.#checks.x86_64-linux.eval-grafana' \
             '.#checks.x86_64-linux.eval-listen' \
+            '.#checks.x86_64-linux.eval-shell' \
             '.#checks.x86_64-linux.eval-template' \
             '.#checks.x86_64-linux.eval-exports' \
             '.#checks.x86_64-linux.eval-ssh' \
