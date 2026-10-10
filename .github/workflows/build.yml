@@ -61,6 +61,7 @@ jobs:
             '.#checks.x86_64-linux.eval-pam' \
             '.#checks.x86_64-linux.eval-containers' \
             '.#checks.x86_64-linux.eval-nix' \
+            '.#checks.x86_64-linux.eval-grafana' \
             '.#checks.x86_64-linux.eval-template' \
             '.#checks.x86_64-linux.eval-ssh' \
             '.#checks.x86_64-linux.eval-traefik' \

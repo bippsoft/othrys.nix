@@ -949,6 +949,7 @@
       eval-pam = import ./pam-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-containers = import ./containers-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-nix = import ./nix-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
+      eval-grafana = import ./grafana-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
 
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
