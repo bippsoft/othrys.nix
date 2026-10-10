@@ -18,14 +18,13 @@ moment it is interpolated. The consuming flake decides what writes the file at
 that path, which is typically sops-nix decrypting to `/run/secrets` at
 activation. See [Secrets Management](../system/secrets.md).
 
-Three options place material in the store on purpose, and each says so in its
+Two options place material in the store on purpose, and each says so in its
 description.
 
 | Option | What lands in the store | Why it is accepted |
 |--------|-------------------------|--------------------|
 | `othrys.system.users.initialHashedPassword` | A password hash | It bootstraps the first boot before secrets decrypt. Treat the hash as public and move the host to `passwordFile` |
 | `othrys.system.secrets.ageIdentityStubs` | An `age-plugin-yubikey` stub | The stub names a hardware token and holds no key. An assertion rejects a raw `AGE-SECRET-KEY` |
-| `othrys.services.containerization.k3s.token` | The cluster join token | It exists for throwaway clusters. `tokenFile` is the form to use |
 
 Where a service only accepts a secret inside its own configuration file, the
 module renders that file under `/run` at start from the runtime path. The ntfy

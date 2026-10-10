@@ -54,4 +54,14 @@ network through its own namespace and touches no host rules.
 
 Lightweight Kubernetes (`othrys.services.containerization.k3s`) for a single-node
 control plane or a joined cluster. See `modules/services/containerization/k3s.nix`
-for the full option set (role, token/secret wiring, and firewall handling).
+for the full option set (role, node labels and taints, manifests).
+
+The cluster token is a file from the secrets provider, `tokenFile`, and never
+a string in the configuration. An agent, or a server that joins another through
+`serverAddr`, must set it; a single server that initialises its own cluster
+needs none. `openFirewall` is off by default. On, it opens the kubelet and the
+flannel tunnel on every node, the API on a server, and embedded etcd only on a
+server that initialises or joins a cluster. k3s bundles its own Traefik on 80
+and 443, so a server beside `othrys.services.traefik` must list `"traefik"` in
+`disable`. `/etc/rancher`, which holds the admin kubeconfig, is persisted
+private to root.

@@ -41,15 +41,11 @@ in {
       type = lib.types.nullOr othrysTypes.secretPath;
       default = null;
       example = lib.literalExpression ''config.sops.secrets."k3s/token".path'';
-      description = "Path to the cluster join token. Preferred over `token` (kept out of the store).";
-    };
-
-    token = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
       description = ''
-        Cluster join token as plaintext.
-        WARNING: world-readable in the Nix store, so prefer `tokenFile`.
+        Path to the cluster join token, a secrets-provider path. Required on
+        an agent and on a server that joins another, since both authenticate
+        to the cluster with it. A single server that initialises its own
+        cluster needs none.
       '';
     };
 
@@ -113,8 +109,15 @@ in {
 
     openFirewall = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Open the k3s API/kubelet/flannel ports in the firewall.";
+      default = false;
+      description = ''
+        Open the k3s ports in the firewall on every interface: the kubelet
+        (10250) and the flannel tunnel (UDP 8472) on every node, the API
+        (6443) on a server, and embedded etcd (2379, 2380) on a server that
+        initialises or joins a cluster. Off by default like every other
+        network module; a single node reached over loopback or a private
+        network needs none of them open.
+      '';
     };
 
     installTools = lib.mkOption {
@@ -130,11 +133,19 @@ in {
     };
   };
 
+  imports = [
+    (lib.mkRemovedOptionModule ["othrys" "services" "containerization" "k3s" "token"] "A token given as a string landed in the world-readable Nix store. Set othrys.services.containerization.k3s.tokenFile to a secrets-provider path instead.")
+  ];
+
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = !(cfg.token != null && cfg.tokenFile != null);
-        message = "othrys.services.containerization.k3s: set either token or tokenFile, not both.";
+        assertion = (cfg.role == "agent" || cfg.serverAddr != "") -> cfg.tokenFile != null;
+        message = "othrys.services.containerization.k3s: an agent, or a server that joins another through serverAddr, authenticates with the cluster token; set tokenFile to a secrets-provider path.";
+      }
+      {
+        assertion = !(isServer && config.othrys.services.traefik.enable && !builtins.elem "traefik" cfg.disable);
+        message = "othrys.services.containerization.k3s: k3s bundles its own Traefik on ports 80 and 443, which clash with othrys.services.traefik on this host. Add \"traefik\" to disable, or turn one of them off.";
       }
       {
         assertion = isServer || cfg.serverAddr != "";
@@ -155,19 +166,21 @@ in {
     services.k3s = {
       enable = true;
       inherit (cfg) role clusterInit serverAddr disable disableAgent extraFlags manifests extraKubeletConfig tokenFile nodeName;
-      token = lib.mkIf (cfg.token != null) cfg.token;
       package = lib.mkIf (cfg.package != null) cfg.package;
       nodeLabel = cfg.nodeLabels;
       nodeTaint = cfg.nodeTaints;
       gracefulNodeShutdown.enable = cfg.gracefulShutdown;
     };
 
-    # Servers expose the API (6443) and embedded etcd (2379/2380 for HA);
-    # every node needs the kubelet port and the flannel VXLAN tunnel.
+    # Servers expose the API (6443); embedded etcd (2379/2380) only talks to
+    # other members, so it is opened only on a server that initialises or
+    # joins a cluster; every node needs the kubelet port and the flannel
+    # VXLAN tunnel.
     networking.firewall = lib.mkIf cfg.openFirewall {
       allowedTCPPorts =
         [10250]
-        ++ lib.optionals isServer [6443 2379 2380];
+        ++ lib.optional isServer 6443
+        ++ lib.optionals (isServer && (cfg.clusterInit || cfg.serverAddr != "")) [2379 2380];
       allowedUDPPorts = [8472];
     };
 
@@ -191,7 +204,13 @@ in {
           group = "root";
           mode = "0700";
         }
-        "/etc/rancher"
+        # Holds the admin kubeconfig and the node credentials.
+        {
+          directory = "/etc/rancher";
+          user = "root";
+          group = "root";
+          mode = "0700";
+        }
       ];
     };
   };
