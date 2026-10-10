@@ -57,6 +57,7 @@ jobs:
             '.#checks.x86_64-linux.eval-tailscale' \
             '.#checks.x86_64-linux.eval-exposure' \
             '.#checks.x86_64-linux.eval-pam' \
+            '.#checks.x86_64-linux.eval-containers' \
             '.#checks.x86_64-linux.eval-template' \
             '.#checks.x86_64-linux.eval-ssh' \
             '.#checks.x86_64-linux.eval-traefik' \
