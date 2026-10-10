@@ -60,10 +60,9 @@
       };
       othrys.services.alerting.enable = true;
       # Off-loopback deliberately. Upstream ntfy-sh defines settings.listen-http
-      # at mkDefault, and with the default listenAddress othrys computes the
-      # identical string, so a priority tie between the two merges silently and
-      # the fixture proves nothing. Any address upstream does not write keeps
-      # this eval failing if the generated leaves ever tie with upstream again.
+      # at mkDefault, and a priority tie with the string othrys writes would
+      # merge silently and prove nothing. Any address upstream does not write
+      # keeps this eval failing if the generated leaves ever tie with upstream.
       othrys.services.ntfy = {
         enable = true;
         listenAddress = "0.0.0.0";
@@ -881,6 +880,7 @@
       eval-router = import ./router-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
       eval-headscale = import ./headscale-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
       eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
+      eval-exposure = import ./exposure-eval.nix {inherit hostConfig mkExpectations bootBase;};
 
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
