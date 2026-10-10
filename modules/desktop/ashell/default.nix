@@ -13,7 +13,6 @@
   niriEnabled = config.othrys.desktop.compositors.niri.enable;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
-  yubikeyEnabled = config.othrys.services.security.yubikey.enable;
   inherit (config.lib.stylix) colors;
   fontName = config.stylix.fonts.sansSerif.name;
 
@@ -301,18 +300,11 @@ in {
 
       # The bar's lock button runs the shared lock command, so the locker and
       # its PAM service exist here as well as in the idle module, since a
-      # host can run the bar without idle management. The YubiKey branch adds
-      # the touch factor on top of the service the locker needs either way.
+      # host can run the bar without idle management. The YubiKey module
+      # adds its factor to both lockers itself.
       programs.hyprlock.enable = hyprlandEnabled;
       environment.systemPackages = lib.optional (!hyprlandEnabled) pkgs.swaylock;
-      security.pam.services = lib.mkMerge [
-        (lib.mkIf (!hyprlandEnabled) {swaylock = {};})
-        (lib.mkIf yubikeyEnabled (
-          if hyprlandEnabled
-          then {hyprlock.u2fAuth = true;}
-          else {swaylock.u2fAuth = true;}
-        ))
-      ];
+      security.pam.services = lib.mkIf (!hyprlandEnabled) {swaylock = {};};
 
       systemd.user.services.ashell = {
         description = "Ashell status bar.";

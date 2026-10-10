@@ -14,33 +14,36 @@ Security modules under `othrys.services.security.*`. Located in `modules/service
 
 ## YubiKey
 
-- **U2F PAM**: Physical key required for `sudo` and login
+- **U2F PAM**: password and touch for login, sudo, the greeter, polkit and the lockers
 - **GPG agent**: YubiKey-backed GPG with SSH support
 - **SSH keygrips**: Specific GPG keygrips for SSH authentication
 - **age-plugin-yubikey**: For manual sops secret editing
 
 ### What the U2F factor actually proves
 
-By default pam_u2f is inserted with the `sufficient` control, which means a
-touch on an enrolled key satisfies `login` and `sudo` on its own. No password
-is asked for. That is authentication by possession alone, so whoever holds the
-token can become root, and a token left in a laptop is a token in somebody
-else's hand.
+pam_u2f is inserted into the services named in `u2fServices`, which are
+`login`, `sudo`, `greetd`, `polkit-1`, `hyprlock` and `swaylock` by default,
+and into no other. `su` and `sshd` are left out on purpose: `su` is how root is
+reached from a console with no key at hand, and `sshd` authenticates with keys
+of its own. nixpkgs' global switch, which puts pam_u2f into every PAM service
+on the host, is not used.
 
-The default is convenience, and it is a reasonable one for a personal
-workstation where the token lives on a keyring. It is the wrong default for a
-machine that is left unattended, or one where the physical threat is the one
-worth defending against.
+By default the control is `required`: the password and the touch must both
+succeed, and the key is a second factor. That applies to the whole PAM service
+and not to one user, so every account that authenticates through a listed
+service needs an enrolled credential, and an account with none is locked out
+of those services while other accounts keep working. The module refuses the
+setting when the primary user has no mapping; enrol and test a key for every
+other account that logs in, and count service and recovery accounts among them.
 
-`othrys.services.security.yubikey.u2fRequirePassword` switches the control to
-`required`, so the password and the touch must both succeed and the key becomes
-a second factor rather than a replacement for the first.
-
-The control applies to the whole PAM service and not to one user. Every account
-on the host then needs an enrolled credential for `login` and `sudo`, and an
-account with none is locked out of both while the other accounts keep working.
-Enrol and test a key for every account that logs in before turning it on, and
-count service and recovery accounts among them.
+`othrys.services.security.yubikey.u2fRequirePassword = false` switches the
+control to `sufficient`: a touch on an enrolled key satisfies the service on
+its own and no password is asked for. That is authentication by possession
+alone, so whoever holds the token can become root, and a token left in a laptop
+is a token in somebody else's hand. It is a reasonable choice for a personal
+workstation where the token lives on a keyring and the wrong one for a machine
+left unattended. An account with no mapping falls through to its password, so
+nothing is locked out.
 
 ### Options
 

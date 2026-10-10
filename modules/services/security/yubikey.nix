@@ -15,7 +15,10 @@
   # Generate sshcontrol file content
   sshcontrolContent = lib.concatStringsSep "\n" cfg.sshKeygrips;
 
-  # PAM stanza shared by the login and sudo services.
+  # PAM stanza for every service in u2fServices. nixpkgs' global
+  # security.pam.u2f.enable would insert pam_u2f into every PAM service on
+  # the host as `sufficient`, su, polkit and the lockers included, so the
+  # module names the services and sets the control on each one instead.
   u2fPam = {
     enable = true;
     control =
@@ -23,6 +26,7 @@
       then "required"
       else "sufficient";
   };
+  u2fEnabled = cfg.u2fMappings != {};
 
   # Generate U2F mappings file content
   u2fMappingsContent = lib.concatStringsSep "\n" (
@@ -35,13 +39,18 @@ in {
 
     # U2F PAM options
     u2fMappings = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.listOf lib.types.str);
+      # One pamu2fcfg credential: key handle, public key, COSE type and an
+      # options field, comma-separated. A colon or a newline would start
+      # another user's line in the mappings file.
+      type = lib.types.attrsOf (lib.types.listOf (lib.types.strMatching "[A-Za-z0-9+/=_.-]+(,[A-Za-z0-9+/=_.-]*)+"));
       default = {};
       description = ''
         U2F key mappings per user. Generated with:
           pamu2fcfg -n -o pam://yubi
 
-        Keys are stored in /nix/store (read-only) for security.
+        Keys are stored in /nix/store (read-only) for security. Any
+        non-empty mapping turns pam_u2f on for the services in
+        `u2fServices`.
       '';
       example = {
         alice = [
@@ -59,25 +68,38 @@ in {
 
     u2fRequirePassword = lib.mkOption {
       type = lib.types.bool;
-      default = false;
+      default = true;
       description = ''
         Require a password in addition to the touch, rather than accepting the
         touch alone.
 
-        pam_u2f is inserted as `sufficient` by default, which means a touch on
-        an enrolled key satisfies login and sudo with no password. That is
-        single-factor authentication by possession. Whoever holds the token
-        holds root, and a token left in a laptop is a token in someone's hand.
-        The tradeoff is deliberate, since it is also what makes the key
-        convenient.
+        With this on, pam_u2f is inserted as `required` in every service in
+        `u2fServices`, so both the password and the touch must succeed and the
+        key is a second factor. The control applies to the whole PAM service
+        and not to one user, so every account that authenticates through one
+        of those services needs an enrolled credential, and an account with
+        none is locked out of them while other accounts keep working. Enrol
+        and test a key for every such account before turning it on, and the
+        module refuses the setting when the primary user has no mapping.
 
-        Setting this to true switches the control to `required`, so both the
-        password and the touch must succeed. The control applies to the whole
-        PAM service and not to one user, so every account on the host then
-        needs an enrolled credential for `login` and `sudo`. An account with
-        none is locked out of both, even while other accounts on the same host
-        work. Enrol and test a key for every account that logs in before
-        turning it on.
+        With this off, pam_u2f is `sufficient`: a touch on an enrolled key
+        satisfies the service with no password, which is authentication by
+        possession alone. Whoever holds the token holds root, and a token
+        left in a laptop is a token in someone's hand. An account with no
+        mapping falls through to its password, so nothing is locked out.
+      '';
+    };
+
+    u2fServices = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = ["login" "sudo" "greetd" "polkit-1" "hyprlock" "swaylock"];
+      description = ''
+        PAM services that take the YubiKey, by their names under
+        `security.pam.services`. Console login, sudo, the greeter, polkit
+        prompts and the two screen lockers by default. `su` and `sshd` are
+        left out on purpose: `su` is how root is reached from a console with
+        no key at hand, and `sshd` authenticates with keys of its own. A
+        service listed here that the host does not run is harmless.
       '';
     };
 
@@ -106,14 +128,14 @@ in {
   # ANCHOR_END: yubikey-options
 
   config = lib.mkIf cfg.enable {
-    # Prevent a U2F-for-login lockout, since any non-empty u2fMappings turns on U2F for
-    # login, so the logging-in user must have a mapping or they can't log in.
+    # With `required`, an account with no mapping cannot pass any listed
+    # service, so the primary user needs one. With `sufficient` a missing
+    # mapping falls through to the password and locks nobody out. Only the
+    # primary user is known here; the host owns its other accounts.
     assertions = [
       {
-        # Only meaningful when othrys manages the primary user, since otherwise the
-        # host owns its accounts and we can't know who logs in.
-        assertion = !usersEnabled || cfg.u2fMappings == {} || builtins.hasAttr username cfg.u2fMappings;
-        message = "othrys.services.security.yubikey: u2fMappings is non-empty but has no entry for the login user '${username}'. U2F is required for login, so this would lock '${username}' out. Add a u2fMappings.\"${username}\" entry.";
+        assertion = !(usersEnabled && u2fEnabled && cfg.u2fRequirePassword) || builtins.hasAttr username cfg.u2fMappings;
+        message = "othrys.services.security.yubikey: u2fRequirePassword is on and u2fMappings has no entry for '${username}', which would lock that user out of ${lib.concatStringsSep ", " cfg.u2fServices}. Add a u2fMappings.\"${username}\" entry, or set u2fRequirePassword = false.";
       }
     ];
 
@@ -126,10 +148,10 @@ in {
       pam_u2f # For generating new key mappings
     ];
 
-    # Allows YubiKey to replace password for sudo/login
-
-    security.pam.u2f = lib.mkIf (cfg.u2fMappings != {}) {
-      enable = true;
+    # The module settings are global and every service inherits them. The
+    # global enable stays off, since it would put pam_u2f into every PAM
+    # service on the host; the services in u2fServices turn it on each.
+    security.pam.u2f = lib.mkIf u2fEnabled {
       settings = {
         # Cross-machine portability
         origin = cfg.u2fOrigin;
@@ -137,19 +159,18 @@ in {
         # Store mappings in read-only /nix/store (NOT user-writable ~/.config)
         authfile = pkgs.writeText "u2f-mappings" u2fMappingsContent;
 
-        # User prompts
-        interactive = true; # "Insert your U2F device, then press ENTER"
+        # No "press ENTER" prompt. A greeter, polkit or a locker has no
+        # terminal to answer it on, and a console login takes the touch
+        # straight away; the cue says what is wanted.
+        interactive = false;
         cue = true; # "Please touch the device"
       };
     };
 
-    # Enable U2F for sudo and login. The control decides whether the touch
-    # replaces the password ("sufficient", possession alone) or is demanded
-    # alongside it ("required", two factors). See u2fRequirePassword.
-    security.pam.services = lib.mkIf (cfg.u2fMappings != {}) {
-      login.u2f = u2fPam;
-      sudo.u2f = u2fPam;
-    };
+    # The control decides whether the touch replaces the password
+    # ("sufficient", possession alone) or is demanded alongside it
+    # ("required", two factors). See u2fRequirePassword.
+    security.pam.services = lib.mkIf u2fEnabled (lib.genAttrs cfg.u2fServices (_: {u2f = u2fPam;}));
 
     services.pcscd.enable = true;
 
