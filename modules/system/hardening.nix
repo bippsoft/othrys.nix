@@ -54,6 +54,21 @@ in {
         '';
       };
 
+    kernelParams = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = ["slab_nomerge" "page_alloc.shuffle=1" "vsyscall=none"];
+      description = ''
+        Kernel command-line parameters the profile adds. The defaults cost
+        nothing measurable: slab_nomerge keeps caches apart so an overflow in
+        one stays in it, page_alloc.shuffle randomises the page allocator's
+        free lists, and vsyscall=none removes the fixed-address legacy
+        syscall page. init_on_free and debugfs=off are not here, since the
+        first costs on every free and the second breaks tooling, and a host
+        that wants them adds them. Set the list to change it, since a list
+        option merges rather than overrides.
+      '';
+    };
+
     lockKernelModules = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -119,7 +134,27 @@ in {
       "net.ipv4.tcp_syncookies" = 1;
       "net.ipv4.icmp_echo_ignore_broadcasts" = 1;
       "net.ipv4.tcp_rfc1337" = 1;
+
+      # Zero-cost settings from the kernel self-protection baseline. A core
+      # dump of a setuid process is never written, a FIFO or a regular file
+      # in a sticky world-writable directory is not opened across owners,
+      # userfaultfd stays with root since it is a building block of
+      # use-after-free exploits, a line discipline is not loaded by opening a
+      # tty, and perf is for root. log_martians is left out because a
+      # multi-homed host logs on every asymmetric route, and kernel.sysrq
+      # stays at the sync-only value systemd sets.
+      "fs.suid_dumpable" = 0;
+      "fs.protected_fifos" = 2;
+      "fs.protected_regular" = 2;
+      "vm.unprivileged_userfaultfd" = 0;
+      "dev.tty.ldisc_autoload" = 0;
+      "kernel.perf_event_paranoid" = 2;
     };
+
+    # A list option merges every definition, so these cannot sit below a
+    # host's own list the way the sysctls do. The option above is the place
+    # a host changes them.
+    boot.kernelParams = cfg.kernelParams;
 
     security.lockKernelModules = lib.mkIf cfg.lockKernelModules true;
     security.protectKernelImage = lib.mkIf cfg.protectKernelImage true;

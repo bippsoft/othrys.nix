@@ -22,6 +22,8 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    boot.kernelPackages = lib.mkDefault cfg.package;
+    # A plain definition, so a host that also assigns boot.kernelPackages
+    # itself gets a conflict error rather than a silent winner.
+    boot.kernelPackages = cfg.package;
   };
 }

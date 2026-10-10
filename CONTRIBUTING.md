@@ -312,8 +312,10 @@ Outside contributions do not need to be signed.
 
 A unit a module defines itself merges `baseline` from `modules/lib/sandbox.nix`
 into its `serviceConfig`, then states its exceptions beside it with a comment
-saying why each is needed. The user and `RestrictAddressFamilies` are left to
-the unit. A unit that cannot take the baseline says so in a comment.
+saying why each is needed. The user, `RestrictAddressFamilies`, `PrivateUsers`
+and `IPAddressDeny` are left to the unit, since no single value suits a unit
+that keeps a capability or talks to the network. A unit that cannot take the
+baseline says so in a comment.
 
 ## Secrets
 

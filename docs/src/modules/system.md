@@ -136,6 +136,18 @@ which cost nothing on an ordinary workstation or server.
 | `net.ipv4.tcp_syncookies` | `1` | SYN cookies are used when the SYN queue overflows |
 | `net.ipv4.icmp_echo_ignore_broadcasts` | `1` | Broadcast pings are ignored |
 | `net.ipv4.tcp_rfc1337` | `1` | A reset does not end a connection in TIME-WAIT |
+| `fs.suid_dumpable` | `0` | A setuid process writes no core dump |
+| `fs.protected_fifos`, `fs.protected_regular` | `2` | A FIFO or file in a sticky world-writable directory is not opened across owners |
+| `vm.unprivileged_userfaultfd` | `0` | Only root uses userfaultfd |
+| `dev.tty.ldisc_autoload` | `0` | Opening a tty loads no line discipline module |
+| `kernel.perf_event_paranoid` | `2` | Unprivileged perf sees user space only |
+
+The profile also adds three kernel parameters through
+`othrys.system.hardening.kernelParams`, which are `slab_nomerge`,
+`page_alloc.shuffle=1` and `vsyscall=none`. A list option merges every
+definition, so a host changes them by setting that option and not by
+assigning `boot.kernelParams`. `init_on_free=1` and `debugfs=off` are left
+out, since the first costs on every free and the second breaks tooling.
 
 ### Reverse path filtering
 

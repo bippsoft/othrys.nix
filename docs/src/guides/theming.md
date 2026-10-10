@@ -54,6 +54,20 @@ example a file next to the host config, or a path from a wallpaper flake input).
 Leave it unset (`null`, the default) to skip the wallpaper. The color scheme
 still comes from `scheme`/`polarity`.
 
+## Fonts, Cursor and Opacity
+
+The module picks fonts, font sizes, a cursor, opacities and an icon theme.
+Each is written with `mkDefault`, so a host replaces one with a plain
+assignment to the Stylix option.
+
+```nix
+stylix.fonts.monospace = {
+  package = pkgs.nerd-fonts.fira-code;
+  name = "FiraCode Nerd Font";
+};
+stylix.opacity.terminal = 1.0;
+```
+
 ## Verifying Colors
 
 Run `show-colors` in a terminal to display the current palette with hex values, RGB, and color swatches.

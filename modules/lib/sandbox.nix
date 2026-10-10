@@ -26,5 +26,21 @@
     CapabilityBoundingSet = [""];
     AmbientCapabilities = [""];
     NoNewPrivileges = true;
+
+    # Each of these costs a unit nothing it is entitled to. The clock, the
+    # host name and the kernel log are read-only or hidden, other processes
+    # are invisible under /proc and only the process entries are mounted,
+    # mount changes stay inside the unit, System V objects go with it, and
+    # files it creates are private to it. PrivateUsers and IPAddressDeny
+    # stay with the unit, since the first breaks a unit that keeps a
+    # capability and the second one that talks to the network.
+    ProtectClock = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectProc = "invisible";
+    ProcSubset = "pid";
+    PrivateMounts = true;
+    RemoveIPC = true;
+    UMask = "0077";
   };
 }
