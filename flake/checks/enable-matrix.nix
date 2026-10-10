@@ -92,6 +92,7 @@
   expectedFail = [
     "othrys.apps.ai.mcp.github.enable" # requires othrys.system.secrets
     "othrys.apps.gaming.r2modman.enable" # requires gaming.steam
+    "othrys.system.nix.cachix.enable" # requires a cache name and public key
     "othrys.services.headscale.enable" # requires serverUrl + MagicDNS domain/nameservers
     "othrys.services.kea.enable" # requires dhcp4.interfaces
     "othrys.services.router.enable" # requires wan.interface
