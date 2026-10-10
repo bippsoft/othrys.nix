@@ -1,5 +1,12 @@
 # modules/services/tailscale.nix
 # Tailscale VPN mesh networking (Headscale ready)
+#
+# Two of upstream's hooks carry the options here. `extraUpFlags` is passed to
+# `tailscale up` by the autoconnect unit, which exists only with authKeyFile,
+# so the login server goes there and a host registered by hand passes it to
+# `tailscale up` itself. `extraSetFlags` is passed to `tailscale set` by a
+# unit that runs on every host after the daemon is up, so the routing, DNS,
+# SSH and operator settings apply however the host was registered.
 {
   config,
   lib,
@@ -11,6 +18,7 @@
   persistRoot = config.othrys.system.impermanence.persistRoot;
   router = config.othrys.services.router;
 in {
+  # ANCHOR: tailscale-options
   options.othrys.services.tailscale = {
     enable = lib.mkEnableOption "Tailscale VPN mesh networking";
 
@@ -23,7 +31,13 @@ in {
     baseURL = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
-      description = "Base URL for Headscale server.";
+      description = ''
+        Control server the node registers with, passed as `--login-server`
+        to `tailscale up` by the automatic registration, which `authKeyFile`
+        turns on. A host registered by hand passes the same URL to
+        `tailscale up` itself, and the module warns when this is set with no
+        key file so that is not forgotten.
+      '';
       example = "https://headscale.example.com";
     };
 
@@ -31,12 +45,22 @@ in {
 
     acceptRoutes = lib.mkOption {
       type = lib.types.bool;
-      default = true;
+      default = false;
       description = ''
         Pass --accept-routes: install subnet routes advertised by OTHER
-        tailnet nodes. A trust decision, since a compromised or misconfigured peer
-        can redirect this host's traffic. Servers that don't need advertised
-        subnets should set this to false.
+        tailnet nodes. A trust decision, since a compromised or misconfigured
+        peer can redirect this host's traffic, which is why it is off until a
+        host that needs advertised subnets turns it on.
+      '';
+    };
+
+    operator = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "alice";
+      description = ''
+        User allowed to drive `tailscale` without root, passed as
+        `--operator`. Null leaves the CLI to root.
       '';
     };
 
@@ -60,9 +84,16 @@ in {
     ephemeral = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      description = "Register as an ephemeral node (deregistered when offline). Usually false for persistent machines.";
+      description = ''
+        Register as an ephemeral node (deregistered when offline). Usually
+        false for persistent machines. Applies to a node on Tailscale's own
+        control plane, where it is a parameter of an OAuth client key; with
+        `baseURL` set, the pre-auth key minted on that server decides.
+      '';
     };
   };
+
+  # ANCHOR_END: tailscale-options
 
   config = lib.mkIf cfg.enable {
     # On a router the global port list reaches every interface but the WAN,
@@ -93,15 +124,26 @@ in {
 
       inherit (cfg) authKeyFile;
 
-      authKeyParameters = {
-        inherit (cfg) ephemeral baseURL;
+      # Upstream appends these to the key as a query string, which is the
+      # form an OAuth client key on Tailscale's own control plane takes.
+      # Headscale expects a bare key and refuses one with anything appended,
+      # so with a control server of its own nothing is appended, and the
+      # key's own settings decide. The control server itself is not a key
+      # parameter and goes to `--login-server` below.
+      authKeyParameters = lib.mkIf (cfg.baseURL == null) {
+        inherit (cfg) ephemeral;
         preauthorized = true;
       };
 
-      extraUpFlags =
-        lib.optional cfg.acceptRoutes "--accept-routes"
+      extraUpFlags = lib.optional (cfg.baseURL != null) "--login-server=${cfg.baseURL}";
+
+      extraSetFlags =
+        ["--accept-routes=${lib.boolToString cfg.acceptRoutes}"]
         ++ ["--accept-dns=${lib.boolToString cfg.acceptDns}"]
-        ++ lib.optional cfg.ssh "--ssh";
+        ++ ["--ssh=${lib.boolToString cfg.ssh}"]
+        ++ lib.optional (cfg.operator != null) "--operator=${cfg.operator}";
     };
+
+    warnings = lib.optional (cfg.baseURL != null && cfg.authKeyFile == null) "othrys.services.tailscale: baseURL is set and authKeyFile is not, so nothing passes it to `tailscale up`. Either set authKeyFile for automatic registration, or run `tailscale up --login-server ${cfg.baseURL}` on the host by hand.";
   };
 }

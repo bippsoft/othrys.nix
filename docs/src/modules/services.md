@@ -359,6 +359,45 @@ othrys.services.restic.backups.headscale = {
 On a fast local repository, `checkOpts = ["--read-data"]` buys full content
 verification on every run.
 
+## Tailscale
+
+The Tailscale client, wrapping `services.tailscale`, with a persisted state
+directory under impermanence and the UDP port open by default so peers reach
+the host directly. Two of upstream's hooks carry the options.
+
+`baseURL` is the control server, passed as `--login-server` to `tailscale up`
+by the automatic registration that `authKeyFile` turns on. A host registered
+by hand passes the same URL to `tailscale up` itself, and the module warns when
+`baseURL` is set with no key file so that step is not forgotten. The key file
+is a secrets-provider path holding a pre-auth key from the control server.
+
+`acceptRoutes`, `acceptDns`, `ssh` and `operator` are passed to `tailscale set`
+by a unit that runs on every host after the daemon is up, so they apply
+however the host was registered. `acceptRoutes` is off by default, since
+installing routes advertised by other nodes trusts those nodes with this
+host's traffic.
+
+On a router host the module also opens its port on the WAN interface by name,
+since the router accepts the global firewall lists on every interface but the
+WAN.
+
+### Options
+
+```nix
+{{#include ../../../modules/services/tailscale.nix:tailscale-options}}
+```
+
+### Usage
+
+```nix
+othrys.services.tailscale = {
+  enable = true;
+  baseURL = "https://headscale.example.com";
+  authKeyFile = config.sops.secrets."tailscale/preauth".path;
+  acceptDns = false;   # the host runs its own resolver
+};
+```
+
 ## Headscale
 
 [Headscale](https://headscale.net/) is a self-hosted implementation of the
@@ -420,9 +459,9 @@ othrys.services.headscale = {
 Put a TLS-terminating reverse proxy in front of both Headscale (`serverUrl`) and
 Headplane (which listens on `127.0.0.1:3000` by default); behind a proxy set
 `ui.settings.server.base_url` to Headplane's public URL so OIDC redirects
-resolve. A node then registers against this server by pointing the Tailscale
-module at it:
-`othrys.services.tailscale = { enable = true; baseURL = "https://headscale.example.com"; }`.
+resolve. A node then registers against this server through the Tailscale
+module's `baseURL` and `authKeyFile`, with a pre-auth key from
+`headscale preauthkeys create`; see [Tailscale](#tailscale).
 
 With OIDC on and none of `oidc.allowedDomains`, `allowedUsers` or
 `allowedGroups` set, every account the issuer knows can register a node, and
