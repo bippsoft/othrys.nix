@@ -1,3 +1,38 @@
+## v0.11.0 (2026-10-10)
+
+### BREAKING CHANGE
+
+- wheel users are no longer trusted Nix users; a host
+that wants that sets othrys.system.nix.trustedUsers = ["root" "@wheel"].
+nix-community.cachix.org is no longer a substituter unless
+othrys.system.nix.communityCache is set, so builds that used it fetch
+from cache.nixos.org or build locally. An enabled cachix with an empty
+name or publicKey fails to evaluate. The nixpkgs registry entry and
+NIX_PATH now point at the host's own nixpkgs.
+- a host with othrys.services.containerization.docker
+and rootless on, the default, no longer runs a rootful daemon or
+exposes a root socket; anything that reached /var/run/docker.sock as
+root on such a host uses the user's socket now. A rootful Docker on a
+router host fails to evaluate until daemon.settings.iptables = false
+is set.
+- the primary user leaves group podman. A host that
+wants a user on the rootful socket adds the group in
+users.users.<name>.extraGroups itself.
+- othrys.services.security.yubikey.u2fRequirePassword
+defaults to true, so a host with u2fMappings asks for the password and
+the touch on login, sudo, the greeter, polkit prompts and the lockers.
+A host that wants a touch alone sets it to false. su no longer takes
+the key. A host whose primary user has no mapping while
+u2fRequirePassword is on fails to evaluate.
+
+### Fix
+
+- **nix**: trust root alone, make the community cache opt-in, and pin the registry to the host's nixpkgs
+- **docker**: run one daemon, prune the store that is in use, and refuse rootful docker beside the router
+- **scrutiny**: refuse the CrowdSec port clash on a hub alone
+- **podman**: stop adding the primary user to the rootful socket's group
+- **yubikey**: put pam_u2f into named services with the control the option promises
+
 ## v0.10.0 (2026-10-09)
 
 ### BREAKING CHANGE
