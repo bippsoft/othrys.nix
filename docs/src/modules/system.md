@@ -84,9 +84,14 @@ othrys.system.autoUpgrade = {
   repository it is verifying.
 - **What the signature covers**: the commit, which includes `flake.lock`. The
   lock file pins every input by hash, so one signature fixes every input
-  along with the repository's own files. Flags that replace locked inputs
-  (`--update-input`, `--recreate-lock-file`, `--override-input`) fail an
+  along with the repository's own files. Flags that let the evaluation or the
+  build escape it (`--update-input`, `--recreate-lock-file`,
+  `--override-input`, `--override-flake`, `--option`, `--impure`) fail an
   assertion when `verify` is on.
+- **Staleness**: a source that stops advancing verifies cleanly every night,
+  so `verify.maxAge` (default 30 days) has the unit log a warning once the
+  verified commit is older than that, and send a notification when the notify
+  module is on. The upgrade still runs. Null turns the report off.
 - **Rollback rule**: the last verified commit id is kept in
   `/var/lib/othrys-auto-upgrade-verify/last-verified`. A new target that does not
   descend from it fails the unit, which stops a validly signed but older commit

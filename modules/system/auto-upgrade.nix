@@ -26,8 +26,12 @@
   openpgp = cfg.verify.format == "openpgp";
 
   # Replacing flake.lock after verification would build inputs the signature
-  # never covered.
-  lockMutatingFlags = ["--update-input" "--recreate-lock-file" "--override-input"];
+  # never covered. The first three rewrite the lock, --override-flake redirects
+  # an input at evaluation, --option can add a substituter or a trusted key to
+  # a daemon whose root is trusted, and --impure lets <nixpkgs> resolve
+  # through NIX_PATH outside the lock.
+  lockMutatingFlags = ["--update-input" "--recreate-lock-file" "--override-input" "--override-flake" "--option" "--impure"];
+  notifyTokenFile = config.othrys.services.notify.tokenFile;
 
   # The only git configuration the unit reads. Interpolating a key file copies
   # a path literal into the store and leaves a runtime path string as it is.
@@ -169,6 +173,22 @@
       printf '%s\n' "$new" > "$last_file.tmp"
       mv "$last_file.tmp" "$last_file"
       echo "${verifyUnit}: verified $new"
+
+      ${lib.optionalString (cfg.verify.maxAge != null) ''
+        # A repository frozen at its last verified commit verifies cleanly
+        # every night, and the only signal was failure. The commit's age says
+        # whether the branch still advances, so an old one is reported, by
+        # the journal and by othrys-notify when the notify module is on.
+        committed="$(git -C "$repo" show -s --format=%ct "$new")"
+        age_days=$(( ($(date +%s) - committed) / 86400 ))
+        if [ "$age_days" -gt ${toString cfg.verify.maxAge} ]; then
+          echo "${verifyUnit}: warning: the verified commit $new is $age_days days old, past verify.maxAge of ${toString cfg.verify.maxAge} days, so the source has stopped advancing or updates are being held back" >&2
+          ${lib.optionalString notifyEnabled ''
+          othrys-notify "auto-upgrade on ${config.networking.hostName} is stale" \
+            "the verified commit is $age_days days old, past verify.maxAge of ${toString cfg.verify.maxAge} days" || true
+        ''}
+        fi
+      ''}
     '';
   };
 in {
@@ -250,6 +270,19 @@ in {
         description = "Signature format that is accepted. A signature in the other format fails verification.";
       };
 
+      maxAge = lib.mkOption {
+        type = lib.types.nullOr lib.types.ints.positive;
+        default = 30;
+        example = 90;
+        description = ''
+          Days after which a verified commit counts as stale. A source that
+          stops advancing verifies cleanly every night, so once the commit the
+          host follows is older than this the unit logs a warning and, with
+          the notify module on, sends a notification. The upgrade itself still
+          runs. Null turns the report off.
+        '';
+      };
+
       publicKeys = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = [];
@@ -311,7 +344,7 @@ in {
         }
         {
           assertion = !(lib.any (flag: lib.any (bad: lib.hasInfix bad flag) lockMutatingFlags) cfg.flags);
-          message = "othrys.system.autoUpgrade.verify: flags must not contain ${lib.concatStringsSep ", " lockMutatingFlags}. The verified signature covers flake.lock, and these flags replace locked inputs after verification.";
+          message = "othrys.system.autoUpgrade.verify: flags must not contain ${lib.concatStringsSep ", " lockMutatingFlags}. The verified signature covers flake.lock, and each of these lets the evaluation or the build escape it.";
         }
       ];
 
@@ -341,6 +374,11 @@ in {
             RuntimeDirectory = verifyUnit;
             RuntimeDirectoryMode = "0700";
             RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
+          }
+          # The stale report posts through othrys-notify, which reads the
+          # token from the credentials directory the way notify-failure@ does.
+          // lib.optionalAttrs (notifyEnabled && notifyTokenFile != null) {
+            LoadCredential = ["token:${notifyTokenFile}"];
           };
       };
 
