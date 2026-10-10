@@ -28,7 +28,24 @@ under **System Infrastructure**, and the rest are summarized here.
 
 - **User identity**: modules read `config.othrys.system.user.name`. It is a
   required option with no default and no `username` specialArg fallback, so set it
-  per host. See the consumer contract in the repository `CLAUDE.md`.
+  per host. See the consumer contract in the repository `CLAUDE.md`. The name
+  starts with a lowercase letter or an underscore and continues with lowercase
+  letters, digits, underscores and hyphens. Any other value, such as `Alice`,
+  is refused at evaluation.
+- **Home directory**: the XDG user directories and the persisted home follow
+  `users.users.<name>.home`, so a host that places the account outside `/home`
+  sets that option and nothing else.
+- **Git identity**: `othrys.system.git.name` and `othrys.system.git.email`
+  default to null and are required together on a host where Home Manager
+  manages the primary user, since that is where the identity is written.
+  Enabling git without them fails an assertion that names both options. A
+  host without a managed user installs git and needs neither.
+- **Bridge and vlan references**: `othrys.system.networking.interfaces.<name>.bridge`
+  and every entry of `interfaces.<name>.vlans` have to name a netdev the host
+  declares, under `bridges` or `vlans` or as a netdev of that kind in
+  `systemd.network.netdevs`. A name that matches none fails an assertion
+  naming the interface and the missing netdev, where systemd-networkd would
+  leave the port unconfigured without a report.
 - **State version**: `othrys.system.nix.stateVersion` is likewise required with
   no default. It records the release a host was first installed at, so the
   library cannot supply one on the host's behalf.

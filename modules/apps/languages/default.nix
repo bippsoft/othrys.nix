@@ -20,18 +20,22 @@
   # Canonical toolchain table. server = null means no standalone LSP binary
   # exists or is wanted for the language. An editor then configures no
   # external server for it and keeps whatever its own extension bundles.
+  #
+  # Each entry is a nixpkgs attribute name and not the package, so one string
+  # yields both the option default and the `pkgs.<name>` text the generated
+  # reference prints in place of a store path.
   languages = {
     bash = {
       name = "Bash";
-      server = pkgs.bash-language-server;
-      formatter = pkgs.shfmt;
-      extraTools = [pkgs.shellcheck];
+      server = "bash-language-server";
+      formatter = "shfmt";
+      extraTools = ["shellcheck"];
     };
     go = {
       name = "Go";
-      server = pkgs.gopls;
+      server = "gopls";
       # The go toolchain ships gofmt (and is required for real Go work).
-      formatter = pkgs.go;
+      formatter = "go";
       extraTools = [];
     };
     java = {
@@ -39,53 +43,53 @@
       # No standalone server, since vscode's redhat.java bundles jdtls and nixvim
       # deliberately runs without a Java LSP.
       server = null;
-      formatter = pkgs.google-java-format;
-      extraTools = [pkgs.jdk21 pkgs.maven pkgs.gradle];
+      formatter = "google-java-format";
+      extraTools = ["jdk21" "maven" "gradle"];
     };
     json = {
       name = "JSON";
       # Ships vscode-json-language-server beside the css, html and eslint
       # servers, and carries no meta.mainProgram, so editors name the binary.
-      server = pkgs.vscode-langservers-extracted;
-      formatter = pkgs.prettier;
+      server = "vscode-langservers-extracted";
+      formatter = "prettier";
       extraTools = [];
     };
     lua = {
       name = "Lua";
-      server = pkgs.lua-language-server;
-      formatter = pkgs.stylua;
+      server = "lua-language-server";
+      formatter = "stylua";
       extraTools = [];
     };
     nix = {
       name = "Nix";
-      server = pkgs.nil;
-      formatter = pkgs.alejandra;
+      server = "nil";
+      formatter = "alejandra";
       extraTools = [];
     };
     python = {
       name = "Python";
-      server = pkgs.basedpyright;
+      server = "basedpyright";
       # ruff is both formatter and linter, the canonical modern Python stack
       # next to basedpyright.
-      formatter = pkgs.ruff;
+      formatter = "ruff";
       extraTools = [];
     };
     rust = {
       name = "Rust";
-      server = pkgs.rust-analyzer;
-      formatter = pkgs.rustfmt;
+      server = "rust-analyzer";
+      formatter = "rustfmt";
       extraTools = [];
     };
     typescript = {
       name = "TypeScript";
-      server = pkgs.typescript-language-server;
-      formatter = pkgs.prettier;
-      extraTools = [pkgs.typescript];
+      server = "typescript-language-server";
+      formatter = "prettier";
+      extraTools = ["typescript"];
     };
     yaml = {
       name = "YAML";
-      server = pkgs.yaml-language-server;
-      formatter = pkgs.prettier;
+      server = "yaml-language-server";
+      formatter = "prettier";
       extraTools = [];
     };
   };
@@ -95,19 +99,29 @@
 
     server = lib.mkOption {
       type = lib.types.nullOr lib.types.package;
-      default = def.server;
+      default =
+        if def.server == null
+        then null
+        else pkgs.${def.server};
+      defaultText = lib.literalExpression (
+        if def.server == null
+        then "null"
+        else "pkgs.${def.server}"
+      );
       description = "Canonical ${def.name} language server, installed on the user's PATH and named by store path in every editor that takes an external server. Null leaves the language without a standalone server, and an editor then configures none.";
     };
 
     formatter = lib.mkOption {
       type = lib.types.package;
-      default = def.formatter;
+      default = pkgs.${def.formatter};
+      defaultText = lib.literalExpression "pkgs.${def.formatter}";
       description = "Canonical ${def.name} formatter, installed on the user's PATH and named by store path in every editor. A replacement is run under the formatter definition that matches its executable name.";
     };
 
     extraTools = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = def.extraTools;
+      default = map (name: pkgs.${name}) def.extraTools;
+      defaultText = lib.literalExpression "[${lib.concatMapStringsSep " " (name: "pkgs.${name}") def.extraTools}]";
       description = "Additional ${def.name} tooling installed alongside the toolchain (linters, build tools, runtimes).";
     };
   };

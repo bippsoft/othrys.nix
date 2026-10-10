@@ -109,7 +109,7 @@ themselves).
 The `eval-host-server`, `eval-host-anonymous`, and `eval-host-server-account`
 checks in `flake/checks/` enforce this contract in CI.
 
-Additionally, `nixosModules.default` injects `othrysSelf` (this flake's own source) as a module argument, so modules that build from the flake source, such as the [docs server](../modules/services.md), work without extra wiring. Importing individual module files instead of `default` skips that injection; set such modules' package options explicitly if you use them.
+Additionally, `nixosModules.default` injects `othrysSelf` (this flake's own source) as a module argument, so modules that build from the flake source, such as the [docs server](../modules/services.md), work without extra wiring. Importing individual module files instead of `default` skips that injection. The argument then does not exist, so set `othrys.services.docs.package` explicitly, or the default fails with the module system's missing-argument error when it is read.
 
 Secrets are the consumer's responsibility: `othrys.system.secrets.secretFiles` defaults to `inputs.secrets.secretFiles` when the consuming flake declares a `secrets` input (this library does not).
 

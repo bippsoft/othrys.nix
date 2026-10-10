@@ -26,7 +26,8 @@ get fast feedback while the exhaustive suite still gates what lands:
   back on an impermanence host with a managed account and on one without),
   `eval-languages` (the binaries nixvim and VSCodium take from the language
   registry), `eval-hardware` (what the hardware, mount and disk modules
-  write), and `impermanence-test` (the persistence and
+  write), `eval-types` (the values the option types refuse, and the git
+  identity and bridge or vlan reference assertions), and `impermanence-test` (the persistence and
   root-wipe invariant, the defining principle of the system). Small closures.
 - **Core on ARM** (`core-aarch64` job) runs on every PR/push/dispatch on an
   `ubuntu-24.04-arm` runner. It builds the portable host evaluations for

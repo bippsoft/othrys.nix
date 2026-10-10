@@ -54,6 +54,7 @@ in {
     package = lib.mkOption {
       type = lib.types.package;
       default = osuWrapped;
+      defaultText = lib.literalMD "`pkgs.osu-lazer` behind a wrapper that sets the PipeWire latency and starts it through `gamemoderun`";
       description = "osu!lazer package to use (wrapped with latency optimizations).";
     };
 

@@ -72,6 +72,16 @@ othrys.apps.ghostty = {
 };
 ```
 
+`extraSettings` takes Ghostty config keys and is merged over what the module
+writes. A value is a string, a number, a boolean, or a list of those for a key
+that repeats, such as `keybind`. A nested attribute set is refused, since the
+config file is flat.
+
+### Vesktop
+
+`settings` is written to Vesktop's `settings.json` over the module defaults
+and accepts any JSON value.
+
 ## Floorp
 
 The browser force-installs a curated extension set, Sidebery, Bitwarden,
@@ -83,6 +93,10 @@ built-in password manager is off beside Bitwarden
 (`builtinPasswordManager`), tracking protection exempts nothing until a host
 lists sites in `trackingProtectionExemptions`, and the theme follows the
 Stylix polarity.
+
+`search.extraEngines` adds search engines over the curated set. Each engine
+is an attribute set of JSON values in the shape Home Manager documents for
+`programs.firefox.profiles.<name>.search.engines`.
 
 ## Language Toolchains (`modules/apps/languages/`)
 

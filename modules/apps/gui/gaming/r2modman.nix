@@ -29,6 +29,7 @@ in {
     package = lib.mkOption {
       type = lib.types.package;
       default = r2modmanWayland;
+      defaultText = lib.literalMD "`pkgs.r2modman` with the Ozone Wayland flags added to its launcher";
       description = "r2modman package to use (wrapped for Wayland by default).";
     };
   };

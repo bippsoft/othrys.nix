@@ -113,7 +113,10 @@ in {
     enable = lib.mkEnableOption "Niri scrollable-tiling Wayland compositor";
 
     outputs = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
+      # An output is plain data all the way down, a mode, a position, a scale
+      # and a transform, so each one is held to JSON values. niri-flake then
+      # checks the keys against its own schema.
+      type = lib.types.attrsOf (lib.types.attrsOf (pkgs.formats.json {}).type);
       default = {};
       example = lib.literalExpression ''
         {
@@ -199,6 +202,10 @@ in {
     };
 
     extraBinds = lib.mkOption {
+      # Left at `anything` on purpose. niri-flake's action helpers under
+      # config.lib.niri.actions return attribute sets that carry a
+      # `__functor`, so an action is not always plain data, and a JSON type
+      # would refuse the form niri-flake documents for writing binds.
       type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
       default = {};
       example = lib.literalExpression ''
@@ -222,6 +229,9 @@ in {
     };
 
     settings = lib.mkOption {
+      # Left at `anything` for the same reason as extraBinds, since `binds`
+      # and `switch-events` under it take the same action values. niri-flake
+      # types the whole tree once it arrives at programs.niri.settings.
       type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Extra programs.niri.settings, merged over the generated config (use lib.mkForce to override an already-set leaf).";

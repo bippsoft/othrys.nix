@@ -11,15 +11,29 @@ in {
   options.othrys.system.git = {
     enable = lib.mkEnableOption "Git version control";
 
+    # Null rather than no default. An option without a default fails with the
+    # module system's "used but not defined" error, which names neither the
+    # module nor what to set. The assertion below says both, and only on a
+    # host where the identity is written.
     name = lib.mkOption {
-      type = lib.types.str;
-      description = "Git user name for commits.";
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        Git user name for commits. Required, together with `email`, on a host
+        where Home Manager manages the primary user, since that is where the
+        identity is written. A host without a managed user installs git and
+        reads neither.
+      '';
       example = "alice";
     };
 
     email = lib.mkOption {
-      type = lib.types.str;
-      description = "Git user email for commits.";
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        Git user email for commits. Required, together with `name`, on a host
+        where Home Manager manages the primary user.
+      '';
       example = "alice@example.com";
     };
 
@@ -45,6 +59,16 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # The identity only reaches a file through the Home Manager configuration
+    # below, so the requirement follows homeManaged. A headless host enables
+    # git for the binary and states no author.
+    assertions = [
+      {
+        assertion = !config.othrys.system.users.homeManaged || (cfg.name != null && cfg.email != null);
+        message = "othrys.system.git: set othrys.system.git.name and othrys.system.git.email. Home Manager writes them as the commit author for the primary user, and git refuses to commit without one.";
+      }
+    ];
+
     programs.git.enable = true;
 
     othrys.internal.homeConfig."system.git" = {

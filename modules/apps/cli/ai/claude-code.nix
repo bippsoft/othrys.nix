@@ -19,9 +19,13 @@ in {
     enable = lib.mkEnableOption "Claude Code AI assistant";
 
     theme = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.enum ["dark" "light" "dark-daltonized" "light-daltonized" "dark-ansi" "light-ansi"];
       default = "dark";
-      description = "Claude Code UI theme.";
+      description = ''
+        Claude Code UI theme. The daltonized pair is adjusted for colour
+        blindness, and the ansi pair draws with the terminal's own sixteen
+        colours.
+      '';
     };
 
     permissions = {

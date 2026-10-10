@@ -6,6 +6,10 @@
   ...
 }: let
   cfg = config.othrys.apps.ghostty;
+
+  # One value of a Ghostty config key. The file is flat `key = value` lines,
+  # and a key that repeats, such as keybind or palette, is given as a list.
+  settingAtom = lib.types.nullOr (lib.types.oneOf [lib.types.bool lib.types.int lib.types.float lib.types.str]);
 in {
   imports = [
     (lib.mkRemovedOptionModule ["othrys" "apps" "ghostty" "scrollbackLines"] "Ghostty measures its scrollback in bytes, so the value was never a line count. Set othrys.apps.ghostty.scrollbackLimit, in bytes, instead.")
@@ -95,13 +99,17 @@ in {
 
     # Extra settings passthrough
     extraSettings = lib.mkOption {
-      type = lib.types.attrsOf lib.types.anything;
+      # What programs.ghostty.settings accepts upstream, spelled out. The
+      # upstream key-value type also turns a lone value into a one-element
+      # list, and that coercion is left to it so a value read back from this
+      # option is the value that was written.
+      type = lib.types.attrsOf (lib.types.either settingAtom (lib.types.listOf settingAtom));
       default = {};
       example = {
         bold-is-bright = false;
         confirm-close-surface = false;
       };
-      description = "Additional Ghostty settings merged into the configuration.";
+      description = "Additional Ghostty settings merged into the configuration. A value is a string, a number, a boolean, or a list of those for a key that repeats.";
     };
   };
 

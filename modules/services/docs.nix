@@ -5,8 +5,11 @@
   lib,
   pkgs,
   # Source of the othrys flake, injected by nixosModules.default (flake/modules.nix).
-  # Null when this file is imported standalone, in which case cfg.package must be set.
-  othrysSelf ? null,
+  # It carries no default here. The module system hands every declared
+  # argument over as a lazy read of _module.args and never consults a default
+  # written in the function head. A standalone import of this file has no such
+  # argument, so it sets `package`, and the built default is then never read.
+  othrysSelf,
   ...
 }: let
   cfg = config.othrys.services.docs;
@@ -17,21 +20,17 @@
     then ["CAP_NET_BIND_SERVICE"]
     else [""];
 
-  docsPackage =
-    if othrysSelf == null
-    then throw "othrys.services.docs: no flake source available; set othrys.services.docs.package explicitly"
-    else
-      pkgs.stdenv.mkDerivation {
-        pname = "othrys-docs";
-        # Derived from the flake source rather than written out, so it cannot
-        # disagree with what was actually built. A dirty or path-copied source
-        # has no revision, hence the fallback.
-        version = othrysSelf.shortRev or othrysSelf.dirtyShortRev or "dev";
-        src = othrysSelf;
-        nativeBuildInputs = [pkgs.mdbook];
-        buildPhase = "mdbook build docs/";
-        installPhase = "cp -r docs/book $out";
-      };
+  docsPackage = pkgs.stdenv.mkDerivation {
+    pname = "othrys-docs";
+    # Derived from the flake source rather than written out, so it cannot
+    # disagree with what was actually built. A dirty or path-copied source
+    # has no revision, hence the fallback.
+    version = othrysSelf.shortRev or othrysSelf.dirtyShortRev or "dev";
+    src = othrysSelf;
+    nativeBuildInputs = [pkgs.mdbook];
+    buildPhase = "mdbook build docs/";
+    installPhase = "cp -r docs/book $out";
+  };
 
   docsUrl = "http://${cfg.interface}:${toString cfg.port}";
 in {
@@ -42,8 +41,8 @@ in {
     package = lib.mkOption {
       type = lib.types.package;
       default = docsPackage;
-      defaultText = lib.literalExpression "built MdBook from docs/";
-      description = "The built documentation package to serve.";
+      defaultText = lib.literalMD "the MdBook built from `docs/` of the flake source that `nixosModules.default` injects";
+      description = "The built documentation package to serve. Required when this module is imported on its own through `nixosModules.docs`, where no flake source is injected to build the default from.";
     };
 
     port = lib.mkOption {

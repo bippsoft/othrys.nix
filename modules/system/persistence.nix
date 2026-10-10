@@ -304,14 +304,21 @@ in {
       # ANCHOR_END: user-persistence
     };
 
-    othrys.internal.homeConfig."system.persistence".xdg.userDirs =
-      {
-        enable = true;
-        createDirectories = true;
-        setSessionVariables = true;
-      }
-      // lib.mapAttrs'
-      (folder: opt: lib.nameValuePair opt "/home/${username}/${folder}")
-      xdgUserDirs;
+    # The directories sit under the home the account declares, which a host
+    # may place outside /home. The persistence entries above are relative, so
+    # impermanence already resolves them against the same value. Reading the
+    # account needs it to exist, so the entry is dropped on a host where
+    # othrys creates no account.
+    othrys.internal.homeConfig."system.persistence" = lib.mkIf usersEnabled {
+      xdg.userDirs =
+        {
+          enable = true;
+          createDirectories = true;
+          setSessionVariables = true;
+        }
+        // lib.mapAttrs'
+        (folder: opt: lib.nameValuePair opt "${config.users.users.${username}.home}/${folder}")
+        xdgUserDirs;
+    };
   };
 }

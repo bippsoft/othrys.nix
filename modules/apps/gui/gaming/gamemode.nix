@@ -12,12 +12,18 @@ in {
     enable = lib.mkEnableOption "gamemode configuration for gaming optimization";
 
     settings = lib.mkOption {
-      type = lib.types.attrsOf lib.types.anything;
+      # The type of programs.gamemode.settings upstream, the INI format with
+      # a list written as repeated keys. gamemode.ini is sections of scalar
+      # keys, so anything deeper than section and key is refused here.
+      inherit (pkgs.formats.ini {listsAsDuplicateKeys = true;}) type;
       default = {};
       description = ''
         Extra programs.gamemode.settings, merged over the curated defaults.
         Those are written at mkDefault, so overriding one leaf leaves its
         siblings in place and lib.mkForce replaces a leaf outright.
+
+        The shape is that of gamemode.ini, a section name over keys whose
+        values are a string, a number, a boolean or a list of those.
       '';
       example = lib.literalExpression ''
         {

@@ -53,13 +53,13 @@
       bridge = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        description = "Enslave this interface to the named bridge (declared under `bridges`).";
+        description = "Enslave this interface to the named bridge. The bridge has to be declared, under `bridges` or as a bridge netdev in `systemd.network.netdevs`, or evaluation fails naming it.";
       };
 
       vlans = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [];
-        description = "VLAN netdevs (declared under `vlans`) carried on this interface (trunk port).";
+        description = "VLAN netdevs carried on this interface, which makes it a trunk port. Each has to be declared, under `vlans` or as a vlan netdev in `systemd.network.netdevs`, or evaluation fails naming it.";
       };
 
       requiredForOnline = lib.mkOption {
@@ -134,6 +134,31 @@
       inherit (v) address;
     })
   cfg.vlans;
+
+  # The names of every netdev of one kind the host declares, whether through
+  # this module or through systemd.network.netdevs directly. The module header
+  # sends anything it does not model to that option, so a bridge or a vlan
+  # declared there is a valid target for a reference made here.
+  netdevNames = kind:
+    lib.mapAttrsToList (_: netdev: netdev.netdevConfig.Name)
+    (lib.filterAttrs (_: netdev: (netdev.netdevConfig.Kind or null) == kind && netdev.netdevConfig ? Name) config.systemd.network.netdevs);
+  declaredBridges = netdevNames "bridge";
+  declaredVlans = netdevNames "vlan";
+
+  # References run one way in this module. An interface names the bridge it
+  # joins and the vlans it carries, while a bridge lists no ports and a vlan
+  # names no parent. These are therefore the two references that can be
+  # checked, each rendered as "<interface> (<missing name>)".
+  missingBridges = lib.concatLists (lib.mapAttrsToList (
+      name: iface:
+        lib.optional (iface.bridge != null && !builtins.elem iface.bridge declaredBridges) "${name} (${iface.bridge})"
+    )
+    cfg.interfaces);
+  missingVlans = lib.concatLists (lib.mapAttrsToList (
+      name: iface:
+        map (vlan: "${name} (${vlan})") (builtins.filter (vlan: !builtins.elem vlan declaredVlans) iface.vlans)
+    )
+    cfg.interfaces);
 in {
   options.othrys.system.networking = {
     enable = lib.mkEnableOption "systemd-networkd networking";
@@ -188,6 +213,20 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # systemd-networkd accepts a .network file that names a netdev nobody
+    # creates. The port then stays unconfigured at activation and nothing
+    # reports it, so a misspelt name is refused here instead.
+    assertions = [
+      {
+        assertion = missingBridges == [];
+        message = "othrys.system.networking: interfaces.<name>.bridge names a bridge that is not declared: ${lib.concatStringsSep ", " missingBridges}. Declare it under othrys.system.networking.bridges, or as a bridge netdev in systemd.network.netdevs.";
+      }
+      {
+        assertion = missingVlans == [];
+        message = "othrys.system.networking: interfaces.<name>.vlans names a vlan that is not declared: ${lib.concatStringsSep ", " missingVlans}. Declare it under othrys.system.networking.vlans, or as a vlan netdev in systemd.network.netdevs.";
+      }
+    ];
+
     # Disable legacy dhcpcd
     networking.useDHCP = false;
 

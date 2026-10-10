@@ -18,6 +18,7 @@ in {
     package = lib.mkOption {
       type = lib.types.package;
       default = pkgs.prismlauncher;
+      defaultText = lib.literalExpression "pkgs.prismlauncher";
       description = "PrismLauncher package to use.";
     };
   };

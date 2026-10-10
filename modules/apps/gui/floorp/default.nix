@@ -60,9 +60,12 @@ in {
       };
 
       extraEngines = lib.mkOption {
-        type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
+        # The type Home Manager gives programs.firefox.profiles.<name>.search.engines,
+        # which serialises each engine to JSON. A value that cannot be
+        # serialised is refused under this option's name.
+        type = lib.types.attrsOf (lib.types.attrsOf (pkgs.formats.json {}).type);
         default = {};
-        description = "Custom search engines merged over the curated Nix/NixOS set.";
+        description = "Custom search engines merged over the curated Nix/NixOS set. Each engine is an attribute set of JSON values, in the shape of Home Manager's `programs.firefox.profiles.<name>.search.engines`.";
         example = lib.literalExpression ''
           {
             "Kagi" = {

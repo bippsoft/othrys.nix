@@ -37,6 +37,10 @@ of them back set `permissions.extraAllow` and `permissions.defaultMode`
 explicitly, which keeps the decision visible in the host configuration rather
 than inherited from a library. The module registers no hooks of its own.
 
+`theme` takes one of Claude Code's six themes, `dark`, `light`,
+`dark-daltonized`, `light-daltonized`, `dark-ansi` and `light-ansi`. Any other
+value is refused at evaluation.
+
 The shared context every MCP-enabled assistant receives describes the host it
 runs on. Its line about the root wipe is rendered from
 `othrys.system.impermanence.enable`, so a host with a persistent root is not

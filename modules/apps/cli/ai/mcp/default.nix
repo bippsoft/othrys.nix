@@ -38,6 +38,7 @@ in {
       type = lib.types.str;
       readOnly = true;
       default = globalContext;
+      defaultText = lib.literalMD "the text of `nixos-context.md` beside this module, with a line about the root wipe added when `othrys.system.impermanence.enable` is set";
       description = "Shared global context for AI assistants.";
     };
   };

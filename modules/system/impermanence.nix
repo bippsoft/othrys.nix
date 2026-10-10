@@ -143,7 +143,9 @@ in {
       ++ lib.optionals usersEnabled [
         # The group comes from the account rather than a literal "users", since
         # a host is free to give its primary user a different primary group.
-        "d ${cfg.persistRoot}/home/${username} 0700 ${username} ${config.users.users.${username}.group} -"
+        # The path follows the account's home as well, since impermanence
+        # binds each per-user entry from the persist root plus that home.
+        "d ${cfg.persistRoot}${config.users.users.${username}.home} 0700 ${username} ${config.users.users.${username}.group} -"
       ];
 
     # ANCHOR: boot-wipe-script
@@ -177,7 +179,7 @@ in {
         # emergency shell.
         btrfs subvolume create /btrfs_tmp/root
 
-        ${lib.optionalString usersEnabled "mkdir -p /btrfs_tmp/persist/home/${username}"}
+        ${lib.optionalString usersEnabled "mkdir -p ${lib.escapeShellArg "/btrfs_tmp/persist${config.users.users.${username}.home}"}"}
 
         # `local IFS` keeps the split scoped to this function. Assigned
         # globally it survived the first call and silently changed how every

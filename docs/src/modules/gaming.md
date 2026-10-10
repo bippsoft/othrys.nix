@@ -48,6 +48,10 @@ Performance optimization with per-application settings:
 - NVIDIA PowerMizer performance mode (`nv_powermizer_mode = 1`)
 - Desktop notifications on start/stop
 
+`settings` is merged over those defaults and has the shape of `gamemode.ini`,
+a section name over keys whose values are a string, a number, a boolean or a
+list of those.
+
 ## osu!
 
 - **Low-latency wrapper**: Injects `PIPEWIRE_LATENCY=64/48000` (1.3ms target) and launches with GameMode

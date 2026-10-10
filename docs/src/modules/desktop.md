@@ -119,6 +119,12 @@ systemd session, and the login module starts `niri-session` by default on a
 host where niri is the only compositor. Stylix themes borders and cursor
 through niri-flake's auto-imported target.
 
+`outputs` takes JSON values only, which is everything an output is made of.
+`extraBinds` and `settings` stay free-form, since an action written with
+niri-flake's `config.lib.niri.actions` helpers is an attribute set carrying a
+function, and niri-flake validates both once they reach
+`programs.niri.settings`.
+
 ```nix
 othrys.desktop.compositors.niri = {
   enable = true;

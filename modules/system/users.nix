@@ -35,6 +35,7 @@ in {
     defaultShell = lib.mkOption {
       type = lib.types.package;
       default = pkgs.bash;
+      defaultText = lib.literalExpression "pkgs.bash";
       description = "Default shell for the user.";
     };
 
