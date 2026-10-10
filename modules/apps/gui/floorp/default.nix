@@ -12,7 +12,42 @@
   inherit (config.lib.stylix) colors;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
+  dark = config.othrys.system.stylix.polarity == "dark";
+
+  # Each extension is fetched at build time by hash and installed from the
+  # store, so the browser never downloads an unpinned latest.xpi and the
+  # policy names a file whose content is fixed. A bump is a new URL and hash.
+  extensionType = lib.types.submodule {
+    options = {
+      url = lib.mkOption {
+        type = lib.types.str;
+        description = "Versioned download URL of the signed .xpi.";
+        example = "https://addons.mozilla.org/firefox/downloads/file/4903712/sidebery-5.6.1.xpi";
+      };
+      hash = lib.mkOption {
+        type = lib.types.str;
+        description = "SRI hash of the file at `url`.";
+        example = "sha256-6KCktVarfdU2iXwYFq+dCRgDAiMGjqZoOgQ3YQOmyvI=";
+      };
+      default_area = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "Where the extension's button is placed, as the policy's `default_area`.";
+        example = "navbar";
+      };
+    };
+  };
+  extensionPolicy = _: ext:
+    {
+      install_url = "file://${pkgs.fetchurl {inherit (ext) url hash;}}";
+      installation_mode = "force_installed";
+    }
+    // lib.optionalAttrs (ext.default_area != null) {inherit (ext) default_area;};
 in {
+  imports = [
+    (lib.mkRemovedOptionModule ["othrys" "apps" "floorp" "manageSidebery"] "The sidebar layout file it wrote was never read by the extension, which keeps its state inside the profile.")
+  ];
+
   options.othrys.apps.floorp = {
     enable = lib.mkEnableOption "Floorp browser";
 
@@ -39,10 +74,53 @@ in {
       };
     };
 
+    extensions = lib.mkOption {
+      type = lib.types.attrsOf extensionType;
+      default = {
+        "{3c078156-979c-498b-8990-85f7987dd929}" = {
+          url = "https://addons.mozilla.org/firefox/downloads/file/4903712/sidebery-5.6.1.xpi";
+          hash = "sha256-6KCktVarfdU2iXwYFq+dCRgDAiMGjqZoOgQ3YQOmyvI=";
+          default_area = "navbar";
+        };
+        "{446900e4-71c2-419f-a6a7-df9c091e268b}" = {
+          url = "https://addons.mozilla.org/firefox/downloads/file/5076543/bitwarden_password_manager-2026.9.3.xpi";
+          hash = "sha256-XdbvpdIo2+rHoMaog/lReH3GbleYUyLOVJIQsN+NBUw=";
+        };
+        "uBlock0@raymondhill.net" = {
+          url = "https://addons.mozilla.org/firefox/downloads/file/5034826/ublock_origin-1.75.0.xpi";
+          hash = "sha256-W3RBWGBFY3BkS9gPFhJehlsObDVrtd/PuEBpln6qUoc=";
+        };
+        "{aecec67f-0d10-4fa7-b7c7-609a2db280cf}" = {
+          url = "https://addons.mozilla.org/firefox/downloads/file/5009389/violentmonkey-2.49.0.xpi";
+          hash = "sha256-dh6moyzueMMmPRm72CHq/U6gci8Q/zWOy6JznFv/dvs=";
+        };
+      };
+      defaultText = lib.literalMD "Sidebery, Bitwarden, uBlock Origin and Violentmonkey at pinned versions";
+      description = ''
+        Extensions force-installed from the Nix store, keyed by extension id.
+        Each is fetched at build time by URL and hash, so the set a host runs
+        is the set its configuration names. Replace the attribute set to drop
+        one, or add to it.
+      '';
+    };
+
+    builtinPasswordManager = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Firefox's own password manager. Off, since Bitwarden is in the default extension set and two managers prompt on every form.";
+    };
+
+    trackingProtectionExemptions = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      example = ["*.example.com"];
+      description = "Sites exempt from tracking protection and social-tracking blocking. Empty, so a host names its own exceptions.";
+    };
+
     extraExtensions = lib.mkOption {
       type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
       default = {};
-      description = "Extension policies merged over the curated set (sidebery, bitwarden, ublock, violentmonkey).";
+      description = "Raw extension policies merged over the set built from `extensions`, for an entry that needs a policy shape the typed option does not cover.";
       example = lib.literalExpression ''
         {
           "search@kagi.com" = {
@@ -62,16 +140,6 @@ in {
         default) leaves it unset so the system-wide VA-API default applies; set
         "nvidia" on NVIDIA hosts (which also enables the nvidia-vaapi direct
         backend).
-      '';
-    };
-
-    manageSidebery = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = ''
-        Deploy the curated Sidebery sidebar layout, overwriting the in-profile
-        copy on every rebuild. Disable to manage Sidebery yourself (keeps
-        changes made from within the browser).
       '';
     };
   };
@@ -111,10 +179,10 @@ in {
             isDefault = true;
 
             settings = with colors; {
-              # Rendering, software mode for NVIDIA + Wayland
-              "gfx.webrender.all" = false;
-              "gfx.webrender.enabled" = false;
-              "layers.gpu-process.enabled" = false;
+              # Rendering is left to the browser's own detection. The
+              # WebRender prefs that once forced software mode are gone from
+              # Firefox, and turning the GPU process off on every host costs
+              # the ones whose driver is fine.
               "media.hardware-video-decoding.enabled" = true;
 
               # BetterFox - Fastfox
@@ -132,8 +200,9 @@ in {
 
               # BetterFox - Securefox
               "browser.contentblocking.category" = "strict";
-              "urlclassifier.trackingSkipURLs" = "*.reddit.com, *.twitter.com, *.twimg.com";
-              "urlclassifier.features.socialtracking.skipURLs" = "*.instagram.com, *.twitter.com, *.twimg.com";
+              "urlclassifier.trackingSkipURLs" = lib.concatStringsSep ", " cfg.trackingProtectionExemptions;
+              "urlclassifier.features.socialtracking.skipURLs" = lib.concatStringsSep ", " cfg.trackingProtectionExemptions;
+              "signon.rememberSignons" = cfg.builtinPasswordManager;
               "network.cookie.sameSite.noneRequiresSecure" = true;
               "browser.download.start_downloads_in_tmp_dir" = true;
               "browser.helperApps.deleteTempFileOnExit" = true;
@@ -189,9 +258,14 @@ in {
               # Floorp UI
               "floorp.browser.user_interface" = "fluentUI";
               "floorp.design.theme" = "fluentUI";
+              # The theme follows the Stylix polarity rather than claiming a
+              # dark system on a light host.
               "browser.theme.toolbar-theme" = 2;
               "browser.theme.content-theme" = 2;
-              "ui.systemUsesDarkTheme" = 1;
+              "ui.systemUsesDarkTheme" =
+                if dark
+                then 1
+                else 0;
               "browser.display.background_color" = "#${base00}";
               "layout.css.backdrop-filter.enabled" = false;
               "ui.prefersReducedMotion" = 0;
@@ -323,25 +397,10 @@ in {
                   installation_mode = "blocked";
                   allowed_types = ["extension"];
                 };
-                "{3c078156-979c-498b-8990-85f7987dd929}" = {
-                  install_url = "https://addons.mozilla.org/firefox/downloads/latest/sidebery/latest.xpi";
-                  installation_mode = "force_installed";
-                  default_area = "navbar";
-                };
-                "{446900e4-71c2-419f-a6a7-df9c091e268b}" = {
-                  install_url = "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi";
-                  installation_mode = "force_installed";
-                };
-                "uBlock0@raymondhill.net" = {
-                  install_url = "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi";
-                  installation_mode = "force_installed";
-                };
-                "{aecec67f-0d10-4fa7-b7c7-609a2db280cf}" = {
-                  install_url = "https://addons.mozilla.org/firefox/downloads/latest/violentmonkey/latest.xpi";
-                  installation_mode = "force_installed";
-                };
               }
+              // lib.mapAttrs extensionPolicy cfg.extensions
               // cfg.extraExtensions;
+            PasswordManagerEnabled = cfg.builtinPasswordManager;
             DisableTelemetry = true;
             DisableFirefoxStudies = true;
             DisablePocket = true;
@@ -375,11 +434,6 @@ in {
           // lib.optionalAttrs (cfg.vaapiDriver == "nvidia") {
             NVD_BACKEND = "direct";
           };
-
-        home.file.".config/floorp-sidebery/sidebery-config.json" = lib.mkIf cfg.manageSidebery {
-          text = builtins.readFile ./sidebery.json;
-          force = true;
-        };
       };
     })
   ];

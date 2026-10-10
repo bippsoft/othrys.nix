@@ -45,10 +45,6 @@ in {
           startMinimized = false;
         }
         // cfg.settings);
-
-      xdg.configFile."discord/settings.json".text = builtins.toJSON {
-        SKIP_HOST_UPDATE = true;
-      };
     };
   };
 }

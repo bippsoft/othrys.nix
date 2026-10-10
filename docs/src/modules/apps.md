@@ -35,6 +35,18 @@ Require a desktop environment.
 | LocalSend | `othrys.apps.localsend` | Local file sharing |
 | MPV | `othrys.apps.mpv` | Media player |
 
+## Floorp
+
+The browser force-installs a curated extension set, Sidebery, Bitwarden,
+uBlock Origin and Violentmonkey, through `othrys.apps.floorp.extensions`.
+Each entry names a versioned download URL and its hash, so the file is
+fetched at build time and installed from the Nix store rather than pulled
+from the add-on site at first start. Replace the set to drop one. The
+built-in password manager is off beside Bitwarden
+(`builtinPasswordManager`), tracking protection exempts nothing until a host
+lists sites in `trackingProtectionExemptions`, and the theme follows the
+Stylix polarity.
+
 See also: [Gaming](./gaming.md), [AI Assistants](./ai.md)
 
 For the anatomy of a fully-featured module, see the login manager example in [Module System](../architecture/module-system.md).
