@@ -58,10 +58,16 @@ pkgs.testers.runNixOSTest {
       email = "alice@example.com";
     };
     othrys.system.shell.zsh.enable = true;
+    # A second port beside 22, so sshd and the fail2ban jail each have to
+    # follow the configured list for the subtests below to pass.
     othrys.services.ssh = {
       enable = true;
-      server.enable = true;
+      server = {
+        enable = true;
+        ports = [22 2222];
+      };
     };
+    othrys.services.security.fail2ban.enable = true;
     othrys.services.firewall.enable = true;
     othrys.services.monitoring.enable = true;
 
@@ -78,7 +84,7 @@ pkgs.testers.runNixOSTest {
     othrys.services.alerting.enable = true;
   };
 
-  testScript = ''
+  testScript = {nodes, ...}: ''
     machine.start()
     machine.wait_for_unit("multi-user.target")
 
@@ -102,6 +108,36 @@ pkgs.testers.runNixOSTest {
 
     with subtest("ssh server is reachable on port 22"):
         machine.wait_for_open_port(22)
+
+    with subtest("sshd runs with the configured ports and the hardened defaults"):
+        machine.wait_for_open_port(2222)
+        # sshd -T prints the configuration the daemon resolves, one directive
+        # per line, so it shows what sshd applies and not only what the module
+        # wrote. The keyword case differs between OpenSSH releases, so the
+        # lines are compared in lower case.
+        effective = machine.succeed(
+            "${nodes.machine.services.openssh.package}/bin/sshd -T -f /etc/ssh/sshd_config"
+        ).lower().splitlines()
+        for line in [
+            "port 22",
+            "port 2222",
+            "maxauthtries 3",
+            "logingracetime 30",
+            "allowtcpforwarding no",
+            "allowagentforwarding no",
+            "passwordauthentication no",
+            "permitrootlogin no",
+            "kexalgorithms sntrup761x25519-sha512@openssh.com,mlkem768x25519-sha256,curve25519-sha256,curve25519-sha256@libssh.org",
+        ]:
+            assert line in effective, f"sshd -T does not report {line!r}"
+
+    with subtest("the fail2ban sshd jail names the configured ports"):
+        machine.wait_for_unit("fail2ban.service")
+        # The unit is active before the server answers on its socket.
+        machine.wait_until_succeeds("fail2ban-client status sshd", timeout=60)
+        # The [sshd] section of the rendered jail file, up to the next section.
+        jail = machine.succeed("sed -n '/^\\[sshd\\]/,/^\\[/p' /etc/fail2ban/jail.local")
+        assert "port = 22,2222" in jail.splitlines(), f"unexpected sshd jail: {jail!r}"
 
     with subtest("base firewall is active"):
         machine.wait_for_unit("firewall.service")
