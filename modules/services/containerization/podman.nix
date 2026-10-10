@@ -103,11 +103,11 @@ in {
       };
     };
 
-    # Guarded at the attrset level, since writing users.users.<name> for an account
-    # othrys doesn't manage would materialize a phantom user on headless hosts.
-    users.users = lib.mkIf usersEnabled {
-      ${username}.extraGroups = ["podman"];
-    };
+    # The primary user is not added to group `podman`. Rootless podman needs
+    # no group, and nixpkgs installs the rootful podman.socket with
+    # SocketGroup=podman whenever podman is on, so the group is access to
+    # the root daemon's API, which is root. A host that wants that for a
+    # user says so in users.users.<name>.extraGroups itself.
 
     environment.systemPackages = with pkgs;
       [
