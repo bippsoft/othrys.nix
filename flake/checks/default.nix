@@ -957,6 +957,13 @@
       eval-shell = import ./shell-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost;};
       eval-floorp = import ./floorp-eval.nix {inherit hostConfig mkExpectations functioningHost;};
 
+      # Which binaries nixvim and vscode take from the language registry (see
+      # ./languages-eval.nix).
+      eval-languages = import ./languages-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit hostConfig mkExpectations functioningHost;
+      };
+
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
 

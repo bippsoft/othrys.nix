@@ -65,6 +65,7 @@ jobs:
             '.#checks.x86_64-linux.eval-listen' \
             '.#checks.x86_64-linux.eval-shell' \
             '.#checks.x86_64-linux.eval-floorp' \
+            '.#checks.x86_64-linux.eval-languages' \
             '.#checks.x86_64-linux.eval-template' \
             '.#checks.x86_64-linux.eval-exports' \
             '.#checks.x86_64-linux.eval-ssh' \
