@@ -109,6 +109,7 @@
     "othrys.services.ddns.enable" # requires provider/hostnames/credentialsFile
     "othrys.apps.idea.enable" # requires othrys.apps.languages.java
     "othrys.services.scrutiny.collector.enable" # collector-only host requires collector.endpoint
+    "othrys.desktop.nightLight.enable" # requires coordinates or geoclue.enable
   ];
 
   results =

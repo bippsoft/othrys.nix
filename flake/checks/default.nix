@@ -190,7 +190,12 @@
         ashell.enable = true;
         compositors.hyprland.enable = true;
         idle.enable = true;
-        nightLight.enable = true;
+        # The night light asks for a location, and these are placeholders.
+        nightLight = {
+          enable = true;
+          latitude = 0.0;
+          longitude = 0.0;
+        };
       };
     };
 
@@ -773,6 +778,12 @@
       eval-lock = import ./lock.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-login = import ./login.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
 
+      # What the desktop modules, kitty and ghostty write (see ./desktop-eval.nix).
+      eval-desktop = import ./desktop-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit hostConfig mkExpectations rejectedWith functioningHost;
+      };
+
       # EXTENDED, heavy, main and manual dispatch
 
       # The same contract over every app and desktop module that writes per-user
@@ -833,7 +844,11 @@
           othrys.services.automount.enable = true;
           othrys.desktop.graphical = true;
           othrys.desktop.idle.enable = true;
-          othrys.desktop.nightLight.enable = true;
+          othrys.desktop.nightLight = {
+            enable = true;
+            latitude = 0.0;
+            longitude = 0.0;
+          };
           othrys.hardware.scanner.enable = true;
           # Pins two failure classes, an unfree package inside home-manager
           # (needs useGlobalPkgs to see nixpkgs.config.allowUnfree) and a

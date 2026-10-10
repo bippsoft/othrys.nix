@@ -78,6 +78,7 @@ jobs:
             '.#checks.x86_64-linux.eval-service-state' \
             '.#checks.x86_64-linux.eval-lock' \
             '.#checks.x86_64-linux.eval-login' \
+            '.#checks.x86_64-linux.eval-desktop' \
             '.#checks.x86_64-linux.impermanence-test'
   # The portable host evaluations on a native ARM runner. It shows that the
   # module tree evaluates for aarch64-linux and nothing more. No VM test runs
