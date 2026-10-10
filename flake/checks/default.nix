@@ -996,6 +996,9 @@
       eval-services = import ./services-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-auto-upgrade = import ./auto-upgrade-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
 
+      # What the option types and the named assertions refuse (see ./types-eval.nix).
+      eval-types = import ./types-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
+
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
 

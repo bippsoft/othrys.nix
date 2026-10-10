@@ -49,6 +49,12 @@
               type = lib.types.listOf lib.types.raw;
               default = [];
             };
+            # The wipe script creates the persisted home at the account's own
+            # home, so the stub carries the one account it reads.
+            users = lib.mkOption {
+              type = lib.types.attrs;
+              default = {};
+            };
             othrys.system.disko.luks.name = lib.mkOption {
               type = lib.types.str;
               default = "cryptroot";
@@ -64,6 +70,7 @@
           config = {
             othrys.system.impermanence.enable = true;
             othrys.system.user.name = "testuser";
+            users.users.testuser.home = "/home/testuser";
             othrys.system.users.enable = usersOn;
           };
         })
