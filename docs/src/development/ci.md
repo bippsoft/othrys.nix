@@ -9,7 +9,9 @@ every pull request, every push to `main` and every manual dispatch, so the core
 tier reports early while the whole suite still gates what lands:
 
 - **Core** (`core` job) runs on every PR/push/dispatch. The cheap, high-value
-  gate: lint (pre-commit), `secret-scan` (gitleaks over every tracked file), the docs build, `eval-host-min` (a minimal
+  gate: lint (pre-commit), `secret-scan` (gitleaks over every tracked file), the docs build,
+  `docs-includes` (every include, anchor, relative link and heading fragment
+  in `docs/src` resolved, since mdbook exits 0 on an include it cannot read), `eval-host-min` (a minimal
   functioning host evaluates), the four server-contract evals
   (`eval-host-headless`, `eval-host-server`, `eval-host-anonymous`,
   `eval-host-server-account`), `eval-bootloader` (every bootloader type with
@@ -72,7 +74,7 @@ job reads the pull request title or any other event text.
 
 | File | Jobs | Purpose |
 |------|------|---------|
-| `build.yml` | **core** | Every PR/push: lint, docs, `eval-host-min`, the server-contract evals, `eval-bootloader`, `impermanence-test` (fast gate) |
+| `build.yml` | **core** | Every PR/push: lint, docs, `docs-includes`, `eval-host-min`, the server-contract evals, `eval-bootloader`, `impermanence-test` (fast gate) |
 | `build.yml` | **core-aarch64** | Every PR/push: the portable host evaluations for `aarch64-linux` on an ARM runner |
 | `build.yml` | **extended** | Every PR/push: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
 | `build.yml` | **extended-ok** | Every PR/push: one status for the matrix, passing only when every leg succeeded |
@@ -126,6 +128,25 @@ Defined in `flake/checks/`, with each VM test in its own file:
 ```
 
 Host build checks live in the consuming fleet flake's `flake/checks.nix`.
+
+## Documentation Includes
+
+mdbook logs an include it cannot read, renders the page with nothing in its
+place and exits 0. The `docs-includes` check is what fails instead. It runs
+`flake/checks/docs-includes.py` over `docs/src`, which resolves each include
+relative to the page that holds it and reports the page, the directive and the
+reason when the file is missing, when the named anchor has no `ANCHOR:` and
+`ANCHOR_END:` pair in the target, or when a line range starts past the end of
+the file. The same pass reports a relative link to a page that does not exist
+and a `#fragment` that matches no heading in the page it points at.
+
+The `docs` check runs the resolver again before `mdbook build`, with the
+generated options reference in place, so links into that page are resolved
+there. The script needs only Python and runs from a checkout:
+
+```bash
+python3 flake/checks/docs-includes.py docs/src --generated reference/options.md
+```
 
 ## Running Locally
 

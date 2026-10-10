@@ -48,6 +48,7 @@ jobs:
             '.#checks.x86_64-linux.pre-commit-check' \
             '.#checks.x86_64-linux.secret-scan' \
             '.#checks.x86_64-linux.docs' \
+            '.#checks.x86_64-linux.docs-includes' \
             '.#checks.x86_64-linux.eval-host-min' \
             '.#checks.x86_64-linux.eval-host-headless' \
             '.#checks.x86_64-linux.eval-host-server' \

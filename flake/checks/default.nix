@@ -422,6 +422,66 @@
       '';
     };
 
+    # The resolver the docs checks run (./docs-includes.py). mdbook logs an
+    # include it cannot read, renders the page without it and exits 0, so the
+    # resolver is what fails on a missing file, anchor, page or heading.
+    docsIncludes = pkgs.writeShellApplication {
+      name = "docs-includes";
+      runtimeInputs = [pkgs.python3];
+      text = ''
+        exec python3 ${./docs-includes.py} "$@"
+      '';
+    };
+
+    # One book per broken case, each expected to fail with its own reason, and
+    # one sound book expected to pass. The directive and the anchor marker are
+    # assembled from parts, so the anchor scan in comment-hygiene does not read
+    # the fixtures as anchors of this file.
+    docsIncludesFixtures = pkgs.writeShellApplication {
+      name = "docs-includes-fixtures";
+      runtimeInputs = [docsIncludes pkgs.coreutils pkgs.gnugrep];
+      text = ''
+        work=$(mktemp -d)
+        trap 'rm -rf "$work"' EXIT
+        fail=0
+        mark=ANCHOR
+        inc="{{#include ../../modules/a.nix"
+
+        # fixture <name> <expected reason, empty when the book is sound> <page line>...
+        fixture() {
+          local name=$1 want=$2
+          shift 2
+          rm -rf "$work/book"
+          mkdir -p "$work/book/docs/src" "$work/book/modules"
+          printf '%s\n' "# Page" "$@" > "$work/book/docs/src/page.md"
+          printf '%s\n' "# $mark: region" "kept = true;" "# ''${mark}_END: region" "# $mark: open" \
+            > "$work/book/modules/a.nix"
+          if docs-includes "$work/book/docs/src" > "$work/out" 2>&1; then
+            [ -z "$want" ] && return 0
+            echo "docs-includes-fixtures: '$name' passed and must fail" >&2
+          else
+            [ -n "$want" ] && grep -qF -- "$want" "$work/out" && return 0
+            echo "docs-includes-fixtures: '$name' did not report '$want':" >&2
+            cat "$work/out" >&2
+          fi
+          fail=1
+        }
+
+        fixture "sound book" "" "$inc:region}}" "$inc:1:2}}" "$inc}}" "[top](#page)" "[self](./page.md#page)"
+        fixture "missing file" "no file at" "{{#include ../../modules/gone.nix:region}}"
+        fixture "missing anchor" "no ANCHOR marker named 'absent'" "$inc:absent}}"
+        fixture "unclosed anchor" "no ANCHOR_END marker named 'open'" "$inc:open}}"
+        fixture "range past the end" "past the end" "$inc:99}}"
+        fixture "missing rustdoc include" "no file at" "{{#rustdoc_include ../../modules/gone.rs:region}}"
+        fixture "missing page" "no file at" "[gone](./gone.md)"
+        fixture "missing heading" "no heading with id 'nowhere'" "[gone](#nowhere)"
+        fixture "missing heading on another page" "no heading with id 'nowhere'" "[gone](./page.md#nowhere)"
+
+        [ "$fail" -eq 0 ] || exit 1
+        echo "docs-includes-fixtures: ok"
+      '';
+    };
+
     # The evaluated config of a host built the way a consumer builds one.
     hostConfig = hostModules:
       (inputs.nixpkgs.lib.nixosSystem {
@@ -1078,16 +1138,33 @@
           touch $out
         '';
 
-      # CORE. The mdbook build fails on broken `{{#include …:anchor}}` references,
-      # so docs/module drift (missing anchors, renamed files) is caught by CI
-      # instead of only surfacing on a manual `just docs build`. The generated
-      # options reference is injected first (see flake/docs-options.nix).
+      # CORE. Every include and every relative link in docs/src resolves. mdbook
+      # exits 0 on an include it cannot read, so a renamed anchor or a moved
+      # file leaves a gap in the rendered page unless something else fails. The
+      # fixtures run first and show that each broken case does fail. The
+      # options reference is generated, so links to it are accepted here and
+      # resolved in the docs check below, which has the file.
+      docs-includes =
+        pkgs.runCommand "othrys-docs-includes" {
+          nativeBuildInputs = [docsIncludes docsIncludesFixtures];
+        } ''
+          docs-includes-fixtures
+          cd ${inputs.self}
+          docs-includes docs/src --generated reference/options.md
+          touch $out
+        '';
+
+      # CORE. The book builds. The generated options reference is injected
+      # first (see flake/docs-options.nix), then the resolver runs over the
+      # complete source and fails the build on a missing include, anchor, page
+      # or heading before mdbook renders anything.
       docs = pkgs.stdenv.mkDerivation {
         name = "othrys-docs";
         src = inputs.self;
-        nativeBuildInputs = [pkgs.mdbook];
+        nativeBuildInputs = [pkgs.mdbook docsIncludes];
         buildPhase = ''
           install -m644 ${config.packages.options-doc} docs/src/reference/options.md
+          docs-includes docs/src
           mdbook build docs/
         '';
         installPhase = "cp -r docs/book $out";

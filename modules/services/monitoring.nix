@@ -14,6 +14,7 @@
   # loopback, where nothing listens once listenAddress names one interface.
   target = port: "${local cfg.listenAddress}:${toString port}";
 in {
+  # ANCHOR: monitoring-options
   options.othrys.services.monitoring = {
     enable = lib.mkEnableOption "Prometheus monitoring";
 
@@ -55,6 +56,7 @@ in {
       description = "Node-exporter collectors enabled in addition to the curated base set.";
     };
   };
+  # ANCHOR_END: monitoring-options
 
   config = lib.mkIf cfg.enable {
     # The TSDB. Upstream names the directory below /var/lib through

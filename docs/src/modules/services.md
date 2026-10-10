@@ -12,7 +12,7 @@ Service modules under `othrys.services.*`.
 | WireGuard | `othrys.services.wireguard` | Raw WireGuard interfaces (site-to-site, exit nodes) |
 | DDNS | `othrys.services.ddns` | Dynamic DNS updates (inadyn) |
 | Headscale | `othrys.services.headscale` | Self-hosted Tailscale control server |
-| Monitoring | `othrys.services.monitoring` | System monitoring tools |
+| Monitoring | `othrys.services.monitoring` | Prometheus server and node exporter |
 | VictoriaMetrics | `othrys.services.victoriametrics` | Time-series database (Prometheus-compatible) |
 | VictoriaLogs | `othrys.services.victorialogs` | Log database (LogsQL, journald ingestion) |
 | Grafana | `othrys.services.grafana` | Dashboards (datasources auto-provisioned) |
@@ -619,6 +619,36 @@ crosses the network:
 
 ```nix
 {{#include ../../../modules/services/mounts/cifs.nix:cifs-options}}
+```
+
+## Monitoring
+
+A Prometheus server and a node exporter on one host. The exporter runs a
+curated set of collectors covering systemd units, processes, CPU, memory,
+disks, filesystems and the network, and `extraCollectors` adds to that set.
+Prometheus scrapes the exporter under the job name `node-exporter` and itself
+under `prometheus`, each labelled with the host name as `instance`.
+
+Both listeners bind `listenAddress`, which is loopback by default, and the
+scrape targets follow it when it names one interface. `openFirewall` opens
+both ports for a Grafana that runs on another host. On an impermanence host
+the TSDB under `/var/lib` is persisted, since `retentionTime` describes a
+window a wiped root would otherwise empty at every boot.
+
+### Options
+
+```nix
+{{#include ../../../modules/services/monitoring.nix:monitoring-options}}
+```
+
+### Usage
+
+```nix
+othrys.services.monitoring = {
+  enable = true;
+  retentionTime = "90d";
+  extraCollectors = ["ethtool"];
+};
 ```
 
 ## VictoriaMetrics
