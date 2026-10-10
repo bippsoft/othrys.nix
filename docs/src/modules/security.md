@@ -70,6 +70,11 @@ The onboarding script handles new key generation, key rotation from backup, mult
 
 Basic intrusion prevention with default jails.
 
+The ban database at `/var/lib/fail2ban` is persisted under impermanence. It
+holds the active bans and the per-address count that `bantime-increment`
+escalates from, so a reboot neither lifts a ban nor resets an offender to the
+base `bantime`.
+
 ### Options
 
 ```nix
@@ -89,6 +94,13 @@ Central-console enrollment (to pull community blocklists) is a one-time runtime
 step, `cscli console enroll <key>` with a key from your secrets provider, left
 to the fleet. Advanced engine/bouncer configuration is available through the
 upstream `services.crowdsec.*` / `services.crowdsec-firewall-bouncer.*` options.
+
+Under impermanence the module persists `/var/lib/crowdsec`, which holds the
+hub, the decision database and the machine credentials, together with
+`/var/lib/crowdsec-firewall-bouncer-register`, which holds the bouncer's API
+key. The two go together, since the engine database records the bouncer as
+registered and the register unit refuses to start when that record exists
+and the key file does not.
 
 The engine runs its own Local API on loopback (`127.0.0.1:8080`), which is what
 the agent authenticates against and what the bouncer reads decisions from,

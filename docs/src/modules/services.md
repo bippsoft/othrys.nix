@@ -198,6 +198,11 @@ correctness). Rules come from `enabledSources` (default `et/open`) via
 outputs) goes through `settings`. Host-specific values (interface names,
 isolcpus, core sets) stay in the fleet.
 
+The fetched sources and the compiled `suricata.rules` live under
+`/var/lib/suricata`, which the module persists under impermanence for the
+`suricata` account. Without that entry a rebooted host runs with no rules
+until the first update after boot succeeds.
+
 ### Options
 
 ```nix
@@ -236,6 +241,11 @@ fleet through `settings`, which is deep-merged over the defaults.
 
 > **Gotcha (Kea 2.6+):** every subnet needs a unique mandatory `id`.
 
+The lease database is persisted at `/var/lib/private/kea`, where a
+`DynamicUser` service keeps it. `/var/lib/kea`, which the default `leasesFile`
+paths go through, is systemd's symlink to it. A host that moves `leasesFile`
+elsewhere persists that path itself.
+
 ### Options
 
 ```nix
@@ -269,6 +279,12 @@ over `services.unbound` with helpers for listen interfaces, per-subnet access
 control, DNS-over-TLS upstream forwarding, and RPZ blocklists. Anything else
 goes through `settings` (freeform unbound.conf), deep-merged over the generated
 config.
+
+Each `rpz` zone is given a zonefile in the state directory, so the fetched
+blocklist is written to disk and loaded from there at the next start rather
+than transferred again. The state directory, `/var/lib/unbound` by default,
+holds those zonefiles and the root trust anchor and is persisted under
+impermanence for the `unbound` account.
 
 ### Options
 
@@ -537,6 +553,12 @@ database from the VictoriaMetrics family (LogsQL queries, minimal footprint).
 The host's systemd journal ships to it natively via `systemd-journal-upload`
 with no extra agent.
 
+The log store is persisted at `/var/lib/private/victorialogs`, where a
+`DynamicUser` service keeps it. The uploader's cursor is persisted beside it
+at `/var/lib/private/systemd/journal-upload` when `collectJournal` is on.
+The journal itself survives a reboot, so a lost cursor would have the
+uploader send every entry a second time.
+
 ### Options
 
 ```nix
@@ -595,6 +617,11 @@ alertmanager-ntfy chain (loopback implementation details, while the consumer
 surface is rules in, phone notifications out). Ships curated starter rules
 (instance down, disk space, memory pressure) that can be disabled or
 extended.
+
+The internal chain's alertmanager keeps its silences and notification log at
+`/var/lib/private/alertmanager`, where a `DynamicUser` service keeps it, and
+the module persists that directory under impermanence. A host that names its
+own `notifierUrls` runs no alertmanager and persists nothing here.
 
 ### Options
 

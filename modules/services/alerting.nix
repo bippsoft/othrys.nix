@@ -16,6 +16,8 @@
   monitoringCfg = config.othrys.services.monitoring;
   vmCfg = config.othrys.services.victoriametrics;
   notifyCfg = config.othrys.services.notify;
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   internalDelivery = notifyCfg.enable && cfg.notifierUrls == [];
   alertmanagerPort = 9093;
@@ -129,6 +131,24 @@ in {
       rules = {
         groups = lib.optionals cfg.starterRules starterGroups ++ cfg.ruleGroups;
       };
+    };
+
+    # Alertmanager keeps its silences and the notification log under
+    # --storage.path, which upstream sets to /var/lib/alertmanager. The unit
+    # runs with DynamicUser and StateDirectory=alertmanager, so that path is
+    # systemd's symlink and the real directory is /var/lib/private/alertmanager
+    # (the victoriametrics pattern). Only the internal chain runs an
+    # alertmanager here, and a host that names its own notifiers has nothing
+    # of its own to keep.
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && internalDelivery) {
+      directories = [
+        {
+          directory = "/var/lib/private/alertmanager";
+          user = "root";
+          group = "root";
+          mode = "0700";
+        }
+      ];
     };
 
     # The internal delivery chain runs alertmanager (grouping/dedup) into the

@@ -6,6 +6,8 @@
   ...
 }: let
   cfg = config.othrys.services.security.fail2ban;
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   # ANCHOR: fail2ban-options
   options.othrys.services.security.fail2ban = {
@@ -46,6 +48,22 @@ in {
   # ANCHOR_END: fail2ban-options
 
   config = lib.mkIf cfg.enable {
+    # The ban database, fail2ban.sqlite3, holds the active bans and the
+    # per-address ban count that bantime-increment escalates from. The daemon
+    # runs as root with StateDirectory=fail2ban at mode 0750, the mode
+    # upstream sets, and a wiped database starts every repeat offender back
+    # at the base bantime.
+    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      directories = [
+        {
+          directory = "/var/lib/fail2ban";
+          user = "root";
+          group = "root";
+          mode = "0750";
+        }
+      ];
+    };
+
     services.fail2ban = {
       enable = true;
       inherit (cfg) maxretry bantime ignoreIP;

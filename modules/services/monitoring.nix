@@ -6,6 +6,8 @@
   ...
 }: let
   cfg = config.othrys.services.monitoring;
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.services.monitoring = {
     enable = lib.mkEnableOption "Prometheus monitoring";
@@ -50,6 +52,22 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # The TSDB. Upstream names the directory below /var/lib through
+    # services.prometheus.stateDir and runs the server as the static
+    # prometheus account with StateDirectoryMode 0700, so there is no
+    # /var/lib/private indirection here. retentionTime describes the window
+    # kept on disk, and a wiped root empties it at every boot.
+    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      directories = [
+        {
+          directory = "/var/lib/${config.services.prometheus.stateDir}";
+          user = "prometheus";
+          group = "prometheus";
+          mode = "0700";
+        }
+      ];
+    };
+
     services.prometheus = {
       enable = true;
       inherit (cfg) port listenAddress retentionTime;

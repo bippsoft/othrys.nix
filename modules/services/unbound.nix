@@ -9,6 +9,8 @@
   ...
 }: let
   cfg = config.othrys.services.unbound;
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   rpzType = lib.types.submodule {
     options = {
@@ -35,8 +37,18 @@
         }
       ];
     })
+    # Each RPZ zone names a zonefile, relative to unbound's working directory,
+    # which upstream sets to its state directory. Without one unbound keeps
+    # the fetched zone in memory alone and fetches it again at every start.
+    # With one it writes the zone to disk, loads it from there on the next
+    # start, and only transfers again when the zone's refresh timer says so.
     (lib.optionalAttrs (cfg.rpz != []) {
-      rpz = map (r: {inherit (r) name url;}) cfg.rpz;
+      rpz =
+        map (r: {
+          inherit (r) name url;
+          zonefile = "rpz-${r.name}.zone";
+        })
+        cfg.rpz;
     })
     cfg.settings
   ];
@@ -95,6 +107,19 @@ in {
   # ANCHOR_END: unbound-options
 
   config = lib.mkIf cfg.enable {
+    # The state directory holds the root trust anchor that unbound-anchor
+    # primes and the RPZ zonefiles named above. Upstream runs the daemon as
+    # its own account with StateDirectory=unbound at the default 0755.
+    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      directories = [
+        {
+          directory = config.services.unbound.stateDir;
+          inherit (config.services.unbound) user group;
+          mode = "0755";
+        }
+      ];
+    };
+
     services.unbound = {
       enable = true;
       settings = generated;

@@ -24,6 +24,8 @@
 }: let
   cfg = config.othrys.services.suricata;
   router = config.othrys.services.router;
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
   sandbox = import ../lib/sandbox.nix;
   notifyEnabled = config.othrys.services.notify.enable;
 
@@ -256,6 +258,24 @@ in {
         message = "othrys.services.router.suricata.queues (${toString router.suricata.queues}) and othrys.services.suricata.nfqueue.queues (${toString cfg.nfqueue.queues}) differ; packets sent to a queue Suricata is not bound to bypass inspection.";
       }
     ];
+
+    # suricata-update writes the fetched sources and the compiled
+    # suricata.rules under /var/lib/suricata, which upstream creates through
+    # tmpfiles at 0755 for the run-as account. The update unit sets
+    # DynamicUser with no StateDirectory, so the directory stays where
+    # tmpfiles put it and never moves under /var/lib/private. On a wiped root
+    # the engine starts with an empty ruleset until the first update
+    # succeeds, and an update that fails offline leaves it that way.
+    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      directories = [
+        {
+          directory = "/var/lib/suricata";
+          user = config.services.suricata.settings.run-as.user;
+          group = config.services.suricata.settings.run-as.group;
+          mode = "0755";
+        }
+      ];
+    };
 
     services.suricata = {
       enable = true;

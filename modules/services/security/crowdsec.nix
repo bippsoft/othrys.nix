@@ -34,6 +34,9 @@
   bouncer = config.services.crowdsec-firewall-bouncer.settings;
   forwardHook = cfg.firewallBouncer.enable && routerEnabled && bouncer.mode == "nftables";
 
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
+
   stateDir = "/var/lib/crowdsec/state";
 
   # A chain in the bouncer's own table, where its set lives, hooked on forward
@@ -132,6 +135,33 @@ in {
       enable = true;
       # Register with the locally running engine (no manual API key needed).
       registerBouncer.enable = true;
+    };
+
+    # /var/lib/crowdsec is the engine's StateDirectory (pinned to the static
+    # account below, so it is a real directory and not a /var/lib/private
+    # symlink). Under it sit the hub, the decision database and the machine
+    # credentials minted on first start. The bouncer's API key lives in the
+    # register unit's own StateDirectory, and the two go together. The engine
+    # database records the bouncer as registered, and the register unit
+    # refuses to start when that record exists and the key file does not,
+    # with "Bouncer registered but API key is not present". Persisting one
+    # without the other leaves the bouncer failed from the second boot on.
+    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      directories =
+        [
+          {
+            directory = "/var/lib/crowdsec";
+            user = config.services.crowdsec.user;
+            group = config.services.crowdsec.group;
+            mode = "0755";
+          }
+        ]
+        ++ lib.optional cfg.firewallBouncer.enable {
+          directory = "/var/lib/crowdsec-firewall-bouncer-register";
+          user = config.services.crowdsec.user;
+          group = config.services.crowdsec.group;
+          mode = "0755";
+        };
     };
 
     networking.nftables.tables = lib.mkIf forwardHook {

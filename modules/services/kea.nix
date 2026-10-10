@@ -12,6 +12,8 @@
   ...
 }: let
   cfg = config.othrys.services.kea;
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   mkPool = family: {
     enable = lib.mkOption {
@@ -84,6 +86,25 @@ in {
         message = "othrys.services.kea: dhcp6.interfaces must list at least one interface.";
       }
     ];
+
+    # The lease database. The upstream units run with DynamicUser and
+    # StateDirectory=kea, so /var/lib/kea is systemd's symlink and the real
+    # directory is /var/lib/private/kea (the victoriametrics pattern). A bind
+    # mount at /var/lib/kea itself would be a plain directory where systemd
+    # expects to place a symlink, and the units would fail to start. The
+    # default leasesFile paths resolve through the symlink into this
+    # directory, and a host that points leasesFile elsewhere declares that
+    # path itself.
+    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      directories = [
+        {
+          directory = "/var/lib/private/kea";
+          user = "root";
+          group = "root";
+          mode = "0700";
+        }
+      ];
+    };
 
     services.kea.dhcp4 = lib.mkIf cfg.dhcp4.enable {
       enable = true;

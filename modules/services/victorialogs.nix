@@ -59,15 +59,29 @@ in {
     # Log storage. The upstream unit runs with DynamicUser + StateDirectory,
     # so the real data lives under /var/lib/private (the victoriametrics
     # pattern).
+    #
+    # The uploader's cursor sits beside it. systemd-journal-upload runs with
+    # `--save-state` under DynamicUser and StateDirectory=systemd/journal-upload,
+    # so its state file is at /var/lib/private/systemd/journal-upload and
+    # /var/lib/systemd/journal-upload is the symlink to it. The persisted
+    # journal survives a reboot, and with the cursor gone the uploader starts
+    # again from the journal's first entry and sends every line a second time.
     environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
-      directories = [
-        {
-          directory = "/var/lib/private/victorialogs";
+      directories =
+        [
+          {
+            directory = "/var/lib/private/victorialogs";
+            user = "root";
+            group = "root";
+            mode = "0700";
+          }
+        ]
+        ++ lib.optional cfg.collectJournal {
+          directory = "/var/lib/private/systemd/journal-upload";
           user = "root";
           group = "root";
           mode = "0700";
-        }
-      ];
+        };
     };
 
     services.victorialogs = {
