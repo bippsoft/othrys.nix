@@ -984,6 +984,7 @@
 
       # What the smaller service modules pass upstream and refuse (see ./services-eval.nix).
       eval-services = import ./services-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
+      eval-auto-upgrade = import ./auto-upgrade-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
 
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};

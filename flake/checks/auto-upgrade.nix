@@ -63,6 +63,7 @@ in
 
     testScript = {nodes, ...}: ''
       import json
+      import time
 
       UNIT = "othrys-auto-upgrade-verify.service"
       STATE = "/var/lib/othrys-auto-upgrade-verify"
@@ -111,10 +112,12 @@ in
           )
 
 
-      def commit(node, message, signer=None):
+      def commit(node, message, signer=None, days_ago=0):
           how = f"{SIGNERS[signer]} commit -S" if signer else "commit --no-gpg-sign"
+          # git takes a committer date as epoch seconds with an offset.
+          when = f"GIT_COMMITTER_DATE='{int(time.time()) - days_ago * 86400} +0000'" if days_ago else ""
           node.succeed(
-              f"cd /root/work && {GPG} git {how} --quiet --allow-empty -m '{message}'",
+              f"cd /root/work && {when} {GPG} git {how} --quiet --allow-empty -m '{message}'",
               "git -C /root/work push --quiet --force origin HEAD:main",
           )
           return node.succeed("git -C /root/work rev-parse HEAD").strip()
@@ -185,6 +188,15 @@ in
           with subtest("the same commit verifies again"):
               node.succeed(START)
               assert verified(node) == first
+
+          with subtest("a verified commit older than maxAge is reported"):
+              commit(node, "stale", signer=listed, days_ago=60)
+              node.succeed(START)
+              node.succeed("journalctl --sync")
+              log = node.succeed(
+                  f"journalctl -o cat _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value {UNIT})"
+              )
+              assert "past verify.maxAge" in log, f"expected the stale warning in: {log}"
 
           with subtest("the upgrade requires and follows the verify unit"):
               wiring = node.succeed("systemctl show nixos-upgrade.service -p Requires -p After")
