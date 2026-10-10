@@ -80,6 +80,17 @@
       collections = [];
     };
   };
+  collectorBesideCrowdsec = host {
+    othrys.services.headscale.port = 8081;
+    othrys.services.scrutiny.collector = {
+      enable = true;
+      endpoint = "https://scrutiny.example.com";
+    };
+    othrys.services.security.crowdsec = {
+      enable = true;
+      collections = [];
+    };
+  };
   withDocs = host {
     othrys.services.docs.enable = true;
     othrys.services.headscale.ui = {
@@ -122,6 +133,7 @@ in
     "nameservers are not required when local DNS is not overridden" = !rejectedWith "nameservers" noOverride;
     "the scrutiny port clash is rejected" = rejectedWith "scrutiny.port" withScrutiny;
     "the crowdsec port clash is rejected" = rejectedWith "CrowdSec local API" withCrowdsec;
+    "a scrutiny collector beside crowdsec binds no port and is accepted" = !rejectedWith "CrowdSec local API" collectorBesideCrowdsec;
     "the docs port clash is rejected" = rejectedWith "docs.port" withDocs;
     "the state directory is persisted with upstream's mode" = stateEntry.mode == "0750";
   }

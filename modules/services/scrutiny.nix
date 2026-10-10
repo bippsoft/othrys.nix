@@ -112,8 +112,10 @@ in {
         assertion = cfg.collector.enable -> (cfg.enable || cfg.collector.endpoint != null);
         message = "othrys.services.scrutiny: a collector-only host must set collector.endpoint (there is no local web UI to report to).";
       }
+      # The hub binds `port`; a collector-only host binds nothing, so the
+      # clash is the hub's alone.
       {
-        assertion = !(config.othrys.services.security.crowdsec.enable && cfg.port == 8080);
+        assertion = !(cfg.enable && config.othrys.services.security.crowdsec.enable && cfg.port == 8080);
         message = "othrys.services.scrutiny: port 8080 is where the CrowdSec local API listens on this host. Give Scrutiny another port.";
       }
     ];
