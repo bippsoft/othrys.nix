@@ -59,6 +59,27 @@ in {
             description = "Open listenPort in the firewall (requires listenPort).";
           };
 
+          mtu = lib.mkOption {
+            type = lib.types.nullOr lib.types.ints.positive;
+            default = null;
+            example = 1280;
+            description = "MTU of the interface in bytes. Null leaves the WireGuard default of 1420, which is too large where the path underneath carries less than 1500.";
+          };
+
+          fwMark = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            example = "0x6e6978";
+            description = "Firewall mark set on the encrypted packets this interface sends. Policy routing uses it to keep the tunnel's own packets out of the tunnel when `allowedIPs` covers the default route.";
+          };
+
+          table = lib.mkOption {
+            type = lib.types.str;
+            default = "main";
+            example = "51820";
+            description = "Routing table the routes for `allowedIPs` are added to, by name or number. Anything but `main` leaves the default route alone until an `ip rule` selects the table.";
+          };
+
           peers = lib.mkOption {
             default = [];
             description = "Peers for this interface.";
@@ -84,6 +105,12 @@ in {
                   example = 25;
                   description = "Keepalive interval in seconds (needed behind NAT).";
                 };
+                presharedKeyFile = lib.mkOption {
+                  type = lib.types.nullOr othrysTypes.secretPath;
+                  default = null;
+                  example = lib.literalExpression ''config.sops.secrets."wireguard/wg0-psk".path'';
+                  description = "Path to a runtime file holding the preshared key for this peer, from `wg genpsk` (a secrets-provider path). Both ends must hold the same key.";
+                };
               };
             });
           };
@@ -103,14 +130,14 @@ in {
 
     networking.wireguard.interfaces =
       lib.mapAttrs (_: iface: {
-        inherit (iface) privateKeyFile ips;
-        inherit (iface) listenPort;
+        inherit (iface) privateKeyFile ips listenPort mtu fwMark table;
         peers = map (p:
           {
             inherit (p) publicKey allowedIPs;
           }
           // lib.optionalAttrs (p.endpoint != null) {inherit (p) endpoint;}
-          // lib.optionalAttrs (p.persistentKeepalive != null) {inherit (p) persistentKeepalive;})
+          // lib.optionalAttrs (p.persistentKeepalive != null) {inherit (p) persistentKeepalive;}
+          // lib.optionalAttrs (p.presharedKeyFile != null) {inherit (p) presharedKeyFile;})
         iface.peers;
       })
       cfg.interfaces;

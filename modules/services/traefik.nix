@@ -48,15 +48,19 @@
       };
     }
     // lib.optionalAttrs cfg.acme.enable {
-      certificatesResolvers.${cfg.acme.resolver}.acme = {
-        email = cfg.acme.email;
-        storage = acmeStorage;
-        dnsChallenge =
-          {provider = cfg.acme.dnsProvider;}
-          // lib.optionalAttrs (cfg.acme.dnsResolvers != []) {
-            resolvers = cfg.acme.dnsResolvers;
-          };
-      };
+      certificatesResolvers.${cfg.acme.resolver}.acme =
+        {
+          email = cfg.acme.email;
+          storage = acmeStorage;
+          dnsChallenge =
+            {provider = cfg.acme.dnsProvider;}
+            // lib.optionalAttrs (cfg.acme.dnsResolvers != []) {
+              resolvers = cfg.acme.dnsResolvers;
+            };
+        }
+        // lib.optionalAttrs (cfg.acme.caServer != null) {
+          inherit (cfg.acme) caServer;
+        };
     };
 
   headersMiddleware = "othrys-security-headers";
@@ -114,7 +118,7 @@ in {
       insecure = lib.mkOption {
         type = lib.types.bool;
         default = false;
-        description = "Expose the dashboard on :8080 without auth. Convenient but unsafe, so prefer a secured router.";
+        description = "Expose the dashboard on :8080 without auth. Convenient but unsafe, so prefer a secured router. The firewall port stays closed whatever openFirewall says.";
       };
     };
 
@@ -150,7 +154,19 @@ in {
       storage = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        description = "Path to acme.json. Defaults to <dataDir>/acme.json.";
+        description = "Path to acme.json. Defaults to <dataDir>/acme.json, and must stay under dataDir, which is the directory persisted under impermanence.";
+      };
+
+      caServer = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "https://acme-staging-v02.api.letsencrypt.org/directory";
+        description = ''
+          ACME directory URL written to the certificate resolver. Null leaves
+          Traefik on the Let's Encrypt production directory. Point it at the
+          staging directory while bringing a host up, since production
+          rate-limits failed orders.
+        '';
       };
     };
 
@@ -236,7 +252,7 @@ in {
     openFirewall = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Open the web/websecure ports (and :8080 if the insecure dashboard is on).";
+      description = "Open the web (:80) and websecure (:443) ports. The API and dashboard port, :8080, is never opened here, since the insecure dashboard carries no authentication.";
     };
 
     staticConfigOptions = lib.mkOption {
@@ -264,6 +280,13 @@ in {
         assertion = !cfg.acme.enable || cfg.environmentFiles != [];
         message = "othrys.services.traefik: DNS-01 ACME needs the provider credential via environmentFiles (e.g. a sops secret exporting the DNS API token).";
       }
+      # dataDir is the one directory this module persists under impermanence.
+      # An acme.json anywhere else is lost at reboot, and every certificate is
+      # ordered again until the CA rate limit refuses the host.
+      {
+        assertion = !cfg.acme.enable || lib.hasPrefix "${toString cfg.dataDir}/" acmeStorage;
+        message = "othrys.services.traefik: acme.storage (${acmeStorage}) must be under dataDir (${toString cfg.dataDir}), the directory persisted under impermanence.";
+      }
     ];
 
     services.traefik = {
@@ -273,10 +296,10 @@ in {
       staticConfigOptions = lib.recursiveUpdate generatedStatic cfg.staticConfigOptions;
     };
 
+    # The insecure dashboard answers on :8080 with no authentication, so the
+    # port is left closed and a host that wants it reachable opens it itself.
     networking.firewall = lib.mkIf cfg.openFirewall {
-      allowedTCPPorts =
-        [80 443]
-        ++ lib.optional (cfg.dashboard.enable && cfg.dashboard.insecure) 8080;
+      allowedTCPPorts = [80 443];
     };
 
     # Certificates (acme.json) must survive reboots under impermanence.

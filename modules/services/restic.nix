@@ -16,6 +16,10 @@
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.restic;
 
+  # A URL of the form scheme://user:password@host. `repository` is written
+  # into the unit's environment, which sits in the world-readable store.
+  carriesCredentials = repository: repository != null && builtins.match ".*://[^/@]*:[^/@]*@.*" repository != null;
+
   backupType = lib.types.submodule {
     options = {
       paths = lib.mkOption {
@@ -29,7 +33,7 @@
         type = lib.types.nullOr lib.types.str;
         default = null;
         example = "/mnt/backup/restic";
-        description = "Repository location for non-sensitive targets (e.g. a local path). Use repositoryFile when the URL carries a host or credentials.";
+        description = "Repository location for non-sensitive targets (e.g. a local path). The value is written to the unit file in the store, so a URL with `user:password@` in it is rejected. Use repositoryFile when the URL carries a host or credentials.";
       };
 
       repositoryFile = lib.mkOption {
@@ -68,7 +72,14 @@
       initialize = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Create the repository on first run if it does not exist.";
+        description = ''
+          Create the repository on first run when none exists at the
+          location. Where several hosts back up into one repository, leave
+          this on for one host and set it to `false` on the rest. Two first
+          runs can otherwise both initialise the repository, and a host
+          pointed at the wrong location creates an empty repository there
+          instead of failing.
+        '';
       };
 
       timerConfig = lib.mkOption {
@@ -156,15 +167,21 @@ in {
   # ANCHOR_END: restic-options
 
   config = lib.mkIf cfg.enable {
-    # restic itself asserts exactly one repository source (repository /
-    # repositoryFile / environmentFile). We only add the friendlier check that a
-    # password has *some* source, since a missing one otherwise fails at runtime.
-    assertions =
-      lib.mapAttrsToList (name: b: {
-        assertion = b.passwordFile != null || b.environmentFile != null;
-        message = "othrys.services.restic.backups.${name}: set passwordFile (a secrets-provider path) or supply RESTIC_PASSWORD via environmentFile.";
-      })
-      cfg.backups;
+    # Upstream asserts exactly one repository source (repository,
+    # repositoryFile or environmentFile). Two checks are added here. A
+    # password needs some source, since a missing one fails only at runtime,
+    # and a repository URL must not carry credentials into the store.
+    assertions = lib.concatLists (lib.mapAttrsToList (name: b: [
+        {
+          assertion = b.passwordFile != null || b.environmentFile != null;
+          message = "othrys.services.restic.backups.${name}.passwordFile is unset and so is environmentFile. Set passwordFile (a secrets-provider path) or supply RESTIC_PASSWORD via environmentFile.";
+        }
+        {
+          assertion = !carriesCredentials b.repository;
+          message = "othrys.services.restic.backups.${name}.repository carries credentials in its URL, which would be written to the store. Put the URL in a runtime file and set repositoryFile instead.";
+        }
+      ])
+      cfg.backups);
 
     # Restic CLI for manual snapshot/restore against the same repositories.
     environment.systemPackages = [pkgs.restic];

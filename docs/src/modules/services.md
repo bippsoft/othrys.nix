@@ -336,6 +336,20 @@ than transferred again. The state directory, `/var/lib/unbound` by default,
 holds those zonefiles and the root trust anchor and is persisted under
 impermanence for the `unbound` account.
 
+`accessControl` defaults to loopback plus the subnet of every address in
+`interfaces`, a /24 for IPv4 and a /64 for IPv6, so a resolver bound to a LAN
+address answers that LAN without a second option. Upstream's own default
+allows loopback alone. A wildcard address or an interface name derives
+nothing, and a host that listens on one sets `accessControl` itself.
+
+Every `rpz` source must use `https://`, and an assertion refuses any other
+scheme, since the zone rewrites answers for every client of the resolver. A
+non-empty `rpz` also sets `server.module-config` to
+`respip validator iterator`, because Unbound serves a response policy zone
+through the respip module and `unbound-checkconf` rejects the configuration
+without it. The value is set with `mkDefault`, so a host's own
+`module-config` wins.
+
 ### Options
 
 ```nix
@@ -364,7 +378,15 @@ Scheduled [restic](https://restic.net/) backups, one entry per named backup
 runtime **file path** sourced from a secrets provider (e.g. sops), never an
 inline value or a `/nix/store` path. Use `passwordFile`, `repositoryFile`,
 `environmentFile`, and `rcloneConfigFile`. Use plain `repository` only for
-non-sensitive locations (a local disk path).
+non-sensitive locations (a local disk path). A `repository` URL with
+`user:password@` in it is refused by an assertion, since the value is written
+to the unit file in the store.
+
+`initialize` is on by default and creates the repository on the first run when
+none exists. Where several hosts share one repository, one host keeps it on
+and the rest set `initialize = false`. Two first runs can otherwise both
+initialise the repository, and a host pointed at the wrong location creates an
+empty repository there instead of failing.
 
 ### Options
 
@@ -542,6 +564,20 @@ the default of Scrutiny's web UI and of the CrowdSec local API, and
 Headplane's default, 3000, is the documentation server's; the module refuses
 each clash on the same host.
 
+## Printing
+
+CUPS with the Gutenprint drivers, and optionally Avahi for printer discovery.
+CUPS listens on `localhost:631` unless `listenAddresses` names another
+address, and `openFirewall` opens the TCP ports of those addresses. A print
+server reached from other hosts also sets `services.printing.allowFrom`, which
+the module leaves at upstream's `localhost`.
+
+### Options
+
+```nix
+{{#include ../../../modules/services/printing.nix:printing-options}}
+```
+
 ## Mounts
 
 Non-system filesystem mounts, grouped under `othrys.services.mounts.*`.
@@ -711,6 +747,11 @@ The internal chain's alertmanager keeps its silences and notification log at
 the module persists that directory under impermanence. A host that names its
 own `notifierUrls` runs no alertmanager and persists nothing here.
 
+The rendered rule file is parsed with `vmalert -dryRun` while the system is
+built, so a rule group, an expression or an annotation template that does not
+parse fails the build instead of stopping the unit on the host. No datasource
+is contacted. `checkRules = false` turns the check off.
+
 ### Options
 
 ```nix
@@ -780,6 +821,28 @@ coordination-server-free complement to [Tailscale](#tailscale). Private keys
 are secrets-provider paths, and per-interface `openFirewall` opens the listen
 port.
 
+`mtu`, `fwMark` and `table` are passed to the upstream interface, and each
+peer takes an optional `presharedKeyFile`. A peer whose `allowedIPs` covers
+the default route needs the last two together. `table` moves the tunnel's
+routes out of `main`, and `fwMark` lets an `ip rule` send everything except
+the tunnel's own encrypted packets to that table.
+
+```nix
+othrys.services.wireguard.interfaces.wg0 = {
+  privateKeyFile = config.sops.secrets."wireguard/wg0".path;
+  ips = ["10.100.0.2/24"];
+  mtu = 1380;
+  fwMark = "0x6e6978";
+  table = "51820";
+  peers = [{
+    publicKey = "<peer public key>";
+    allowedIPs = ["0.0.0.0/0"];
+    endpoint = "vpn.example.com:51820";
+    presharedKeyFile = config.sops.secrets."wireguard/wg0-psk".path;
+  }];
+};
+```
+
 ### Options
 
 ```nix
@@ -809,6 +872,23 @@ subdomains or preload, `X-Content-Type-Options: nosniff`, and
 host name embeds in an iframe. Give that router its own headers middleware, or
 change `securityHeaders.frameOptions`.
 
+`openFirewall` opens 80 and 443 and nothing else. The API and dashboard port,
+8080, stays closed even with `dashboard.insecure`, because that listener
+carries no authentication. A host that wants it reachable opens the port in
+its own firewall configuration.
+
+`acme.storage` has to sit under `dataDir`, which is the directory the module
+persists under impermanence, and an assertion refuses any other path. An
+`acme.json` lost at reboot means every certificate is ordered again until the
+CA rate limit refuses the host. `acme.caServer` sets the ACME directory of the
+resolver, which is where the Let's Encrypt staging URL goes while a host is
+being brought up.
+
+```nix
+othrys.services.traefik.acme.caServer =
+  "https://acme-staging-v02.api.letsencrypt.org/directory";
+```
+
 Each default has its own switch.
 
 ```nix
@@ -834,6 +914,12 @@ Dynamic DNS via inadyn, keeping hostnames pointing at a dynamic residential
 IP, pairing with [Traefik](#traefik)'s DNS-01 ACME. Credentials arrive as an
 inadyn include snippet (`password = <token>`) from a secrets provider. inadyn
 reads it as its own user, so the secret needs `owner = "inadyn"`.
+
+`provider` is an enum of the names inadyn registers, which `inadyn -L` lists.
+It takes the full name, such as `default@cloudflare.com` or `ipv6@dynv6.com`,
+or the service name after the `@`, such as `cloudflare.com`. inadyn itself
+accepts any substring of a name, so a misspelt provider would otherwise reach
+the daemon and fail at its first run.
 
 ### Options
 

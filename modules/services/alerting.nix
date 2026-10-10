@@ -9,6 +9,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }: let
   inherit (import ../lib/net.nix {inherit lib;}) local;
@@ -28,6 +29,20 @@
   # notify.tokenFile at boot (see the config block below).
   bridgeAuthDir = "othrys-alerting";
   bridgeAuthFile = "/run/${bridgeAuthDir}/ntfy-auth.yml";
+
+  # vmalert reads its rules at start, so a rule that does not parse stops the
+  # unit on the host and nothing else reports it. The rendered file is passed
+  # through `vmalert -dryRun` in a derivation instead, which parses the
+  # groups, the expressions and the annotation templates and contacts no
+  # datasource. A broken rule then fails the build.
+  rulesFile = (pkgs.formats.yaml {}).generate "rules.yml" {groups = ruleGroups;};
+  checkedRulesFile =
+    pkgs.runCommand "vmalert-othrys-rules.yml" {
+      preferLocalBuild = true;
+    } ''
+      ${config.services.vmalert.package}/bin/vmalert -dryRun -rule=${rulesFile}
+      cp ${rulesFile} $out
+    '';
 
   starterGroups = [
     {
@@ -57,6 +72,7 @@
       ];
     }
   ];
+  ruleGroups = lib.optionals cfg.starterRules starterGroups ++ cfg.ruleGroups;
 in {
   # ANCHOR: alerting-options
   options.othrys.services.alerting = {
@@ -106,6 +122,16 @@ in {
       default = [];
       description = "Additional Prometheus-style rule groups appended to the starter set.";
     };
+
+    checkRules = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Parse the rendered rule file with `vmalert -dryRun` at build time, so
+        a rule that does not parse fails the build instead of the service.
+        Set to `false` where vmalert cannot run on the build host.
+      '';
+    };
   };
   # ANCHOR_END: alerting-options
 
@@ -132,7 +158,7 @@ in {
         httpListenAddr = "${cfg.listenAddress}:${toString cfg.port}";
       };
       rules = {
-        groups = lib.optionals cfg.starterRules starterGroups ++ cfg.ruleGroups;
+        groups = ruleGroups;
       };
     };
 
@@ -153,6 +179,10 @@ in {
         }
       ];
     };
+
+    # Upstream renders `rules` to this path unchecked. The checked copy
+    # replaces it, and the unit's reload trigger follows the same source.
+    environment.etc."vmalert-othrys/rules.yml".source = lib.mkIf cfg.checkRules (lib.mkForce checkedRulesFile);
 
     # The internal delivery chain runs alertmanager (grouping/dedup) into the
     # alertmanager-ntfy bridge -> the notify endpoint. Both loopback-only.

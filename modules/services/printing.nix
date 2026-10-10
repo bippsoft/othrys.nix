@@ -10,11 +10,31 @@
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
+  # ANCHOR: printing-options
   options.othrys.services.printing = {
     enable = lib.mkEnableOption "CUPS printing service";
 
     avahi = lib.mkEnableOption "Avahi for network printer discovery";
+
+    listenAddresses = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = ["localhost:631"];
+      example = ["*:631"];
+      description = ''
+        Addresses and ports CUPS listens on (services.printing.listenAddresses).
+        The default is loopback only. A print server reached from other
+        hosts lists an address here and also sets
+        `services.printing.allowFrom`, which stays at upstream's `localhost`.
+      '';
+    };
+
+    openFirewall = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Open the TCP ports named in `listenAddresses` in the firewall (services.printing.openFirewall).";
+    };
   };
+  # ANCHOR_END: printing-options
 
   config = lib.mkIf cfg.enable {
     # Persistence for printer configuration
@@ -31,6 +51,7 @@ in {
 
     services.printing = {
       enable = true;
+      inherit (cfg) listenAddresses openFirewall;
       drivers = with pkgs; [gutenprint];
     };
 
@@ -41,8 +62,9 @@ in {
       openFirewall = true;
     };
 
-    # Printer configuration GUI only on desktop hosts. Headless print
-    # servers administer CUPS via its web UI on :631.
+    # Printer configuration GUI only on desktop hosts. A headless print
+    # server is administered through the CUPS web UI on :631, which answers
+    # on loopback until listenAddresses names another address.
     environment.systemPackages = lib.optionals config.othrys.desktop.graphical (with pkgs; [
       system-config-printer
     ]);
