@@ -914,7 +914,7 @@
       eval-headscale = import ./headscale-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
       eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
       eval-exposure = import ./exposure-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost;};
-      eval-claude-code = import ./claude-code-eval.nix {inherit hostConfig mkExpectations functioningHost inputs;};
+      eval-claude-code = import ./claude-code-eval.nix {inherit hostConfig mkExpectations functioningHost bootBase inputs;};
       eval-k3s = import ./k3s-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
       eval-pam = import ./pam-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-containers = import ./containers-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
