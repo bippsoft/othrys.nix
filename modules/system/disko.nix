@@ -24,6 +24,21 @@
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.system.disko;
+
+  # cryptsetup falls back to defaults compiled into its build for whatever
+  # luksFormat is not told, and those have changed between releases. Stating
+  # them makes two installs from one revision produce the same header. The
+  # values are the current upstream defaults for LUKS2, which is AES-XTS with
+  # a 512-bit key (two 256-bit halves), SHA-256 for the header digest and
+  # Argon2id for the passphrase. They apply when disko formats the disk and
+  # never touch an existing volume.
+  luksFormatArgs = [
+    "--type luks2"
+    "--cipher aes-xts-plain64"
+    "--key-size 512"
+    "--hash sha256"
+    "--pbkdf argon2id"
+  ];
 in {
   # ANCHOR: disko-options
   options.othrys.system.disko = {
@@ -34,6 +49,10 @@ in {
       description = ''
         Disk device path. Use /dev/disk/by-id/ for reliable identification.
         Find your disk ID with: ls -l /dev/disk/by-id/
+
+        A path outside /dev/disk/, such as /dev/sda, evaluates with a
+        warning. The kernel hands those names out in probe order, so the same
+        name can be another disk on the next boot.
       '';
       example = "/dev/disk/by-id/nvme-VENDOR_MODEL_XXXXXXXXXXXXX";
     };
@@ -89,7 +108,12 @@ in {
       allowDiscards = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Enable TRIM/discard for SSD (recommended for SSDs).";
+        description = ''
+          Pass TRIM requests through dm-crypt to the SSD. The requests show an
+          observer of the raw disk which blocks are free, which is the price
+          of keeping the drive's performance. `services.fstrim.enable`
+          follows this option, since the passthrough alone discards nothing.
+        '';
       };
 
       bypassWorkqueues = lib.mkOption {
@@ -130,6 +154,14 @@ in {
   # ANCHOR_END: disko-options
 
   config = lib.mkIf cfg.enable {
+    warnings = lib.optional (!lib.hasPrefix "/dev/disk/" cfg.device) "othrys.system.disko.device is ${cfg.device}, a name the kernel assigns in probe order. disko formats whatever disk carries that name at install time, and the host waits in the initrd if it moves afterwards. Use a path under /dev/disk/by-id/.";
+
+    # allowDiscards only lets a discard through the encryption layer, and no
+    # subvolume is mounted with one, so something has to issue it. The weekly
+    # fstrim timer is that. mkDefault leaves a host free to mount with
+    # discard=async instead.
+    services.fstrim.enable = lib.mkDefault cfg.luks.allowDiscards;
+
     # FIDO2/YubiKey unlock, which tells the (systemd) initrd to try a FIDO2 token for
     # the root device before prompting for the passphrase. The keyslot itself is
     # added out-of-band via `just luks-enroll` (it lives in the LUKS2 header).
@@ -178,6 +210,7 @@ in {
                     type = "luks";
                     name = cfg.luks.swapName;
                     inherit (cfg.luks) passwordFile;
+                    extraFormatArgs = luksFormatArgs;
                     settings = {
                       inherit (cfg.luks) allowDiscards bypassWorkqueues;
                     };
@@ -194,6 +227,7 @@ in {
                 content = {
                   type = "luks";
                   inherit (cfg.luks) name passwordFile;
+                  extraFormatArgs = luksFormatArgs;
                   settings = {
                     inherit (cfg.luks) allowDiscards bypassWorkqueues;
                   };

@@ -27,7 +27,7 @@ Service modules under `othrys.services.*`.
 | Unbound | `othrys.services.unbound` | Recursive DNS (DoT upstream, RPZ blocklists) |
 | Traefik | `othrys.services.traefik` | Reverse proxy with DNS-01 ACME, a TLS floor and security headers |
 | Restic | `othrys.services.restic` | Scheduled restic backups (secrets via file paths) |
-| Virtual Camera | `othrys.services.virtualcamera` | Virtual camera support |
+| Virtual Camera | `othrys.services.virtualcamera` | v4l2loopback devices, numbered from `videoNr`, enabled by `othrys.apps.obs` |
 | Printing | `othrys.services.printing` | CUPS printing |
 | Mounts (Disks) | `othrys.services.mounts.disks` | Additional disk mounts (NTFS, ext4, btrfs) |
 | Mounts (CIFS) | `othrys.services.mounts.cifs` | CIFS/SMB network share mounts |
@@ -500,6 +500,12 @@ Non-system filesystem mounts, grouped under `othrys.services.mounts.*`.
 
 Additional local disk mounts (NTFS, ext4, btrfs, xfs, vfat).
 
+NTFS and vfat store no Unix owner, so both are mounted with `uid`, `gid`,
+`dmask` and `fmask` from the device's options. The defaults are uid 1000 and
+gid 100, which is the first account on a NixOS host and the `users` group. A
+vfat mount also takes `nosuid` and `nodev`. ext4, btrfs and xfs carry their own
+ownership and get only `extraOptions`.
+
 #### Options
 
 ```nix
@@ -509,6 +515,19 @@ Additional local disk mounts (NTFS, ext4, btrfs, xfs, vfat).
 ### CIFS
 
 CIFS/SMB network share mounts. Credentials files are generated from sops templates containing username/password pairs.
+
+Every share is mounted with `nosuid` and `nodev`. Three options set what
+crosses the network:
+
+- `vers` defaults to `"3.1.1"`, which pins the newest SMB dialect so a server
+  cannot negotiate the mount down. An older NAS needs the dialect it speaks,
+  and `"default"` hands the choice back to the kernel.
+- `seal` defaults to `true` and encrypts the session. Authentication protects
+  the password only, and without `seal` file contents travel in the clear.
+  Encryption needs SMB 3.0 or newer, so `seal` with `vers` below `"3.0"` fails
+  evaluation.
+- `sec` takes one of `none`, `krb5`, `krb5i`, `ntlmv2`, `ntlmv2i`, `ntlmssp`
+  and `ntlmsspi`, and any other value is a type error.
 
 #### Options
 

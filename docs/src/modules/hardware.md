@@ -15,10 +15,26 @@ Hardware modules under `othrys.hardware.*`.
 | Scanner | `othrys.hardware.scanner` | SANE scanning (network discovery via airscan) |
 | SMART | `othrys.hardware.smart` | Disk health monitoring (smartd + notify hook) |
 | UPS | `othrys.hardware.ups` | UPS monitoring and clean shutdown (NUT) |
-| Webcam | `othrys.hardware.webcam` | Webcam support |
+| Webcam | `othrys.hardware.webcam` | V4L2 utilities (`v4l-utils`) |
 | USB | `othrys.hardware.usb` | USB utilities (usbutils) |
 | Bluetooth | `othrys.hardware.wireless.bluetooth` | Bluetooth, with `/var/lib/bluetooth` persisted at 0700 since it holds the link keys |
 | WiFi | `othrys.hardware.wireless.wifi` | WiFi via NetworkManager, persisting `system-connections` and `/var/lib/NetworkManager` only |
+
+## Audio
+
+PipeWire with its ALSA, PulseAudio and JACK front ends, and rtkit for real-time
+scheduling. Two options change what PipeWire does out of the box.
+
+`lowLatency`, on by default, sets the graph quantum to 512 frames. PipeWire
+ships 1024, which is 21.3 ms of buffering per cycle at 48 kHz, and 512 halves
+that to 10.7 ms. The sample rate and the quantum bounds stay at the PipeWire
+values, so a client that asks for a smaller buffer still gets one.
+
+`usbDuplexProfile`, off by default, pins every USB audio device to the
+`output:analog-stereo+input:mono-fallback` profile. It suits a headset that
+WirePlumber brings up output-only. A device without that profile, such as a
+multichannel interface, ends up with no profile at all and stays silent, which
+is why a host has to ask for it.
 
 ## NVIDIA (Dedicated)
 
@@ -34,7 +50,13 @@ Key features:
 - VA-API and VDPAU drivers for hardware video decode
 - 32-bit support for Steam/gaming
 - Kernel modules loaded in initrd to claim DRM device early
-- Blacklists `i915` and `nouveau` to prevent conflicts
+- Blacklists `nouveau`, and `i915` as well when `blacklistIntel` is set
+
+`blacklistIntel` is off by default. On a desktop whose CPU has an iGPU, the
+Intel driver is harmless beside the NVIDIA one, and blacklisting it takes away
+the motherboard outputs and Quick Sync. Set it on a host where the iGPU must
+never bind. PRIME renders the display on the iGPU, so `blacklistIntel` together
+with `prime.enable` fails evaluation.
 
 ### Older cards
 
@@ -68,6 +90,26 @@ that is already loaded, so reboot after changing either option.
 
 For laptops with Intel iGPU + NVIDIA dGPU. Uses PRIME offload, so Intel handles display and NVIDIA is available on demand.
 
+`intelBusId` and `nvidiaBusId` have no default and PRIME fails evaluation until
+both are set. The addresses differ between boards, and a wrong pair boots to a
+black screen with nothing in the evaluation to point at it. `lspci` prints
+them in hexadecimal as `bus:device.function` and the options take decimal, so
+`01:00.0` becomes `PCI:1:0:0` and `0a:00.0` becomes `PCI:10:0:0`.
+
+```nix
+othrys.hardware.nvidia = {
+  enable = true;
+  prime = {
+    enable = true;
+    intelBusId = "PCI:0:2:0";
+    nvidiaBusId = "PCI:1:0:0";
+  };
+};
+```
+
+`prime.enable` on a host without `othrys.hardware.nvidia.enable` also fails
+evaluation, since PRIME configures nothing without the driver.
+
 ### Options
 
 ```nix
@@ -95,6 +137,10 @@ SANE with network-scanner discovery (sane-airscan covers most modern
 eSCL/WSD devices), and vendor drivers go in `extraBackends`. The `simple-scan`
 GUI follows the graphical signal, and headless scan servers use `scanimage`.
 
+Discovery runs over mDNS, so the module turns on `services.avahi` with
+`nssmdns4`, both at `mkDefault`. A host that sets `services.avahi.enable = false` keeps the scanners it names by hand in `airscan.conf` and finds no
+others.
+
 ### Options
 
 ```nix
@@ -119,13 +165,45 @@ NUT in standalone mode: the attached UPS is monitored, low battery triggers
 a clean shutdown, and power events push through `othrys-notify` when the
 notify module is enabled. The monitor password is a secrets-provider path.
 
+upsmon runs its notify command as the unprivileged `nutmon` user, which cannot
+read a root-only `othrys.services.notify.tokenFile`. The module loads the token
+into `upsmon.service` as a systemd credential and copies it before start to
+`/run/nut/othrys-notify/token`, owned by that user, so the token file itself
+keeps its `root:0400` ownership and the event still arrives authenticated.
+
 ### Options
 
 ```nix
 {{#include ../../../modules/hardware/ups.nix:ups-options}}
 ```
 
-## Wireless
+## Webcam
+
+Installs `v4l-utils` and adds no group. logind gives the user at the seat
+access to camera nodes through a udev ACL. The `video` group is not needed for
+that, and membership would open the DRM, framebuffer and backlight nodes to the
+user from every session, an SSH login included.
+
+## Bluetooth
+
+BlueZ with pairings persisted under `/var/lib/bluetooth` and the Blueman applet
+on graphical hosts. A2DP needs no key in `main.conf`, since PipeWire registers
+the audio endpoints with BlueZ when `othrys.hardware.audio` is on.
+`experimental` turns on the BlueZ experimental interfaces, which battery
+reporting uses.
+
+The persisted directory is mode `0700`. The tree holds the link keys of every
+paired device under a directory per adapter, and `bluetoothd` creates it
+`0700` itself, so it keeps the mode the daemon would have chosen.
+
+## WiFi
+
+NetworkManager, with declarative networks under `networks` and their
+passphrases read from `environmentFile`. The variable for a network is
+`WIFI_PSK_` followed by its key under `networks` in upper case, with every
+character other than a letter, a digit or an underscore replaced by an
+underscore. The key `guest-5g.lan` reads `WIFI_PSK_GUEST_5G_LAN`. Two keys that
+map to one variable fail evaluation.
 
 NetworkManager persists `/etc/NetworkManager/system-connections`, which holds
 the saved connections and their secrets, and `/var/lib/NetworkManager`, which
@@ -136,7 +214,3 @@ activation, and a bind mount over the whole directory would hide every one of
 them, so the daemon would start with its stock defaults and none of the
 settings the host declares.
 
-Bluetooth persists `/var/lib/bluetooth` at mode `0700`. The tree holds the
-link keys of every paired device under a directory per adapter, and
-`bluetoothd` creates it `0700` itself, so the persisted directory keeps the
-mode the daemon would have chosen.

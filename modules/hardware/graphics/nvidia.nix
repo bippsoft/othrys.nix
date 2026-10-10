@@ -44,10 +44,29 @@ in {
         branch the card needs.
       '';
     };
+
+    blacklistIntel = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Blacklist the `i915` kernel module, so the Intel iGPU never binds and
+        the NVIDIA card is the only display device. Leave it off on a host
+        whose monitors are wired to the motherboard outputs, or that uses the
+        iGPU for Quick Sync or as a second display adapter. PRIME needs the
+        iGPU, so the two together are refused.
+      '';
+    };
   };
 
   # ANCHOR: nvidia-config
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = !(cfg.blacklistIntel && primeEnabled);
+        message = "othrys.hardware.nvidia: blacklistIntel removes the i915 driver that PRIME offload renders the display with. Turn one of the two off.";
+      }
+    ];
+
     hardware.graphics = {
       enable = true;
       enable32Bit = true;
@@ -108,7 +127,7 @@ in {
 
     boot.blacklistedKernelModules =
       ["nouveau"]
-      ++ lib.optionals (!primeEnabled) [
+      ++ lib.optionals cfg.blacklistIntel [
         "i915"
       ];
   };

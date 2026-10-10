@@ -14,6 +14,20 @@
   persistRoot = config.othrys.system.impermanence.persistRoot;
   networkingCfg = config.othrys.system.networking;
 
+  # The variable NetworkManager substitutes the passphrase from, named after
+  # the key under `networks`. A shell variable name holds letters, digits and
+  # underscores only, and envsubst leaves any other name in place, which
+  # stores the literal `$WIFI_PSK_...` text as the passphrase. Every other
+  # character therefore becomes an underscore.
+  pskVariable = name:
+    "WIFI_PSK_"
+    + lib.toUpper (lib.concatMapStrings (c:
+      if builtins.match "[A-Za-z0-9_]" c != null
+      then c
+      else "_") (lib.stringToCharacters name));
+
+  pskVariables = lib.mapAttrsToList (name: _: pskVariable name) cfg.networks;
+
   # Generate NetworkManager profile for a WiFi network
   mkWifiProfile = name: network: {
     connection = {
@@ -27,8 +41,7 @@
     };
     wifi-security = {
       key-mgmt = "wpa-psk";
-      # Use environment variable substitution for password
-      psk = "$WIFI_PSK_${lib.toUpper (builtins.replaceStrings ["-" " "] ["_" "_"] name)}";
+      psk = "$" + pskVariable name;
     };
     ipv4.method = "auto";
     ipv6.method = "auto";
@@ -70,11 +83,22 @@ in {
         Path to environment file containing WiFi passwords.
         Format: WIFI_PSK_<NETWORK_NAME>=password
         Example: WIFI_PSK_HOME=mysecretpassword
+
+        The name is the key under `networks` in upper case, with every
+        character other than a letter, a digit or an underscore replaced by
+        an underscore, so `guest-5g.lan` reads `WIFI_PSK_GUEST_5G_LAN`.
       '';
     };
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = lib.allUnique pskVariables;
+        message = "othrys.hardware.wireless.wifi.networks: two network names map to the same passphrase variable (${lib.concatStringsSep ", " pskVariables}). Rename one of them.";
+      }
+    ];
+
     # The saved connections and the daemon's state (leases, seen BSSIDs, the
     # timestamps autoconnect ranks by). /etc/NetworkManager itself is not
     # persisted, because NixOS writes NetworkManager.conf and conf.d there as

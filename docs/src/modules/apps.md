@@ -29,7 +29,7 @@ Require a desktop environment.
 | VS Code | `othrys.apps.vscode` | Visual Studio Code |
 | Vesktop | `othrys.apps.vesktop` | Discord client |
 | Signal | `othrys.apps.signal` | Signal messenger |
-| OBS | `othrys.apps.obs` | Screen recording/streaming |
+| OBS | `othrys.apps.obs` | Screen recording/streaming. Enables `othrys.services.virtualcamera`, and builds with CUDA when `othrys.hardware.nvidia` is on |
 | Picard | `othrys.apps.picard` | MusicBrainz tagger |
 | Plexamp | `othrys.apps.plexamp` | Plex music player |
 | RustDesk | `othrys.apps.rustdesk` | Remote desktop client. Persists `~/.config/rustdesk`, and `forceX11` starts the launcher through XWayland |

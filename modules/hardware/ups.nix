@@ -1,7 +1,5 @@
 # modules/hardware/ups.nix
-# UPS monitoring and clean shutdown via NUT, in standalone mode where the UPS is
-# attached to this host). Low-battery triggers the system shutdown, and power
-# events push through othrys-notify when the notify module is enabled.
+# UPS monitoring and clean shutdown through NUT, for a UPS attached to this host
 {
   config,
   lib,
@@ -10,9 +8,28 @@
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.hardware.ups;
-  notifyEnabled = config.othrys.services.notify.enable;
+  notifyCfg = config.othrys.services.notify;
+  notifyEnabled = notifyCfg.enable;
+  tokenStaged = notifyEnabled && notifyCfg.tokenFile != null;
+  monitorUser = config.power.ups.upsmon.user;
 
+  # upsmon starts as root and runs NOTIFYCMD from the child it drops to the
+  # monitor user. The ntfy token is a root-only file, and a credential loaded
+  # into this unit belongs to root as well, because the unit has no User= and
+  # upsmon changes user by itself. The token is therefore loaded as a
+  # credential and copied before start into a directory the monitor user owns,
+  # which is how the NixOS module hands upsmon.conf its password.
+  notifyCredentials = "/run/nut/othrys-notify";
+
+  stageNotifyToken = pkgs.writeShellScript "upsmon-stage-notify-token" ''
+    ${pkgs.coreutils}/bin/install -d -m0700 -o${monitorUser} ${notifyCredentials}
+    ${pkgs.coreutils}/bin/install -m0400 -o${monitorUser} "$CREDENTIALS_DIRECTORY/token" ${notifyCredentials}/token
+  '';
+
+  # othrys-notify reads its token from $CREDENTIALS_DIRECTORY/token, so the
+  # command points that variable at the staged copy.
   notifyCmd = pkgs.writeShellScript "upsmon-notify" ''
+    ${lib.optionalString tokenStaged "export CREDENTIALS_DIRECTORY=${notifyCredentials}"}
     exec othrys-notify "UPS event on ${config.networking.hostName}" "$*"
   '';
 in {
@@ -41,6 +58,15 @@ in {
   # ANCHOR_END: ups-options
 
   config = lib.mkIf cfg.enable {
+    systemd.services.upsmon = lib.mkIf notifyEnabled {
+      # A unit's PATH holds no system package, and othrys-notify is one.
+      path = ["/run/current-system/sw"];
+      serviceConfig = lib.mkIf tokenStaged {
+        LoadCredential = ["token:${notifyCfg.tokenFile}"];
+        ExecStartPre = ["${stageNotifyToken}"];
+      };
+    };
+
     power.ups = {
       enable = true;
       mode = "standalone";

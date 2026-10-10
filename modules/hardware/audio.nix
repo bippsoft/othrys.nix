@@ -18,7 +18,23 @@ in {
     lowLatency = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Enable low-latency audio configuration.";
+      description = ''
+        Halve the PipeWire graph quantum, from the stock 1024 frames to 512.
+        At 48 kHz that is 10.7 ms of buffering per cycle in place of 21.3 ms.
+        A client can still ask for less, down to the PipeWire minimum.
+      '';
+    };
+
+    usbDuplexProfile = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Pin every USB audio device to the
+        `output:analog-stereo+input:mono-fallback` profile, which suits a
+        headset that WirePlumber otherwise brings up output-only. A device
+        without that profile, such as a multichannel interface, is left with
+        no profile and stays silent, so this is off unless a host asks for it.
+      '';
     };
   };
 
@@ -52,18 +68,17 @@ in {
       pulse.enable = true;
       jack.enable = true;
 
-      # Low-latency configuration
+      # PipeWire ships a quantum of 1024 frames, 21.3 ms at 48 kHz, which is
+      # audible as lag in games and in monitoring. 512 halves it and still
+      # runs without dropouts on ordinary hardware. The rate and the quantum
+      # bounds stay at the PipeWire values. A raised minimum would stop a
+      # client from asking for a smaller buffer, which works against the
+      # setting.
       extraConfig.pipewire = lib.mkIf cfg.lowLatency {
-        "context.properties" = {
-          "default.clock.rate" = 48000;
-          "default.clock.quantum" = 512;
-          "default.clock.min-quantum" = 256;
-          "default.clock.max-quantum" = 2048;
-        };
+        "context.properties"."default.clock.quantum" = 512;
       };
 
-      # Prefer duplex (output+input) profiles for USB audio devices
-      wireplumber.extraConfig."99-usb-audio-duplex" = {
+      wireplumber.extraConfig."99-usb-audio-duplex" = lib.mkIf cfg.usbDuplexProfile {
         "monitor.alsa.rules" = [
           {
             matches = [

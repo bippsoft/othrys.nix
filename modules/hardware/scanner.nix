@@ -1,7 +1,5 @@
 # modules/hardware/scanner.nix
-# Scanner support through SANE with network-scanner discovery (sane-airscan covers
-# most modern eSCL/WSD devices). The GUI frontend follows the graphical
-# signal, and headless scan servers use scanimage/scanadf.
+# Scanner support through SANE, with network scanners discovered over mDNS
 {
   config,
   lib,
@@ -29,6 +27,15 @@ in {
     hardware.sane = {
       enable = true;
       extraBackends = [pkgs.sane-airscan] ++ cfg.extraBackends;
+    };
+
+    # sane-airscan finds eSCL and WSD scanners by browsing mDNS through
+    # avahi-daemon, and without the daemon it lists only the devices named by
+    # hand in airscan.conf. mkDefault leaves a host free to turn discovery off
+    # and keep the static entries.
+    services.avahi = {
+      enable = lib.mkDefault true;
+      nssmdns4 = lib.mkDefault true;
     };
 
     # Group membership only when othrys manages the user account (writing

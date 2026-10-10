@@ -42,4 +42,16 @@ othrys.system.disko = {
 };
 ```
 
+`device` is meant to be a path under `/dev/disk/by-id/`. A name such as
+`/dev/sda` evaluates with a warning, since the kernel assigns those in probe
+order and disko formats whatever disk carries the name.
+
+Both LUKS volumes are formatted with stated parameters, which are LUKS2,
+`aes-xts-plain64` with a 512-bit key, SHA-256 and Argon2id. They match the
+current cryptsetup defaults and apply at format time only.
+
+`luks.allowDiscards` passes TRIM through the encryption layer, and
+`services.fstrim.enable` follows it at `mkDefault`, so the weekly timer is what
+issues the discards.
+
 Initial install: `just disk <hostname>`

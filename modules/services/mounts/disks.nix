@@ -42,6 +42,22 @@
       ]
       ++ disk.extraOptions
       ++ automountOpts
+    else if disk.fsType == "vfat"
+    then
+      # FAT stores no owner and no mode, so without these every file belongs
+      # to root. It cannot hold a real setuid binary or device node either,
+      # and nosuid and nodev keep the kernel from honouring anything a
+      # crafted image presents as one.
+      [
+        "uid=${toString disk.uid}"
+        "gid=${toString disk.gid}"
+        "dmask=${disk.dmask}"
+        "fmask=${disk.fmask}"
+        "nosuid"
+        "nodev"
+      ]
+      ++ disk.extraOptions
+      ++ automountOpts
     else
       # ext4, btrfs, xfs, etc.
       disk.extraOptions ++ automountOpts;
@@ -68,27 +84,27 @@
       };
 
       uid = lib.mkOption {
-        type = lib.types.int;
+        type = lib.types.ints.unsigned;
         default = 1000;
-        description = "User ID for ownership (NTFS only).";
+        description = "User ID that owns the files (NTFS and vfat, which store no owner).";
       };
 
       gid = lib.mkOption {
-        type = lib.types.int;
+        type = lib.types.ints.unsigned;
         default = 100;
-        description = "Group ID for ownership (NTFS only).";
+        description = "Group ID that owns the files (NTFS and vfat).";
       };
 
       dmask = lib.mkOption {
         type = lib.types.str;
         default = "022";
-        description = "Directory permission mask (NTFS only).";
+        description = "Directory permission mask (NTFS and vfat).";
       };
 
       fmask = lib.mkOption {
         type = lib.types.str;
         default = "133";
-        description = "File permission mask (NTFS only).";
+        description = "File permission mask (NTFS and vfat).";
       };
 
       automount = lib.mkOption {

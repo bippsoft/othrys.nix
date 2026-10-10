@@ -6,8 +6,6 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.hardware.webcam;
 in {
   options.othrys.hardware.webcam = {
@@ -15,12 +13,10 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    # Group membership only when othrys manages the user account (writing
-    # users.users.<name> otherwise materializes a phantom user).
-    users.users = lib.mkIf usersEnabled {
-      ${username}.extraGroups = ["video"];
-    };
-
+    # No group membership is added. logind grants the user at the seat access
+    # to camera nodes through a udev ACL, and the video group would open the
+    # DRM, framebuffer and backlight nodes to that user from every session,
+    # an SSH login included.
     environment.systemPackages = with pkgs; [
       v4l-utils
     ];

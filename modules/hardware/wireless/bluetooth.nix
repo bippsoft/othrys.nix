@@ -41,8 +41,6 @@ in {
 
       settings = {
         General = {
-          # Enable A2DP sink (high quality audio)
-          Enable = "Source,Sink,Media,Socket";
           # Opt-in experimental features (e.g. battery reporting / extra codecs)
           Experimental = cfg.experimental;
         };

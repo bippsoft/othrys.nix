@@ -1,5 +1,5 @@
 # modules/apps/gui/obs.nix
-# OBS Studio with its Wayland, PipeWire and Vulkan capture plugins
+# OBS Studio with its plugins and the loopback device its virtual camera writes to
 {
   config,
   lib,
@@ -11,6 +11,7 @@
   cfg = config.othrys.apps.obs;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
+  nvidiaEnabled = config.othrys.hardware.nvidia.enable;
 in {
   options.othrys.apps.obs = {
     enable = lib.mkEnableOption "OBS Studio with virtual camera";
@@ -30,11 +31,22 @@ in {
 
     security.polkit.enable = true;
 
+    # The "Start Virtual Camera" button needs a v4l2loopback device to write
+    # to. mkDefault lets a host that wants OBS without the kernel module turn
+    # it back off.
+    othrys.services.virtualcamera.enable = lib.mkDefault true;
+
     # User-level OBS with plugins
     othrys.internal.homeConfig."apps.obs" = {
       programs.obs-studio = {
         enable = true;
-        package = pkgs.obs-studio.override {cudaSupport = true;};
+        # CUDA is only of use with the NVIDIA driver, and the override builds
+        # OBS from source against the unfree CUDA toolkit, so every other host
+        # takes the cached package.
+        package =
+          if nvidiaEnabled
+          then pkgs.obs-studio.override {cudaSupport = true;}
+          else pkgs.obs-studio;
         plugins = with pkgs.obs-studio-plugins; [
           wlrobs
           obs-backgroundremoval

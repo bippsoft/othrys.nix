@@ -32,13 +32,15 @@
   # modules/system/nix.nix. curl reads the header from a file instead, written
   # under umask 077 and removed on exit.
   #
-  # Two callers read the token. A human running othrys-notify reads tokenFile
-  # directly, and notify-failure@ runs under DynamicUser with no access to it,
-  # so systemd stages it at $CREDENTIALS_DIRECTORY/token instead. When neither
-  # is readable the script stops and names the file. A token was configured,
-  # so a request without it would be refused by a topic that requires one and
-  # would silently reach a topic that does not, and neither is what the
-  # operator asked for.
+  # Three callers read the token. A human running othrys-notify reads tokenFile
+  # directly. notify-failure@ runs under DynamicUser with no access to it, so
+  # systemd stages it at $CREDENTIALS_DIRECTORY/token instead. The UPS monitor
+  # runs its notify command as an unprivileged user and points the same
+  # variable at a copy staged for that user in modules/hardware/ups.nix.
+  # When none is readable the script stops and names the file. A token was
+  # configured, so a request without it would be refused by a topic that
+  # requires one and would silently reach a topic that does not, and neither
+  # is what the operator asked for.
   #
   # Every external tool is called by store path. The unit runs with no PATH
   # worth relying on, and an interactive caller's PATH is not this script's
