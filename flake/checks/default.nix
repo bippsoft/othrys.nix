@@ -955,6 +955,7 @@
       eval-grafana = import ./grafana-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-listen = import ./listen-eval.nix {inherit hostConfig mkExpectations functioningHost;};
       eval-shell = import ./shell-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost;};
+      eval-floorp = import ./floorp-eval.nix {inherit hostConfig mkExpectations functioningHost;};
 
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
