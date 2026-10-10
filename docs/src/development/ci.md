@@ -16,7 +16,8 @@ get fast feedback while the exhaustive suite still gates what lands:
   `eval-host-hardening-hibernate` (the hardening profile's values read back,
   and its hibernation assertion), `eval-traefik` (the Traefik TLS floor and
   header defaults read back), `eval-ssh` (the known hosts and client defaults
-  read back), `eval-template` (the `nix flake init` template instantiated with
+  read back), `eval-ssh-settings` (the SSH server's ports, firewall, jail and
+  hardened defaults read back), `eval-template` (the `nix flake init` template instantiated with
   only the inputs a consumer has), `eval-router-services` (the start-up defaults
   of Suricata and CrowdSec read back), `eval-dev-shells` (the hooks each dev
   shell installs read back), `eval-rustdesk` (what the RustDesk module persists

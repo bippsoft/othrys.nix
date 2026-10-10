@@ -18,6 +18,45 @@
     "codeberg.org".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIVIC02vnjFyL+I4RHfvIGNtOgJMe769VTF1VR4EB3ZB";
     "git.sr.ht".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMZvRd4EtM7R+IHVMWmDkVU3VLQTSwQDSAvW0t2Tkj60";
   };
+
+  # One known host, with the options programs.ssh.knownHosts declares for an
+  # entry. Declaring them here rejects a misspelled key at this option, where
+  # the error names the host's own definition.
+  knownHost = {
+    name,
+    config,
+    ...
+  }: {
+    options = {
+      publicKey = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...";
+        description = "The key type and the key, without any host name.";
+      };
+      publicKeyFile = lib.mkOption {
+        type = lib.types.nullOr lib.types.path;
+        default = null;
+        description = "A file holding one public key, read at build time and copied into the Nix store.";
+      };
+      hostNames = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [name] ++ config.extraHostNames;
+        defaultText = lib.literalExpression "[ <name> ] ++ extraHostNames";
+        description = "Names and addresses the key is trusted for. The attribute name is included by default.";
+      };
+      extraHostNames = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        description = "Further names and addresses beside the attribute name. Ignored when `hostNames` is set.";
+      };
+      certAuthority = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "The key is a certificate authority that signs host keys.";
+      };
+    };
+  };
 in {
   options.othrys.services.ssh = {
     enable = lib.mkEnableOption "SSH server and client";
@@ -28,10 +67,33 @@ in {
         default = false;
         description = "Enable the inbound SSH server. Opt-in per host so exposure is explicit.";
       };
+
+      ports = lib.mkOption {
+        type = lib.types.listOf lib.types.port;
+        default = [22];
+        example = [2222];
+        description = ''
+          Ports the server listens on, passed to `services.openssh.ports` as a
+          default. The firewall and the fail2ban sshd jail both read the
+          upstream option, so a host that sets `services.openssh.ports` itself
+          gets the same result.
+        '';
+      };
+
+      openFirewall = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Open the server's ports in the firewall. Unlike most othrys firewall
+          toggles this defaults to true, since enabling the server is already
+          the explicit decision to expose it. Turn it off on a host that opens
+          the port on named interfaces only.
+        '';
+      };
     };
 
     knownHosts = lib.mkOption {
-      type = lib.types.attrsOf lib.types.anything;
+      type = lib.types.attrsOf (lib.types.submodule knownHost);
       default = {};
       example = lib.literalExpression ''
         {
@@ -42,9 +104,9 @@ in {
         Host keys every user on this host trusts, passed to
         `programs.ssh.knownHosts` and written to `/etc/ssh/ssh_known_hosts`. A
         host listed here is verified against the listed key on the first
-        connection, so nobody is asked to accept it on trust. Each value takes
-        what the upstream option takes. Host names and keys are identity and
-        belong in the host configuration.
+        connection, so nobody is asked to accept it on trust. Each entry needs
+        one of `publicKey` and `publicKeyFile`. Host names and keys are identity
+        and belong in the host configuration.
       '';
     };
 
@@ -89,6 +151,12 @@ in {
 
     services.openssh = lib.mkIf cfg.server.enable {
       enable = true;
+      # Both are defaults, so a host that sets the upstream options directly
+      # wins. Upstream opens whatever services.openssh.ports ends up holding,
+      # which keeps the firewall and the listener on the same list.
+      ports = lib.mkDefault cfg.server.ports;
+      openFirewall = lib.mkDefault cfg.server.openFirewall;
+
       # Hardened defaults, with mkDefault so a host can loosen one (e.g. temporary
       # PasswordAuthentication during bootstrap) without lib.mkForce.
       settings = {
@@ -96,10 +164,53 @@ in {
         PasswordAuthentication = lib.mkDefault false;
         KbdInteractiveAuthentication = lib.mkDefault false;
         X11Forwarding = lib.mkDefault false;
+
+        # PAM stays on. With password and keyboard-interactive login off it
+        # authenticates nobody, and sshd still runs the account and session
+        # stacks through it, which is what opens the systemd-logind session
+        # and applies limits. A host that puts pam_u2f into the sshd service
+        # needs it as well.
+        UsePAM = lib.mkDefault true;
+
+        # Forwarding turns a login into a tunnel into the host's network and
+        # hands the client's agent to anyone with root on the host. A host
+        # that is a jump host or serves remote editors turns these back on.
+        AllowTcpForwarding = lib.mkDefault "no";
+        AllowAgentForwarding = lib.mkDefault "no";
+
+        MaxAuthTries = lib.mkDefault 3;
+        LoginGraceTime = lib.mkDefault 30;
+        MaxSessions = lib.mkDefault 4;
+        # A client that answers no keepalive for ten minutes is disconnected.
+        ClientAliveInterval = lib.mkDefault 300;
+        ClientAliveCountMax = lib.mkDefault 2;
+
+        # VERBOSE logs the fingerprint of the key behind every login, and it
+        # is the level the fail2ban sshd filter reads.
+        LogLevel = lib.mkDefault "VERBOSE";
+
+        # Explicit lists, narrower than the set nixpkgs recommends. They drop
+        # the finite-field group exchange, the 128 and 192 bit CTR ciphers and
+        # umac. Every client since OpenSSH 6.5 supports curve25519 with
+        # chacha20-poly1305, while an older one needs an entry added back.
+        KexAlgorithms = lib.mkDefault [
+          "sntrup761x25519-sha512@openssh.com"
+          "mlkem768x25519-sha256"
+          "curve25519-sha256"
+          "curve25519-sha256@libssh.org"
+        ];
+        Ciphers = lib.mkDefault [
+          "chacha20-poly1305@openssh.com"
+          "aes256-gcm@openssh.com"
+          "aes128-gcm@openssh.com"
+          "aes256-ctr"
+        ];
+        Macs = lib.mkDefault [
+          "hmac-sha2-512-etm@openssh.com"
+          "hmac-sha2-256-etm@openssh.com"
+        ];
       };
     };
-
-    networking.firewall.allowedTCPPorts = lib.mkIf cfg.server.enable [22];
 
     othrys.internal.homeConfig."services.ssh".programs.ssh = {
       enable = true;
@@ -115,7 +226,6 @@ in {
             };
             ServerAliveInterval = 60;
             ServerAliveCountMax = 3;
-            Compression = true;
             # An unknown host prompts and is never accepted silently, stored
             # host names are hashed, and a host offering new keys asks first.
             StrictHostKeyChecking = "ask";

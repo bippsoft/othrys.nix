@@ -68,7 +68,19 @@ The onboarding script handles new key generation, key rotation from backup, mult
 
 ## fail2ban
 
-Basic intrusion prevention with default jails.
+One jail, `sshd`, which is defined only on a host that runs the OpenSSH server.
+It reads the journal with the `aggressive` filter mode and bans an address after
+`maxretry` failures within ten minutes. The ban lasts `bantime` the first time
+and grows with each repeat up to 48 hours.
+
+The jail names no port of its own. It bans on the ports in
+`services.openssh.ports`, so a server moved off port 22 through
+`othrys.services.ssh.server.ports` is covered without further configuration.
+The filter matches more failed logins when sshd logs at `VERBOSE`, which is the
+level the SSH module sets.
+
+`bantime` takes a number of seconds or a number with one of the suffixes `s`,
+`m`, `h`, `d`, `w`, `mo` and `y`. Any other string is rejected at evaluation.
 
 The ban database at `/var/lib/fail2ban` is persisted under impermanence. It
 holds the active bans and the per-address count that `bantime-increment`

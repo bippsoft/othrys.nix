@@ -20,9 +20,14 @@ in {
     };
 
     bantime = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.strMatching "[0-9]+(s|m|h|d|w|mo|y)?";
       default = "10m";
-      description = "Base ban duration (escalated by bantime-increment up to 48h).";
+      example = "1h";
+      description = ''
+        Base ban duration, escalated by bantime-increment up to 48h. A number
+        of seconds, or a number with one of the suffixes `s`, `m`, `h`, `d`,
+        `w`, `mo` and `y`.
+      '';
     };
 
     ignoreIP = lib.mkOption {
@@ -76,12 +81,14 @@ in {
         overalljails = true;
       };
 
-      # Only watch SSH auth logs when the SSH server is actually enabled.
+      # Only watch SSH auth logs when the SSH server is actually enabled. The
+      # jail names no port. nixpkgs derives it from services.openssh.ports as
+      # a default, and a value written here would replace it and leave a
+      # server on another port unbanned.
       jails = lib.mkIf config.services.openssh.enable {
         sshd = {
           settings = {
             enabled = true;
-            port = "ssh";
             filter = "sshd[mode=aggressive]";
             inherit (cfg) maxretry bantime;
             findtime = "10m";
@@ -89,7 +96,5 @@ in {
         };
       };
     };
-
-    services.openssh.settings.LogLevel = lib.mkIf config.services.openssh.enable (lib.mkDefault "VERBOSE");
   };
 }

@@ -65,9 +65,57 @@ When `desktopEntry` is enabled, an "othrys.nix Docs" entry appears in applicatio
 `othrys.services.ssh` configures the client for the primary user and, with
 `server.enable`, the OpenSSH server with password login off.
 
+`server.ports` sets the ports the server listens on, `[22]` by default, and
+`server.openFirewall` opens them, which it does by default. Both are written to
+`services.openssh` as defaults, so a host that sets the upstream options
+directly gets the same result. The firewall and the fail2ban sshd jail read
+`services.openssh.ports`, so a server moved to another port has that port
+opened and watched while 22 stays closed.
+
+The server settings are all written with `lib.mkDefault`, and a plain assignment
+under `services.openssh.settings` replaces any one of them.
+
+| Directive | Default here |
+| --- | --- |
+| `PermitRootLogin` | `no` |
+| `PasswordAuthentication`, `KbdInteractiveAuthentication` | `no` |
+| `X11Forwarding` | `no` |
+| `AllowTcpForwarding`, `AllowAgentForwarding` | `no` |
+| `MaxAuthTries` | 3 |
+| `LoginGraceTime` | 30 |
+| `MaxSessions` | 4 |
+| `ClientAliveInterval`, `ClientAliveCountMax` | 300, 2 |
+| `UsePAM` | `yes` |
+| `LogLevel` | `VERBOSE` |
+| `KexAlgorithms` | `sntrup761x25519-sha512@openssh.com`, `mlkem768x25519-sha256`, `curve25519-sha256`, `curve25519-sha256@libssh.org` |
+| `Ciphers` | `chacha20-poly1305@openssh.com`, `aes256-gcm@openssh.com`, `aes128-gcm@openssh.com`, `aes256-ctr` |
+| `Macs` | `hmac-sha2-512-etm@openssh.com`, `hmac-sha2-256-etm@openssh.com` |
+
+Four of these change what a working host does. With forwarding off, `ssh -L`,
+`ssh -R`, `ssh -J` through the host and remote editors that tunnel over the
+connection are refused, and so is `ssh -A`. A jump host or a development machine
+turns `AllowTcpForwarding` back on. `MaxAuthTries 3` counts every key the client
+offers, so a client whose agent holds more than three keys is disconnected
+before it reaches the right one unless it names the key with `IdentityFile` and
+`IdentitiesOnly yes`. The algorithm lists are narrower than the set nixpkgs
+recommends, and a client older than OpenSSH 6.5 negotiates nothing from them.
+`UsePAM` stays on because sshd opens the login session and applies limits
+through the PAM account and session stacks, and with password and
+keyboard-interactive login off it authenticates nobody.
+
+```nix
+othrys.services.ssh.server = {
+  enable = true;
+  ports = [2222];
+};
+services.openssh.settings.AllowTcpForwarding = "yes";
+```
+
 `knownHosts` passes host keys to `programs.ssh.knownHosts`, which writes
 `/etc/ssh/ssh_known_hosts` for every user. A listed host is verified against its
-listed key on the first connection, so nobody accepts it on trust.
+listed key on the first connection, so nobody accepts it on trust. An entry
+takes `publicKey` or `publicKeyFile`, and optionally `hostNames`,
+`extraHostNames` and `certAuthority`, and any other key is rejected.
 `includeForgeKeys` is on by default and adds the published ed25519 keys of
 github.com, gitlab.com, codeberg.org and git.sr.ht. An entry in `knownHosts`
 with the same name replaces a forge entry.
@@ -76,7 +124,9 @@ The client defaults under `"*"` are `StrictHostKeyChecking ask`,
 `HashKnownHosts yes` and `UpdateHostKeys ask`, so an unknown host prompts and is
 never accepted silently. A directive set through `settings` replaces that one
 default and leaves the rest. Once `knownHosts` covers every host the machine
-connects to, this ends trust on first use.
+connects to, this ends trust on first use. The client does not ask for
+compression, which slows transfers on a fast link. A host reached over a slow
+one sets `Compression` for that host through `settings`.
 
 ```nix
 othrys.services.ssh = {
