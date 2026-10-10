@@ -7,7 +7,6 @@ This is a NixOS system. You must understand these constraints:
 - **No global package installs**: Never use `apt`, `yum`, `brew`, `pip install`, `npm install -g`, `cargo install`, `go install` for system-wide tools
 - **No FHS paths**: Binaries are NOT in `/usr/bin/`, libraries NOT in `/usr/lib/` - they're in `/nix/store/`
 - **No modifying /nix/store**: It's read-only and immutable
-- **No persistent writes outside $HOME**: Root filesystem wipes on reboot (impermanence)
 
 ## What You Should Do
 

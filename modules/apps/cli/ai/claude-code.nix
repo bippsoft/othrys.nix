@@ -106,22 +106,23 @@ in {
           # Nothing here contains a hostile repository, so the deny list only
           # keeps an honest agent from a careless mistake.
           #
-          # `just` is deliberately absent from the allow-list. A justfile
-          # recipe is arbitrary shell, so allowing it hands any repository
-          # unreviewed execution. Hosts that want it back set
-          # permissions.extraAllow.
+          # Every entry names a tool and a command prefix. A bare tool name
+          # such as `Edit` approves every call of that tool, which is
+          # permissions.defaultMode = "acceptEdits" by another route, so none
+          # appears here. `find` runs arbitrary commands through -exec, `nix
+          # eval` does through --impure --expr, and `nix fmt` runs whichever
+          # formatter the checked-out repository names, so the three are
+          # absent as well. `just` is absent for the same reason, since a
+          # justfile recipe is arbitrary shell. A host that wants any of them
+          # back sets permissions.extraAllow.
           permissions = {
             allow =
               [
-                "Edit"
                 "Bash(git diff:*)"
                 "Bash(git status:*)"
                 "Bash(git add:*)"
                 "Bash(git log:*)"
-                "Bash(nix fmt:*)"
-                "Bash(nix eval:*)"
                 "Bash(mkdir:*)"
-                "Bash(find:*)"
                 # Each MCP server module contributes its own read-only tool
                 # permissions to this list (see mcp/*.nix), and they merge in here.
               ]
@@ -139,24 +140,6 @@ in {
 
             additionalDirectories = [];
             inherit (cfg.permissions) defaultMode;
-          };
-
-          hooks = {
-            PostToolUse = [
-              {
-                matcher = "Edit|MultiEdit|Write";
-                hooks = [
-                  {
-                    type = "command";
-                    command = ''
-                      if [[ "$CLAUDE_TOOL_INPUT_FILE_PATH" == *.nix ]]; then
-                        nix fmt "$CLAUDE_TOOL_INPUT_FILE_PATH" 2>/dev/null || true
-                      fi
-                    '';
-                  }
-                ];
-              }
-            ];
           };
 
           inherit (cfg) theme;

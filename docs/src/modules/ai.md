@@ -26,13 +26,21 @@ matches nothing. Anything that can run a shell can reach whatever the user can
 reach, so the boundary that actually holds is whether the repository is one you
 trust.
 
-Two defaults follow from that. `Bash(just:*)` is not on the allow-list, because
-a justfile recipe is arbitrary shell and allowing it hands any repository
-unreviewed execution. And `permissions.defaultMode` is `"default"`, so edits
-are prompted rather than applied. Hosts that want either back set
-`permissions.extraAllow` and `permissions.defaultMode` explicitly, which keeps
-the decision visible in the host configuration rather than inherited from a
-library.
+Three defaults follow from that. Every allow-list entry names a tool and a
+command prefix, and no bare tool name appears, since a bare `Edit` approves
+every edit and is `acceptEdits` by another route. `Bash(just:*)`,
+`Bash(find:*)`, `Bash(nix eval:*)` and `Bash(nix fmt:*)` are absent, because
+each one runs whatever a repository hands it, through a recipe, `-exec`,
+`--expr` or the repository's own formatter. And `permissions.defaultMode` is
+`"default"`, so edits are prompted rather than applied. Hosts that want any
+of them back set `permissions.extraAllow` and `permissions.defaultMode`
+explicitly, which keeps the decision visible in the host configuration rather
+than inherited from a library. The module registers no hooks of its own.
+
+The shared context every MCP-enabled assistant receives describes the host it
+runs on. Its line about the root wipe is rendered from
+`othrys.system.impermanence.enable`, so a host with a persistent root is not
+told its root is wiped.
 
 ## MCP Servers
 
