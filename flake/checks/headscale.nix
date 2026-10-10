@@ -1,8 +1,9 @@
 # flake/checks/headscale.nix
 # EXTENDED. Control-plane handshake between a headscale server and a tailscale
 # client (both othrys modules) on a virtual network, where the client
-# registers with a preauth key and lands on the tailnet with a CGNAT
-# address. Proves the two modules actually interoperate, not just eval.
+# registers through the module's own baseURL and authKeyFile and lands on the
+# tailnet with a CGNAT address. Proves the two modules interoperate through
+# their options, with no hand-run `tailscale up`.
 {
   pkgs,
   inputs,
@@ -61,6 +62,10 @@ in
         imports = [testStubs];
         othrys.services.tailscale = {
           enable = true;
+          baseURL = "http://server:8080";
+          # Minted on the server during the test and written here, after
+          # which the registration unit is started again.
+          authKeyFile = "/run/tailscale-auth-key";
           acceptDns = false;
         };
       };
@@ -72,7 +77,16 @@ in
       server.wait_for_open_port(8080)
       client.wait_for_unit("tailscaled.service")
 
-      with subtest("preauth key mints and the client registers"):
+      with subtest("the registration unit carries the login server and the key file"):
+          # The unit's ExecStart is a generated script; the flags are in it.
+          script = client.succeed(
+              "systemctl show -p ExecStart --value tailscaled-autoconnect.service | grep -o '/nix/store/[^ ;]*' | head -1"
+          ).strip()
+          up = client.succeed(f"cat {script}")
+          assert "--login-server=http://server:8080" in up, up
+          assert "/run/tailscale-auth-key" in up, up
+
+      with subtest("a preauth key minted on the server registers the client through the module"):
           server.succeed("headscale users create test")
           user_id = server.succeed(
               "headscale users list -o json | jq -r '.[0].id'"
@@ -80,13 +94,19 @@ in
           key = server.succeed(
               f"headscale preauthkeys create --user {user_id} --expiration 1h -o json | jq -r '.key'"
           ).strip()
-          client.succeed(
-              f"tailscale up --login-server http://server:8080 --auth-key {key} "
-              "--accept-dns=false --timeout 60s"
-          )
+          client.succeed(f"install -m 0600 /dev/null /run/tailscale-auth-key && echo -n {key} > /run/tailscale-auth-key")
+          client.succeed("systemctl restart tailscaled-autoconnect.service")
 
       with subtest("the client is on the tailnet"):
           client.succeed("tailscale ip -4 | grep -E '^100\\.'")
           server.succeed("headscale nodes list | grep client")
+
+      with subtest("the set flags reached the daemon"):
+          # A oneshot that ran at boot, before the node was registered; run
+          # it again now so the flags are applied to a logged-in daemon.
+          client.succeed("systemctl start tailscaled-set.service")
+          prefs = client.succeed("tailscale debug prefs")
+          assert '"CorpDNS": false' in prefs, prefs
+          assert '"RouteAll": false' in prefs, prefs
     '';
   }

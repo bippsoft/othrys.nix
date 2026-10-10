@@ -880,6 +880,7 @@
       eval-router-services = import ./router-services.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
       eval-router = import ./router-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
       eval-headscale = import ./headscale-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
+      eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
 
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
