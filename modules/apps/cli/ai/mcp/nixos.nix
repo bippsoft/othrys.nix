@@ -1,6 +1,5 @@
 # modules/apps/cli/ai/mcp/nixos.nix
-# NixOS MCP server, providing NixOS and Nix package information
-# Uses the nixpkgs-packaged mcp-nixos (locked via flake.lock, so no remote fetch).
+# NixOS MCP server for package and option lookups, run from the nixpkgs mcp-nixos pinned by flake.lock
 {
   config,
   lib,

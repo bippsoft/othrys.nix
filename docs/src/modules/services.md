@@ -16,11 +16,12 @@ Service modules under `othrys.services.*`.
 | VictoriaMetrics | `othrys.services.victoriametrics` | Time-series database (Prometheus-compatible) |
 | VictoriaLogs | `othrys.services.victorialogs` | Log database (LogsQL, journald ingestion) |
 | Grafana | `othrys.services.grafana` | Dashboards (datasources auto-provisioned) |
+| Scrutiny | `othrys.services.scrutiny` | S.M.A.R.T. disk health with history (web UI, InfluxDB, collector) |
 | Alerting | `othrys.services.alerting` | vmalert rule evaluation with ntfy delivery |
 | Ntfy | `othrys.services.ntfy` | Self-hosted push-notification server |
 | Notify | `othrys.services.notify` | Host notification dispatch + failure hooks |
-| Automount | `othrys.services.automount` | USB automounting |
-| Firewall | `othrys.services.firewall` | Firewall configuration |
+| Automount | `othrys.services.automount` | USB automounting through udiskie |
+| Firewall | `othrys.services.firewall` | Turns on the NixOS firewall and sets nothing else |
 | Router | `othrys.services.router` | L3 router firewall + NAT (nftables), optional NFQUEUE hook |
 | Suricata | `othrys.services.suricata` | IDS/IPS (NFQUEUE or AF_PACKET inline) |
 | Kea | `othrys.services.kea` | Kea DHCPv4/DHCPv6 server |
@@ -918,6 +919,74 @@ being brought up.
 othrys.services.traefik.acme.caServer =
   "https://acme-staging-v02.api.letsencrypt.org/directory";
 ```
+
+### Public deployment
+
+A host exposed to the internet has more to set than the module's defaults
+cover. Each item below states what the module writes and what is left to the
+host.
+
+- **Dashboard.** `dashboard.enable` is off by default. On, it enables the
+  Traefik API and dashboard and creates no router for them, so the host
+  defines a router to `api@internal` in `dynamicConfigOptions`, on an
+  entrypoint and host name of its choosing and behind an authentication
+  middleware. `dashboard.insecure` serves the dashboard on `:8080` with no
+  authentication. The module never opens that port in the firewall, and a
+  public host leaves the option off, so the dashboard is never on a public
+  entrypoint without authentication.
+- **Access log.** The module writes no `accessLog`, and Traefik then logs no
+  requests. A host that wants them sets `staticConfigOptions.accessLog`.
+  `othrys.services.security.crowdsec` turns the log on in JSON when both
+  modules are enabled, because its Traefik parser reads those lines from the
+  journal.
+- **TLS floor and ciphers.** `tls.minVersion` is `"VersionTLS12"`. The module
+  sets no `cipherSuites`, so TLS 1.2 connections negotiate from Traefik's own
+  list. A host narrows it through
+  `dynamicConfigOptions.tls.options.default.cipherSuites`, or sets
+  `tls.minVersion = "VersionTLS13"`, where the suites are fixed by the
+  protocol.
+- **Certificate matching.** `tls.sniStrict` follows `acme.enable`. A public
+  host with certificates from another source sets it to `true` itself.
+- **Rate limiting.** The module defines no `rateLimit` or `inFlightReq`
+  middleware and attaches none. A host declares them in
+  `dynamicConfigOptions.http.middlewares` and names them on each public router.
+- **Headers.** `othrys-security-headers` carries HSTS, `nosniff` and the frame
+  option and nothing else. A content security policy or a referrer policy
+  belongs to each application and goes in that router's own middleware.
+- **ACME.** `acme.caServer` points the resolver at the Let's Encrypt staging
+  directory during bring-up, as shown above, since production rate-limits
+  failed orders. With the option unset the resolver uses the production
+  directory.
+- **Firewall.** `openFirewall` is on by default and opens 80 and 443 on every
+  interface.
+
+```nix
+othrys.services.traefik = {
+  enable = true;
+  acme = {
+    enable = true;
+    email = "admin@example.com";
+    dnsProvider = "cloudflare";
+  };
+  environmentFiles = [config.sops.secrets."traefik/env".path];
+  staticConfigOptions.accessLog.format = "json";
+  dynamicConfigOptions = {
+    tls.options.default.cipherSuites = [
+      "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+      "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+      "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305"
+      "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+    ];
+    # A router names this one as `public-rate-limit@file`.
+    http.middlewares.public-rate-limit.rateLimit = {
+      average = 100;
+      burst = 200;
+    };
+  };
+};
+```
+
+### Switches
 
 Each default has its own switch.
 

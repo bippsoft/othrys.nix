@@ -26,32 +26,62 @@ Each `modules/{category}/default.nix` imports all modules in that category, and 
 
 ## Home Manager Integration
 
-Home Manager is loaded as a NixOS module (not standalone). Modules configure
-user-level settings for the primary user (`othrys.system.user.name`), guarded
-at the attrset level by `othrys.system.users.enable` so headless hosts never
-materialize a home-manager user (a leaf-level `mkIf` is not enough, since the user
-would still be created):
+Home Manager is loaded as a NixOS module and manages one user, the primary user
+named by `othrys.system.user.name`. A module does not write
+`home-manager.users` itself. It contributes an attribute set to the
+`othrys.internal.homeConfig` registry, under a key that is its own option path.
 
 ```nix
-home-manager.users = lib.mkIf config.othrys.system.users.enable {
-  ${username} = {
-    # User-level configuration here
-  };
+othrys.internal.homeConfig."apps.gh" = {
+  programs.gh.enable = true;
 };
 ```
 
-The same guard applies to any other per-user write, such as group memberships
-(`users.users.${username}.extraGroups`).
+`modules/system/users.nix` merges every entry into `home-manager.users.<name>`
+behind `othrys.system.users.homeManaged`. The guard sits at the attrset level
+in that one place, so a headless host never materializes a Home Manager user.
+A leaf-level `mkIf` in each module would still create the user. On a host
+without a managed user the same module warns once and names every module whose
+entry was skipped.
+
+A module with a condition of its own wraps the whole entry in a top-level
+`lib.mkIf`, as `modules/services/docs.nix` does. A false condition drops the
+key from the registry.
+
+```nix
+othrys.internal.homeConfig."services.docs" = lib.mkIf cfg.desktopEntry {
+  # User-level configuration here
+};
+```
+
+Account-level writes, such as group memberships in
+`users.users.${username}.extraGroups`, stay in the module and are guarded on
+`othrys.system.users.enable` at the attrset level. `CONTRIBUTING.md` carries
+the full reasoning, and the `contract-guards` hook rejects a module that writes
+`home-manager.users`.
 
 ## Impermanence Pattern
 
-Modules that store persistent state declare their own persistence. Per-user
-directories carry the users guard as well:
+Modules that store persistent state declare their own persistence. A per-user
+entry carries the users guard beside the impermanence one, since impermanence
+reads the account's home directory to place the bind mount.
 
 ```nix
-environment.persistence."/persist" = lib.mkIf (impermanenceEnabled && usersEnabled) {
+environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
   users.${username}.directories = [
     ".config/{app}"
   ];
 };
 ```
+
+A system path needs no account and carries the impermanence guard alone.
+
+```nix
+environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+  directories = [
+    "/var/lib/{service}"
+  ];
+};
+```
+
+`persistRoot` is `config.othrys.system.impermanence.persistRoot`.

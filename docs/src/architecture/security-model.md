@@ -66,12 +66,15 @@ repository can reduce that set.
 
 ## Authentication
 
-The YubiKey module offers the key as a sufficient factor by default, so a touch
-replaces the password. `u2fRequirePassword` makes both required. The PAM control
-applies to the whole service, which means every account on the host then needs
-an enrolled credential for `login` and `sudo`. An account without one is locked
-out of both, and that includes a service account an administrator logs into
-rarely. See [Security](../modules/security.md).
+The YubiKey module makes the key a second factor by default. pam_u2f is
+inserted as `required` into the services listed in `u2fServices`, so the
+password and the touch must both succeed. The PAM control applies to the whole
+service, which means every account that authenticates through one of those
+services needs an enrolled credential. An account without one is locked out of
+them, and that includes a service account an administrator logs into rarely.
+Setting `u2fRequirePassword = false` switches the control to `sufficient`, where
+a touch replaces the password and an account with no credential falls through
+to its password. See [Security](../modules/security.md).
 
 ## Network inspection fails open
 

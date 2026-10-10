@@ -6,7 +6,7 @@ Each repository carries its own justfile. This one covers library development, w
 
 | Command | Description |
 |---------|-------------|
-| `just check` | Validate flake (eval + checks) |
+| `just check` | `nix flake check`, which runs every check, the VM tests included |
 | `just fmt` | Format the repo (treefmt) |
 | `just lint` | Format check + statix + deadnix |
 | `just ci` | lint + flake check |
@@ -16,6 +16,7 @@ Each repository carries its own justfile. This one covers library development, w
 | `just repl` | Open Nix REPL |
 | `just clean` | Remove build artifacts |
 | `just yubikey-onboard [args]` | Onboard/rotate YubiKey(s) ([options](../guides/yubikey-onboard.md#options)) |
+| `just release [bump]` | Run `just ci`, then bump the version with commitizen, write `CHANGELOG.md` and tag the release |
 
 ## Consuming fleet (recommended layout)
 

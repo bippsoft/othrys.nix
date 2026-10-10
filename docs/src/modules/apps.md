@@ -17,6 +17,9 @@ No desktop environment required, so these are usable on servers and headless sys
 | Yazi | `othrys.apps.yazi` | Terminal file manager |
 | Comma | `othrys.apps.comma` | Run uninstalled programs with nix-index |
 
+The assistant modules under `modules/apps/cli/ai/` are listed on the
+[AI Assistants](./ai.md) page.
+
 ## GUI Applications (`modules/apps/gui/`)
 
 Require a desktop environment.
@@ -26,8 +29,10 @@ Require a desktop environment.
 | Ghostty | `othrys.apps.ghostty` | Terminal emulator with rich options |
 | Kitty | `othrys.apps.kitty` | Alternative terminal emulator |
 | Floorp | `othrys.apps.floorp` | Firefox-based browser |
-| VS Code | `othrys.apps.vscode` | Visual Studio Code |
-| Vesktop | `othrys.apps.vesktop` | Discord client |
+| VSCodium | `othrys.apps.vscode` | VSCodium editor, wired to the shared language toolchains |
+| Vesktop | `othrys.apps.vesktop` | Discord client with Wayland support |
+| Discord | `othrys.apps.discord` | Official Discord client, with `~/.config/discord` persisted at mode `0700` |
+| IDEA | `othrys.apps.idea` | IntelliJ IDEA with a curated plugin catalogue. Requires `othrys.apps.languages.java` |
 | Signal | `othrys.apps.signal` | Signal messenger |
 | OBS | `othrys.apps.obs` | Screen recording/streaming. Enables `othrys.services.virtualcamera`, and builds with CUDA when `othrys.hardware.nvidia` is on |
 | Picard | `othrys.apps.picard` | MusicBrainz tagger |
@@ -35,6 +40,9 @@ Require a desktop environment.
 | RustDesk | `othrys.apps.rustdesk` | Remote desktop client. Persists `~/.config/rustdesk`, and `forceX11` starts the launcher through XWayland |
 | LocalSend | `othrys.apps.localsend` | Local file sharing |
 | MPV | `othrys.apps.mpv` | Media player |
+
+The modules under `modules/apps/gui/gaming/` are listed on the
+[Gaming](./gaming.md) page.
 
 ### Kitty
 

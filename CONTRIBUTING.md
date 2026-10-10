@@ -56,6 +56,8 @@ All modules follow the `othrys.*` namespace convention:
 1. Define options under `options.othrys.{category}.{name}`
 1. Use `lib.mkEnableOption` for the main toggle
 1. Guard all config with `config = lib.mkIf cfg.enable { ... };`
+1. Write user configuration to `othrys.internal.homeConfig."{category}.{name}"`,
+   never to `home-manager.users`
 1. Import in `modules/{category}/default.nix`
 1. Enable in a host config with `othrys.{category}.{name}.enable = true;`
 
@@ -93,6 +95,9 @@ in {
   };
 }
 ```
+
+`modules/apps/cli/gh.nix` follows this template, with one persisted directory
+and one registry entry.
 
 There is no `username` module argument. The primary user comes from
 `config.othrys.system.user.name`, and that option has no default, so reading it
@@ -197,10 +202,11 @@ terminal config is navigation rather than restatement.
 Packages go in one of two places. Choose by who needs the binary, not by
 convenience.
 
-`home-manager.users.${username}.home.packages` is the default. User-facing
-applications and CLI tools live here (browsers, editors, `gh`, `yazi`, language
-toolchains). They are scoped to the user and pair naturally with the program's
-Home Manager configuration.
+`home.packages` inside the module's `othrys.internal.homeConfig` entry is the
+default. User-facing applications and CLI tools live here, which covers
+browsers, editors, `yazi` and the language toolchains. They are scoped to the
+user and sit beside the program's Home Manager configuration, as in
+`modules/apps/gui/discord.nix`.
 
 `environment.systemPackages` is reserved for packages that must exist outside the
 user session. That covers system and Nix infrastructure needed in root or sudo
@@ -212,7 +218,7 @@ graphics stack injects globally even though its config lives in Home Manager.
 
 When a module needs both a system binary and per-user config, split it. The
 package goes in `environment.systemPackages` and the `programs.<name>` settings
-go in `home-manager.users.${username}`, as MangoHud does.
+go in the module's `othrys.internal.homeConfig` entry, as MangoHud does.
 
 ## Impermanence
 
@@ -228,12 +234,23 @@ environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersE
 };
 ```
 
-A system path carries `impermanenceEnabled` alone. A per-user path carries
-`usersEnabled` as well, because impermanence dereferences the account's home
-directory for every entry under `users`, and a host with impermanence on and
-`othrys.system.users.enable` off has no such account. `contract-guards` rejects
-the per-user form without the second guard. The `eval-persistence` check
-evaluates that host shape with every app and desktop module on.
+A system path carries `impermanenceEnabled` alone, as in
+`modules/services/traefik.nix`.
+
+```nix
+environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+  directories = [
+    "/var/lib/{service}"
+  ];
+};
+```
+
+A per-user path carries `usersEnabled` as well, because impermanence
+dereferences the account's home directory for every entry under `users`, and a
+host with impermanence on and `othrys.system.users.enable` off has no such
+account. `contract-guards` rejects the per-user form without the second guard.
+The `eval-persistence` check evaluates that host shape with every app and
+desktop module on.
 
 Three further rules apply to what goes in the list:
 

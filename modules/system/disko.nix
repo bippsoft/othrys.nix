@@ -1,22 +1,13 @@
 # modules/system/disko.nix
-# Declarative disk configuration with LUKS encryption and BTRFS
+# Declarative disk layout with LUKS encryption and BTRFS subvolumes
 #
-# Layout:
-# - EFI boot partition (unencrypted, FAT32)
-# - Swap partition (LUKS encrypted)
-# - Root partition (LUKS encrypted BTRFS with subvolumes)
+# The disk carries an unencrypted FAT32 EFI partition, an encrypted swap
+# partition and an encrypted BTRFS root. The root holds three subvolumes.
+# `root` is mounted at / and is the one othrys.system.impermanence wipes on
+# boot, `nix` holds the Nix store, and `persist` holds all persistent state.
 #
-# BTRFS Subvolumes (Impermanence Layout):
-# - root   → /        (ephemeral, wiped on boot)
-# - nix    → /nix     (persistent Nix store)
-# - persist → /persist (all persistent state)
-#
-# Usage:
-# 1. Configure in host: othrys.system.disko = { enable = true; device = "..."; swapSize = "8G"; };
-# 2. Initial install: sudo nix run github:nix-community/disko -- --mode destroy,format,mount --flake .#<host>
-# 3. After install, disko config is automatically applied via NixOS
-#
-# WARNING: Running disko in destroy mode will ERASE ALL DATA on the target disk!
+# disko formats the disk once, at install, in a mode that erases the target
+# disk. After that the same declaration supplies the host's filesystems.
 {
   config,
   lib,

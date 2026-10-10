@@ -21,8 +21,13 @@ under **System Infrastructure**, and the rest are summarized here.
 | Networking | `othrys.system.networking` | systemd-networkd: per-interface DHCP/static + bridges/VLANs (router topology) |
 | Git | `othrys.system.git` | Git identity and aliases (home-manager) |
 | Persistence | `othrys.system.persistence` | System/user state declarations for impermanence |
+| Impermanence | `othrys.system.impermanence` | Root wipe on boot and the `old-roots` recovery tool, see [Impermanence](../system/impermanence.md) |
+| Disko | `othrys.system.disko` | Disk layout with LUKS and BTRFS subvolumes, see [Disko](../system/disko.md) |
+| Bootloader | `othrys.system.bootloader` | Limine, systemd-boot or GRUB, with optional Secure Boot, see [Bootloader & Secure Boot](../system/bootloader.md) |
+| Secrets | `othrys.system.secrets` | sops-nix wiring and the manual-editing age identity, see [Secrets Management](../system/secrets.md) |
 | Stylix | `othrys.system.stylix` | System-wide base16 theming (fonts/cursor/opacity) |
-| Shell | `othrys.system.shell.{bash,zsh,starship}` | Interactive shells and prompt |
+| Shell | `othrys.system.shell.{bash,zsh,starship}` | Interactive shells and prompt, see [Shell](./shell.md) |
+| Default editor | `othrys.system.defaultEditor` | The command behind `EDITOR` and `VISUAL`, `vim` by default |
 
 ## Notes
 

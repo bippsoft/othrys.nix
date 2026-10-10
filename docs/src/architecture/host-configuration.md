@@ -76,7 +76,22 @@ othrys modules expect one argument via `specialArgs` (and `home-manager.extraSpe
 
 | Argument | Type | Used for |
 |----------|------|----------|
-| `inputs` | attrset | Modules that reference flake inputs directly (e.g. Hyprland uses `inputs.hyprland`); must contain the inputs shown above under these names |
+| `inputs` | attrset | Modules that reference flake inputs directly, under the names in the table below |
+
+A module reads an input only when its feature is enabled, so a consuming flake
+declares the ones its hosts use, typically as `follows = "othrys/<name>"`.
+
+| Input | Read by |
+|-------|---------|
+| `hyprland` | `othrys.desktop.compositors.hyprland` |
+| `ashell` | `othrys.desktop.ashell` |
+| `noctalia` | `othrys.desktop.noctalia` |
+| `nixvim` | `othrys.apps.nixvim` |
+| `nix-index-database` | `othrys.apps.comma` |
+| `secrets` | `othrys.system.secrets`, as the default of `secretFiles` when the input exists |
+
+niri needs no input from the consumer. `nixosModules.default` imports
+niri-flake's module from this flake's own lock.
 
 There is no `username` or `hostname` specialArg. The primary user is named via
 the `othrys.system.user.name` option, and hosts set `networking.hostName`
@@ -119,13 +134,13 @@ A host config should hold only what is true of that machine specifically, meanin
 
 ```nix
 # hosts/example/default.nix (illustrative)
-{hostname, ...}: {
+{...}: {
   imports = [
     ./hardware.nix
     ../../profiles/base.nix # identity, shell, secrets, ssh, security
     ../../profiles/desktop.nix # hyprland session, theming, GUI apps
   ];
-  networking.hostName = hostname;
+  networking.hostName = "example";
 
   othrys.system.disko = {
     enable = true;

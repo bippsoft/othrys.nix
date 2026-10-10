@@ -31,6 +31,17 @@ minimal configuration that shows the problem, and what an attacker gains.
   with the reporter when a fix needs it.
 - Credit in the advisory, unless the reporter asks otherwise.
 
+## Advisories
+
+Advisories are published as GitHub security advisories on this repository,
+under its Security tab.
+
+Dependabot watches the pinned GitHub Actions and nothing else. No job scans the
+Nix inputs, or the packages a module installs from them, for known
+vulnerabilities. The `flake-inputs` workflow reports whether the nixpkgs pin is
+recent and still supported, which is a different question. A consumer follows
+the advisories of nixpkgs and of the other inputs through those projects.
+
 ## Scope
 
 In scope:

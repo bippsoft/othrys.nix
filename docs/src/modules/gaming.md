@@ -8,6 +8,7 @@ Gaming modules under `othrys.apps.gaming.*`. Located in `modules/apps/gui/gaming
 |--------|--------|-------------|
 | Steam | `othrys.apps.gaming.steam` | Steam with FHS environment, Proton-GE, essential libraries |
 | GameMode | `othrys.apps.gaming.gamemode` | Performance optimizer with NVIDIA support |
+| MangoHud | `othrys.apps.gaming.mangohud` | Vulkan and OpenGL overlay for FPS, temperatures and CPU/GPU usage |
 | PrismLauncher | `othrys.apps.gaming.prismlauncher` | Minecraft launcher with persistent instances |
 | osu! | `othrys.apps.gaming.osu` | osu!lazer with OpenTabletDriver and low-latency audio |
 | r2modman | `othrys.apps.gaming.r2modman` | Mod manager for Thunderstore games |
@@ -41,22 +42,57 @@ at start, and `devConfig` writes any other console variable into the same file.
 
 ## GameMode
 
-Performance optimization with per-application settings:
+Enables `programs.gamemode` with renice support and writes these defaults into
+`gamemode.ini`:
 
-- Soft realtime scheduling
+- Soft realtime scheduling (`softrealtime = "auto"`) and `renice = 15`
 - Screensaver inhibit
-- NVIDIA PowerMizer performance mode (`nv_powermizer_mode = 1`)
-- Desktop notifications on start/stop
+- GPU optimisations on device 0, which are NVIDIA PowerMizer performance mode
+  (`nv_powermizer_mode = 1`) and `amd_performance_level = "high"`
+- Desktop notifications on start and stop
 
 `settings` is merged over those defaults and has the shape of `gamemode.ini`,
 a section name over keys whose values are a string, a number, a boolean or a
-list of those.
+list of those. Each default is written with `mkDefault`, so setting one key
+leaves the others in place.
+
+### What GameMode needs from the host
+
+- **A game that asks for it.** The daemon acts only for a process started
+  through `gamemoderun` or a client that requests it. The osu! wrapper on this
+  page does so, and a Steam title needs `gamemoderun %command%` in its launch
+  options.
+- **GPU index 0.** `gpu.gpu_device` defaults to `0`. A host whose gaming GPU
+  has another index sets `settings.gpu.gpu_device`.
+- **Consent to GPU changes.** The module writes
+  `apply_gpu_optimisations = "accept-responsibility"`, the literal value
+  GameMode requires before it changes the GPU power state. With it set,
+  GameMode switches the PowerMizer mode or the AMD performance level each
+  time a game starts. A host that does not want that sets
+  `settings.gpu.apply_gpu_optimisations = 0`.
+- **A notification daemon.** The start and end hooks call `notify-send`, and
+  the module installs `libnotify` for it. Nothing is shown on a session with
+  no notification daemon running.
+
+## MangoHud
+
+The overlay package is installed system-wide, since it loads into the graphics
+stack of every Vulkan and OpenGL application, while its configuration goes
+through Home Manager. The module requires `othrys.system.stylix.enable`,
+because the overlay colours are read from the Stylix palette, and it fails an
+assertion naming that option without it.
+
+`enableSessionWide`, off by default, sets `MANGOHUD=1` for the session so every
+Vulkan application shows the overlay. With it off, a game is started through
+`mangohud` to show it. `settings` is merged over the module defaults.
+`~/.config/MangoHud` and `~/.local/share/MangoHud` are persisted under
+impermanence, the second of which holds the logs that `F2` starts and stops.
 
 ## osu!
 
-- **Low-latency wrapper**: Injects `PIPEWIRE_LATENCY=64/48000` (1.3ms target) and launches with GameMode
+- **Low-latency wrapper**: Injects `PIPEWIRE_LATENCY=64/48000` (1.3ms target) and launches through `gamemoderun`
 - **Tablet driver**: Enables `hardware.opentabletdriver` daemon
-- **Persistence**: Auto-persists `~/.local/share/osu` (songs, skins, replays)
+- **Persistence**: Auto-persists `~/.local/share/osu` (songs, skins, replays) and `~/.config/OpenTabletDriver`
 
 ### Tablet Setup
 

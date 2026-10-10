@@ -7,7 +7,8 @@ How to create a new NixOS module in this repository.
 ### 1. Create the Module File
 
 Modules live at `modules/{category}/{name}.nix`, where the category is one of
-`system`, `desktop`, `hardware`, `services` or `apps`.
+`system`, `desktop`, `hardware`, `services` or `apps`. Application modules sit
+one level further down, under `modules/apps/cli/` or `modules/apps/gui/`.
 
 ### 2. Define Options and Config
 
@@ -23,7 +24,6 @@ Modules live at `modules/{category}/{name}.nix`, where the category is one of
   cfg = config.othrys.{category}.{name};
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
-  hmEnabled = config.othrys.system.users.homeManaged;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
@@ -32,31 +32,53 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = with pkgs; [package-name];
-
     environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username}.directories = [
         ".config/{name}"
       ];
     };
 
-    home-manager.users = lib.mkIf hmEnabled {
-      ${username} = {
-        # User-level configuration
-      };
+    othrys.internal.homeConfig."{category}.{name}" = {
+      home.packages = with pkgs; [package-name];
     };
   };
 }
 ```
 
+This is the template in `CONTRIBUTING.md`, and `modules/apps/cli/gh.nix` is a
+module that follows it.
+
 There is no `username` module argument. Read the primary user from
 `config.othrys.system.user.name`, and put every per-user write behind a guard,
-since the option has no default and a headless host may never set it. Account
-writes use `othrys.system.users.enable`, Home Manager writes use
-`othrys.system.users.homeManaged`, and both guards belong at the attrset level
-rather than on a leaf. A per-user persistence entry counts as an account write,
-since impermanence reads the account's home directory to place it, which is why
-the template guards it on `usersEnabled` beside `impermanenceEnabled`.
+since the option has no default and a headless host can leave it unset.
+
+User configuration goes into `othrys.internal.homeConfig`, under a key that is
+the module's own option path. `modules/system/users.nix` splices every entry
+into `home-manager.users.<name>` behind `othrys.system.users.homeManaged`, so
+the module spells no Home Manager guard of its own. A module never writes
+`home-manager.users` directly, and the `contract-guards` hook rejects one that
+does. A module whose user configuration depends on a second option wraps the
+whole entry in a top-level `lib.mkIf`, as `modules/services/docs.nix` does.
+
+```nix
+othrys.internal.homeConfig."services.docs" = lib.mkIf cfg.desktopEntry {
+  # User-level configuration
+};
+```
+
+Persistence has two forms. A per-user entry is an account write, since
+impermanence reads the account's home directory to place it, so the template
+guards it on `impermanenceEnabled && usersEnabled`. A system path needs no
+account and carries `impermanenceEnabled` alone, as in
+`modules/services/traefik.nix`.
+
+```nix
+environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+  directories = [
+    "/var/lib/{service}"
+  ];
+};
+```
 
 ### 3. Import in Category default.nix
 

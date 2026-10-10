@@ -12,8 +12,10 @@ other distros and darwin.
 
 ## Why it isn't a packaging exercise
 
-Every home-manager fragment in this repository reads NixOS-scoped state
-through `osConfig`:
+The user-level configuration in this repository reads NixOS-scoped state.
+Most modules contribute an `othrys.internal.homeConfig` entry written at NixOS
+scope, which reads `config` directly, while the nixvim and VSCodium fragments
+are Home Manager modules of their own and read it through `osConfig`:
 
 - **Identity and guards.** `othrys.system.user.name`,
   `othrys.system.users.homeManaged`: the whole per-user guard architecture
@@ -37,7 +39,9 @@ tree (new), with fragments reading `config.othrys.*` from whichever scope
 they're evaluated in instead of `osConfig`. Roughly:
 
 1. Extract option declarations from ~20 modules into shared files.
-2. Rewrite every `osConfig` read (~40 sites) to scope-relative reads.
+2. Rewrite every `osConfig` read (about 60 sites, nearly all in the nixvim and
+   VSCodium fragments) and every NixOS-scope read inside a registry entry to
+   scope-relative reads.
 3. Re-implement the guard semantics for HM scope (no accounts to guard, so
    `homeManaged` is trivially true, `graphical` becomes a consumer-set
    flag).

@@ -1,4 +1,5 @@
 # modules/desktop/compositors/hyprland.nix
+# Hyprland Wayland compositor, configured through Home Manager's Lua renderer
 #
 # Hyprland 0.5x reads a Lua config (`~/.config/hypr/hyprland.lua`), while hyprlang
 # is the legacy provider. Every setting here is expressed as an `hl.*` call

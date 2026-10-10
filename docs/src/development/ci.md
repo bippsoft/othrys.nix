@@ -1,6 +1,7 @@
 # CI/CD
 
-GitHub Actions workflow for continuous integration. Each repository carries its own workflows in `.github/workflows/` (while the two share a monorepo, the interim CI at the monorepo root runs both; the per-repo workflows activate at split time).
+GitHub Actions runs the flake's checks. The workflows live in
+`.github/workflows/`.
 
 ## Pipeline
 
@@ -8,30 +9,10 @@ The **Build** workflow splits the flake's checks into two tiers. Both run on
 every pull request, every push to `main` and every manual dispatch, so the core
 tier reports early while the whole suite still gates what lands:
 
-- **Core** (`core` job) runs on every PR/push/dispatch. The cheap, high-value
-  gate: lint (pre-commit), `secret-scan` (gitleaks over every tracked file), the docs build,
-  `docs-includes` (every include, anchor, relative link and heading fragment
-  in `docs/src` resolved, since mdbook exits 0 on an include it cannot read), `eval-host-min` (a minimal
-  functioning host evaluates), the four server-contract evals
-  (`eval-host-headless`, `eval-host-server`, `eval-host-anonymous`,
-  `eval-host-server-account`), `eval-bootloader` (every bootloader type with
-  `secureBoot` off and on), `eval-host-hardening` and
-  `eval-host-hardening-hibernate` (the hardening profile's values read back,
-  and its hibernation assertion), `eval-traefik` (the Traefik TLS floor and
-  header defaults read back), `eval-ssh` (the known hosts and client defaults
-  read back), `eval-ssh-settings` (the SSH server's ports, firewall, jail and
-  hardened defaults read back), `eval-template` (the `nix flake init` template instantiated with
-  only the inputs a consumer has), `eval-router-services` (the start-up defaults
-  of Suricata and CrowdSec read back), `eval-dev-shells` (the hooks each dev
-  shell installs read back), `eval-rustdesk` (what the RustDesk module persists
-  and launches), `eval-nvidia` (which NVIDIA driver and kernel modules a host
-  gets), `eval-persistence` (what the app and desktop modules persist, read
-  back on an impermanence host with a managed account and on one without),
-  `eval-languages` (the binaries nixvim and VSCodium take from the language
-  registry), `eval-hardware` (what the hardware, mount and disk modules
-  write), `eval-types` (the values the option types refuse, and the git
-  identity and bridge or vlan reference assertions), and `impermanence-test` (the persistence and
-  root-wipe invariant, the defining principle of the system). Small closures.
+- **Core** (`core` job) runs on every PR/push/dispatch and builds its checks
+  in one `nix build`. They are the lint hooks, the secret scan, the docs
+  build, the host evaluations and read-backs in the table below, and
+  `impermanence-test`. Their closures are small.
 - **Core on ARM** (`core-aarch64` job) runs on every PR/push/dispatch on an
   `ubuntu-24.04-arm` runner. It builds the portable host evaluations for
   `aarch64-linux`, which is every check named in `portableChecks` in
@@ -47,9 +28,72 @@ tier reports early while the whole suite still gates what lands:
   that branch protection can require. It passes only when every matrix leg
   succeeded, so a failed, cancelled or skipped leg fails it.
 
-Core builds its checks in one `nix build`; each extended matrix leg builds one check, and unchanged
-derivations are pulled from the cache rather than rebuilt. `nix flake check`
-locally still runs **every** check regardless of tier.
+| Check | What it covers |
+|-------|----------------|
+| `pre-commit-check` | The eight commit hooks, run over the whole tree |
+| `secret-scan` | gitleaks over every tracked file |
+| `docs` | The MdBook build, with the generated options reference injected |
+| `docs-includes` | Every include, anchor, relative link and heading fragment under `docs/src` resolves |
+| `eval-host-min` | A minimal functioning host evaluates |
+| `eval-host-headless`, `eval-host-server`, `eval-host-anonymous`, `eval-host-server-account` | The four server-contract host shapes |
+| `eval-bootloader` | Every bootloader type with `secureBoot` off and on |
+| `eval-host-hardening`, `eval-host-hardening-hibernate` | The hardening profile's values, and its hibernation assertion |
+| `eval-impermanence` | What the impermanence module writes into the initrd |
+| `eval-persistence` | What the app and desktop modules persist, with a managed account and without one |
+| `eval-service-state` | What the service modules persist under impermanence |
+| `eval-nix` | What the nix module trusts and pins |
+| `eval-shell` | The login shell, the editor variables and the aliases |
+| `eval-types` | The values the option types refuse, and the git identity and bridge or vlan reference assertions |
+| `eval-exports` | The export list in `flake/modules.nix`, held to the module tree |
+| `eval-template` | The `nix flake init` template, instantiated with only the inputs a consumer has |
+| `eval-dev-shells` | The hooks each dev shell installs |
+| `eval-auto-upgrade` | The evaluation-time rules of the auto-upgrade verify gate |
+| `eval-ssh`, `eval-ssh-settings` | The known hosts and client defaults, and the server's ports, firewall, jail and hardened defaults |
+| `eval-pam` | Which PAM services take the YubiKey, and with what control |
+| `eval-traefik` | The Traefik TLS floor and header defaults |
+| `eval-router`, `eval-router-services` | The router's rendered ruleset, and the start-up defaults of Suricata and CrowdSec |
+| `eval-headscale`, `eval-tailscale` | What the two modules render, pass to the daemon and refuse |
+| `eval-exposure` | What ntfy, Scrutiny and the two Victoria stores expose and persist |
+| `eval-grafana` | What the Grafana module serves and refuses |
+| `eval-listen` | Where the metrics, logs, dashboard and alerting modules find each other |
+| `eval-services` | What the smaller service modules pass upstream and refuse |
+| `eval-k3s`, `eval-containers` | What k3s opens and requires, and what the container modules run and prune |
+| `eval-hardware`, `eval-nvidia` | What the hardware, mount and disk modules write, and which NVIDIA driver a host gets |
+| `eval-desktop`, `eval-lock`, `eval-login` | What the desktop modules and terminals write, the session lock, and what greetd is handed |
+| `eval-languages` | The binaries nixvim and VSCodium take from the language registry |
+| `eval-floorp`, `eval-rustdesk` | The Floorp and Discord settings, and what RustDesk persists and launches |
+| `eval-claude-code` | The settings, pre-approved tools and context the AI modules hand Claude Code |
+| `impermanence-test` | A VM test of the wipe script and the persistence invariant |
+
+**Core on ARM** (`core-aarch64` job) runs on the same events on an
+`ubuntu-24.04-arm` runner. It builds the portable host evaluations for
+`aarch64-linux`, which is every check named in `portableChecks` in
+`flake/checks/default.nix`. It is not required by branch protection.
+
+**Extended** (`extended` job) runs on push to `main`, on manual dispatch, and
+on a pull request that changes `flake.nix` or `flake.lock` or whose title
+starts with `chore(flake)`, since input bumps are the changes that break deep
+surfaces. A matrix gives each check its own runner. The `extended-ok` job
+reports one status for branch protection and counts a skipped matrix as a
+pass.
+
+| Check | What it covers |
+|-------|----------------|
+| `eval-default`, `eval-host-desktop`, `eval-host-desktop-niri` | The whole module tree with defaults, and the two desktop stacks |
+| `eval-ashell` | The bar's generated config for a desktop and a laptop |
+| `enable-matrix` | Every `othrys.*.enable` option turned on with defaults |
+| `restic-test` | A backup, a restore and the integrity check, in a VM |
+| `headscale-test` | A Tailscale client registering against Headscale |
+| `auto-upgrade-test` | The signature gate in front of the unattended upgrade |
+| `crowdsec-test` | The CrowdSec engine and bouncer on a fresh host |
+| `router-test`, `router-ips-test` | The router, Kea and Unbound on a virtual network, and Suricata inline on the NFQUEUE hook |
+| `integration-test` | A booted machine with a representative set of modules |
+| `impermanence-reboot-test`, `impermanence-wipe-test` | Host identity across a reboot with an empty root, and the wipe unit booted from a btrfs root |
+
+Unchanged derivations are pulled from the cache and not rebuilt.
+`nix flake check` locally runs every check regardless of tier. That includes
+`comment-hygiene` and `contract-guards` as checks of their own and the three
+`eval-host-app-no-hm*` evaluations, which no workflow job builds by name.
 
 Branch protection on `main` requires two statuses, `Core checks` and
 `Extended verdict`. That requirement is a repository setting, and the workflow
@@ -79,7 +123,8 @@ job reads the pull request title or any other event text.
 | `build.yml` | **extended** | Every PR/push: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
 | `build.yml` | **extended-ok** | Every PR/push: one status for the matrix, passing only when every leg succeeded |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |
-| `flake-inputs.yml` | **flake-inputs** | Freshness/advisory check for the flake lock (runs when `flake.{lock,nix}` change, plus weekly) |
+| `flake-inputs.yml` | **flake-inputs** | Health check of the nixpkgs pins in the flake lock, which covers the branch they track, their age and whether the release is supported. It runs when `flake.{lock,nix}` change and weekly, and it does not scan for security advisories |
+| `update-inputs.yml` | **update** | Weekly `nix flake update`, opened as a `chore(flake)` pull request and never merged automatically |
 | `scorecard.yml` | **analysis** | OpenSSF Scorecard on `main`, weekly, and on branch protection changes. Publishes the score behind the README badge and uploads findings to code scanning |
 
 `.github/dependabot.yml` raises weekly PRs that move the sha pins of the actions
@@ -87,7 +132,7 @@ these workflows use. Nix inputs are left to `update-inputs.yml`.
 
 ## Disk Space
 
-The check job uses [nothing-but-nix](https://github.com/wimpysworld/nothing-but-nix) to reclaim ~115GB of disk space on GitHub runners, replacing the default ~20GB limit.
+The `core` and `extended` jobs use [nothing-but-nix](https://github.com/wimpysworld/nothing-but-nix) to reclaim ~115GB of disk space on GitHub runners, replacing the default ~20GB limit.
 
 ## Cachix
 
@@ -127,7 +172,7 @@ Defined in `flake/checks/`, with each VM test in its own file:
 {{#include ../../../flake/checks/default.nix:checks}}
 ```
 
-Host build checks live in the consuming fleet flake's `flake/checks.nix`.
+This repository holds no hosts, so host build checks belong to the consuming fleet flake.
 
 ## Documentation Includes
 

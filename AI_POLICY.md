@@ -3,8 +3,8 @@
 The othrys.nix project has strict rules for AI usage:
 
 - **All AI usage in any form must be disclosed.** You must state
-  the tool you used (e.g. Claude Code, Cursor, Amp) along with
-  the extent that the work was AI-assisted.
+  the tool you used along with the extent that the work was
+  AI-assisted.
 
 - **The human-in-the-loop must fully understand all code.** If you
   can't explain what your changes do and how they interact with the
@@ -22,10 +22,9 @@ The othrys.nix project has strict rules for AI usage:
   Text and code are the only acceptable AI-generated content, per the
   other rules in this policy.
 
-- **Bad AI drivers will be denounced** People who produce bad contributions
-  that are clearly AI (slop) will be added to our public denouncement list.
-  This list will block all future contributions. Additionally, the list
-  is public and may be used by other projects to be aware of bad actors.
+- **Bad AI drivers will be blocked.** People who produce bad contributions
+  that are clearly AI (slop) will have them closed and will be blocked
+  from contributing further.
   We love to help junior developers learn and grow, but
   if you're interested in that then don't use AI, and we'll help you.
   I'm sorry that bad AI drivers have ruined this for you.
@@ -68,4 +67,5 @@ that this policy is anti-AI in nature.
 
 This policy is adapted from the [Ghostty](https://github.com/ghostty-org/ghostty)
 project's `AI_POLICY.md`, used under the MIT license. The project name has been
-changed, and the rules are otherwise theirs.
+changed, and bad contributions lead to a block where the original keeps a
+public list. The rules are otherwise theirs.

@@ -1,4 +1,6 @@
 # modules/system/persistence.nix
+# System-critical and cross-cutting user persistence for impermanence hosts
+#
 # ANCHOR: app-persistence-index
 # App-specific persistence lives in each app's module:
 # - Steam → modules/apps/gui/gaming/steam.nix

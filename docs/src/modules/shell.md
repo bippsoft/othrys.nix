@@ -17,7 +17,7 @@ Full-featured Zsh with:
 - Plugin management (syntax highlighting, autosuggestions, completions)
 - Direnv integration for automatic dev shell activation
 - Zoxide for smart directory jumping
-- Toggleable alias presets (`aliasPresets.{nix,navigation,modernUnix,editor,git,python,jvm,ansible,opentofu,node,docker,clipboard}`, all on by default) plus `extraAliases` for consumer additions
+- Toggleable alias presets (`aliasPresets.{nix,navigation,modernUnix,editor,git,python,jvm,ansible,opentofu,node,docker,clipboard}`, all on by default except `clipboard`, which follows `othrys.desktop.graphical`) plus `extraAliases` for consumer additions
 - Persistence for history and the zoxide database. History is kept in
   `~/.local/share/zsh/history`, and the module persists that directory rather
   than the file, since zsh saves history by renaming a temporary file over

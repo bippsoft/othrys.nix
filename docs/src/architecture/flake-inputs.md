@@ -15,12 +15,14 @@ All external dependencies are declared in `flake.nix`:
 | `flake-parts` | Modular flake framework |
 | `home-manager` | Declarative user environment management |
 | `hyprland` | Wayland compositor (pinned, not following nixpkgs) |
+| `niri` | niri-flake, the typed `programs.niri.settings` module the Niri compositor module imports |
+| `noctalia` | Noctalia Wayland shell, whose Home Manager module the Noctalia module imports |
 | `disko` | Declarative disk partitioning |
 | `nix-index-database` | Prebuilt database for `comma` and `nix-locate` |
 | `impermanence` | Opt-in state persistence |
 | `nixvim` | Neovim configuration via Nix modules (used by the nixvim module) |
-| `stylix` | System-wide base16 theming |
-| `git-hooks` | Pre-commit validation (treefmt, Statix, Deadnix) |
+| `stylix` | System-wide theming from one color scheme |
+| `git-hooks` | Pre-commit hooks (treefmt, Statix, Deadnix, commitizen, gitleaks and the three repository hooks) |
 | `treefmt-nix` | Multi-language formatter behind `nix fmt` |
 | `sops-nix` | Secrets management with age encryption |
 | `lanzaboote` | Secure Boot for systemd-boot (read by the checks only, since no module imports it and a consumer who wants it declares their own) |

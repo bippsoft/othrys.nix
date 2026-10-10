@@ -6,8 +6,8 @@ Security modules under `othrys.services.security.*`. Located in `modules/service
 
 | Module | Option | Description |
 |--------|--------|-------------|
-| Sudo | `othrys.services.security.sudo` | Sudo configuration |
-| Polkit | `othrys.services.security.polkit` | PolicyKit rules |
+| Sudo | `othrys.services.security.sudo` | sudo with a password for wheel, `use_pty` and a credential timeout |
+| Polkit | `othrys.services.security.polkit` | Turns on polkit and adds no rules |
 | YubiKey | `othrys.services.security.yubikey` | U2F PAM, GPG agent, SSH keygrips |
 | fail2ban | `othrys.services.security.fail2ban` | Intrusion prevention |
 | CrowdSec | `othrys.services.security.crowdsec` | CrowdSec engine + nftables firewall bouncer |

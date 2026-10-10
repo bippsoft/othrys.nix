@@ -1,6 +1,6 @@
 # Secrets Management
 
-Secrets are managed with [sops-nix](https://github.com/Mic92/sops-nix) using age encryption via YubiKey.
+Secrets are managed with [sops-nix](https://github.com/Mic92/sops-nix) using age encryption. The identity used for editing can be backed by a YubiKey.
 
 ## Architecture
 
@@ -81,7 +81,7 @@ so a host that keeps its key elsewhere overrides them directly.
 
 ## YubiKey Setup
 
-The `othrys.services.security.yubikey` module provides `age-plugin-yubikey` for manual sops editing. Touch policy is set to "Always", so a physical touch is required for every decryption.
+The `othrys.services.security.yubikey` module provides `age-plugin-yubikey` for manual sops editing. The module sets no touch policy. The policy belongs to the identity on the key and is chosen when that identity is generated, and the onboarding script generates it with a touch required for every decryption.
 
 To provision a new YubiKey with an age identity for sops-nix (along with PGP keys and U2F credentials):
 
