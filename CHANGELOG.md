@@ -1,3 +1,39 @@
+## v0.10.0 (2026-10-09)
+
+### BREAKING CHANGE
+
+- an ntfy server now refuses a client with no
+credentials. A publisher that worked without a token needs an account
+and a token from `users`, `access` and `tokensFile`, or from `ntfy
+user` and `ntfy token` on the host, and `othrys.services.notify.tokenFile`
+pointing at it. A host that wants the old behaviour sets
+`othrys.services.ntfy.defaultAccess = "read-write"`. Under impermanence
+the persisted path of ntfy and scrutiny moves from `/var/lib/<name>` to
+`/var/lib/private/<name>`; a host that holds state at the old path
+moves it once before the switch.
+- othrys.services.tailscale.acceptRoutes defaults to
+false; a host that relies on advertised subnet routes sets it to true.
+A host with baseURL and no authKeyFile now warns on every evaluation
+until it either sets a key file or drops baseURL.
+- othrys.services.headscale.ui.agent.enable and
+ui.agent.preAuthKeyFile are removed; a host that set them drops the
+two lines. A host that runs Headscale beside Scrutiny or CrowdSec on
+their default ports, or Headplane beside the documentation server,
+fails to evaluate until one of the ports is moved. A host whose
+baseDomain is the serverUrl host or a suffix of it is refused as
+before, and one that only shares letters with it is now accepted.
+
+### Fix
+
+- **ntfy**: deny anonymous clients by default, provision access declaratively, and persist the right paths
+- **tailscale**: pass the control server as --login-server and the routing flags through tailscale set
+- **suricata**: reload rules on update, refuse a queue mismatch, and bind the offload unit to its interfaces
+- **crowdsec**: hook the bouncer's sets on forward for a router, watch Traefik, and drop the stale reload override
+- **router**: take IPv6 advertisements on the WAN, match ICMPv6 by protocol, and count what the policy drops
+- **headscale**: surface the policy and the OIDC allowlists, refuse the port clashes, and drop the agent option
+- **router**: render the firewall's port lists into the input chain and keep rp_filter strict on the WAN alone
+- **router**: declare port forwards in a prerouting chain instead of a dnat rule that unloads the firewall
+
 ## v0.9.0 (2026-10-09)
 
 ### BREAKING CHANGE
