@@ -26,14 +26,16 @@
       modules = upstreamModules ++ mods;
     };
 
-  # Enumerate every othrys.*.enable option path from a minimal eval.
+  # Enumerate every othrys.*.enable option path from a minimal eval. An
+  # option that mkRemovedOptionModule declares is still an option, declared
+  # invisible and throwing when set, so it is not one to flip.
   collectEnables = prefix: opts:
     lib.concatLists (lib.mapAttrsToList (
         name: v: let
           path = prefix ++ [name];
         in
           if lib.isOption v
-          then lib.optional (name == "enable") path
+          then lib.optional (name == "enable" && (v.visible or true) != false) path
           else if builtins.isAttrs v
           then collectEnables path v
           else []
