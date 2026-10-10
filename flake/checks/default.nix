@@ -846,14 +846,47 @@
       # this flake and only the inputs a consumer would have. A template that
       # stops matching the consumer contract, or the required options, fails
       # here instead of in a new user's first build.
-      eval-template = pkgs.runCommand "othrys-eval-template" {
-        drv =
-          builtins.unsafeDiscardStringContext
+      #
+      # The host the template describes also has to be one somebody can log
+      # in to. It ships a bootstrap hash rather than a secrets path, since no
+      # secrets module is enabled there and a path under /run/secrets/ is
+      # installed after the account is created. Both facts are read back.
+      #
+      # The shipped hash is a placeholder, and NixOS says so with its "may be
+      # invalid" notice, which is the right message for a template built
+      # unedited. That one warning is expected, and any other means an othrys
+      # module objects to the template as shipped.
+      eval-template = let
+        template =
           ((import ../../templates/default/flake.nix).outputs {
             othrys = inputs.self;
             inherit (inputs) nixpkgs home-manager disko stylix sops-nix impermanence;
-          }).nixosConfigurations.myhost.config.system.build.toplevel.drvPath;
-      } "echo \"$drv\" > \"$out\"";
+          }).nixosConfigurations.myhost.config;
+        account = template.users.users.${template.othrys.system.user.name};
+      in
+        pkgs.runCommand "othrys-eval-template" {
+          drv = builtins.unsafeDiscardStringContext template.system.build.toplevel.drvPath;
+          passwordFile = toString account.hashedPasswordFile;
+          hasBootstrapHash =
+            if account.initialHashedPassword != null && account.initialHashedPassword != ""
+            then "1"
+            else "0";
+          warningCount = toString (builtins.length (builtins.filter (w: !inputs.nixpkgs.lib.hasInfix "password hash" w) template.warnings));
+        } ''
+          [ -z "$passwordFile" ] || {
+            echo "template: passwordFile is set to $passwordFile, but the template enables no secrets module" >&2
+            exit 1
+          }
+          [ "$hasBootstrapHash" = 1 ] || {
+            echo "template: initialHashedPassword is unset, so the account has no password" >&2
+            exit 1
+          }
+          [ "$warningCount" = 0 ] || {
+            echo "template: evaluates with $warningCount warning(s)" >&2
+            exit 1
+          }
+          echo "$drv" > "$out"
+        '';
 
       # The dev shells, held to the hooks they claim to install. The default
       # shell has to match pre-commit-check, and the consumer shell has to
