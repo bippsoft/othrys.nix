@@ -1,9 +1,13 @@
 # flake/checks/enable-matrix.nix
 # EXTENDED. The categorical enable-with-defaults matrix, where every
 # `othrys.*.enable` option, set to true on an otherwise-default host,
-# must either evaluate or fail via a caught assertion/throw. Modules
-# that legitimately require configuration are listed in expectedFail,
-# and MUST keep failing (a passing entry means the allowlist is stale).
+# must either evaluate or fail the way the allowlist says. A module that
+# legitimately requires configuration is listed in expectedFail with a
+# fragment of the assertion it has to fail with, and MUST keep failing with
+# it. An entry that evaluates means the allowlist is stale, and one that
+# fails with another message means the module broke where its own
+# assertion used to speak. Modules that fail without an assertion of their
+# own sit in expectedFailUnnamed.
 # Apps/desktop enables run on a workstation base (user + stylix +
 # hyprland), and everything else runs headless. Uncatchable errors (type
 # errors like a null slipping into string interpolation) abort the
@@ -69,58 +73,88 @@
 
   isDesktopPath = p: builtins.elem (builtins.elemAt p 1) ["apps" "desktop"];
 
-  evalPath = path:
-    (builtins.tryEval (
-      (mkSys ((
-          if isDesktopPath path
-          then desktopBase
-          else headlessBase
-        )
-        ++ [(lib.setAttrByPath path true)]))
-      .config
-      .system
-      .build
-      .toplevel
-      .drvPath
-      != null
-    ))
-    .success;
+  evalOf = path:
+    mkSys ((
+        if isDesktopPath path
+        then desktopBase
+        else headlessBase
+      )
+      ++ [(lib.setAttrByPath path true)]);
 
-  # Modules whose bare `enable = true` intentionally fails with an
-  # assertion or a required-option error. Each entry is ALSO asserted
-  # to fail. If one starts passing, remove it here.
-  expectedFail = [
-    "othrys.apps.ai.mcp.github.enable" # requires othrys.system.secrets
-    "othrys.apps.gaming.r2modman.enable" # requires gaming.steam
-    "othrys.system.nix.cachix.enable" # requires a cache name and public key
-    "othrys.services.headscale.enable" # requires serverUrl + MagicDNS domain/nameservers
-    "othrys.services.kea.enable" # requires dhcp4.interfaces
-    "othrys.services.router.enable" # requires wan.interface
+  evaluates = sys: (builtins.tryEval (sys.config.system.build.toplevel.drvPath != null)).success;
+
+  # True when the host carries a failing assertion whose message holds
+  # `fragment`. Each assertion is tried alone. A host missing a required
+  # option often has another assertion that reads that option and throws, and
+  # that one must not hide the assertion an entry names.
+  failsWith = fragment: sys: let
+    hit = a: let
+      tried = builtins.tryEval (!a.assertion && lib.hasInfix fragment a.message);
+    in
+      tried.success && tried.value;
+    found = builtins.tryEval (builtins.any hit sys.config.assertions);
+  in
+    found.success && found.value;
+
+  # Modules whose bare `enable = true` is refused by an assertion of their
+  # own, with a fragment of the message each has to fail with. An entry passes
+  # only on that assertion, so a module that starts failing for another
+  # reason is reported, and so is one that starts evaluating.
+  expectedFail = {
+    "othrys.apps.ai.mcp.github.enable" = "othrys.apps.ai.mcp.github requires othrys.system.secrets.enable";
+    "othrys.apps.gaming.r2modman.enable" = "othrys.apps.gaming.r2modman requires othrys.apps.gaming.steam.enable";
+    "othrys.apps.idea.enable" = "othrys.apps.idea: requires othrys.apps.languages.java.enable";
+    "othrys.desktop.nightLight.enable" = "othrys.desktop.nightLight needs a location";
+    "othrys.hardware.nvidia.prime.enable" = "PRIME offload needs the NVIDIA driver";
+    "othrys.services.alerting.enable" = "othrys.services.alerting: no datasource";
+    "othrys.services.ddns.enable" = "othrys.services.ddns: set provider, hostnames, and credentialsFile";
+    "othrys.services.grafana.enable" = "othrys.services.grafana: set secretKeyFile";
+    # serverUrl has no default either. The MagicDNS assertion is the one that
+    # reads nothing but options with defaults.
+    "othrys.services.headscale.enable" = "requires baseDomain";
+    "othrys.services.kea.enable" = "othrys.services.kea: dhcp4.interfaces must list at least one interface";
+    "othrys.services.notify.enable" = "othrys.services.notify: set url";
+    "othrys.services.scrutiny.collector.enable" = "a collector-only host must set collector.endpoint";
+    "othrys.system.autoUpgrade.enable" = "othrys.system.autoUpgrade: set exactly one upgrade source";
+    "othrys.system.nix.cachix.enable" = "othrys.system.nix.cachix: set name and publicKey";
+    "othrys.system.users.enable" = "othrys.system.users: set passwordFile or initialHashedPassword";
+  };
+
+  # Modules whose bare `enable = true` fails some other way, where there is
+  # no assertion of the module's own to name. Three declare an option with no
+  # default, which the module system reports when the option is read, and the
+  # bootloader collides with the GRUB the matrix base carries. Each is still
+  # asserted to fail, by any catchable error.
+  expectedFailUnnamed = [
+    "othrys.hardware.ups.enable" # passwordFile has no default
+    "othrys.services.router.enable" # wan.interface has no default
     "othrys.system.bootloader.enable" # conflicts with the matrix base's GRUB fixture
-    "othrys.system.disko.enable" # requires device
-    "othrys.system.impermanence.enable" # requires disko
-    "othrys.system.users.enable" # requires initialHashedPassword or passwordFile
-    "othrys.services.notify.enable" # requires url (or a local ntfy server)
-    "othrys.services.alerting.enable" # requires a datasource (VM or monitoring)
-    "othrys.services.grafana.enable" # requires secretKeyFile
-    "othrys.hardware.ups.enable" # requires passwordFile
-    "othrys.hardware.nvidia.prime.enable" # requires hardware.nvidia and both bus ids
-    "othrys.system.autoUpgrade.enable" # requires the fleet flake URI
-    "othrys.services.ddns.enable" # requires provider/hostnames/credentialsFile
-    "othrys.apps.idea.enable" # requires othrys.apps.languages.java
-    "othrys.services.scrutiny.collector.enable" # collector-only host requires collector.endpoint
-    "othrys.desktop.nightLight.enable" # requires coordinates or geoclue.enable
+    "othrys.system.disko.enable" # device has no default
+    # impermanence asserts on disko by name, but with no disko layout the
+    # host's assertion list does not evaluate as a whole, so the message
+    # cannot be read here. impermanence-eval reads the module on a real layout.
+    "othrys.system.impermanence.enable"
   ];
 
-  results =
-    map (path: {
-      name = lib.concatStringsSep "." path;
-      pass = evalPath path;
-    })
-    enablePaths;
+  results = map (path: let
+    name = lib.concatStringsSep "." path;
+    sys = evalOf path;
+    pass = evaluates sys;
+    named = builtins.hasAttr name expectedFail && failsWith expectedFail.${name} sys;
+  in
+    # Both fields are forced before the record is returned. A field left
+    # as a thunk keeps its whole evaluated system reachable, and with one
+    # system per enable option that is every system at once, which is more
+    # memory than a CI runner or a workstation has.
+    builtins.seq pass (builtins.seq named {inherit name pass named;}))
+  enablePaths;
 
-  unexpected = builtins.filter (r: !r.pass && !(builtins.elem r.name expectedFail)) results;
-  stale = builtins.filter (r: r.pass && builtins.elem r.name expectedFail) results;
+  isExpected = name: builtins.hasAttr name expectedFail || builtins.elem name expectedFailUnnamed;
+
+  unexpected = builtins.filter (r: !r.pass && !isExpected r.name) results;
+  stale = builtins.filter (r: r.pass && isExpected r.name) results;
+  misnamed = builtins.filter (r: !r.pass && builtins.hasAttr r.name expectedFail && !r.named) results;
+  unknown = builtins.filter (name: !(builtins.any (r: r.name == name) results)) (builtins.attrNames expectedFail ++ expectedFailUnnamed);
 
   report =
     lib.optionalString (unexpected != []) ''
@@ -128,8 +162,16 @@
       ${lib.concatMapStringsSep "\n" (r: "  - ${r.name}") unexpected}
     ''
     + lib.optionalString (stale != []) ''
-      STALE ALLOWLIST (these now pass; remove them from expectedFail):
+      STALE ALLOWLIST (these now pass; remove them from expectedFail or expectedFailUnnamed):
       ${lib.concatMapStringsSep "\n" (r: "  - ${r.name}") stale}
+    ''
+    + lib.optionalString (misnamed != []) ''
+      WRONG FAILURE (these fail, and no failing assertion holds the fragment expectedFail gives):
+      ${lib.concatMapStringsSep "\n" (r: "  - ${r.name}, expected \"${expectedFail.${r.name}}\"") misnamed}
+    ''
+    + lib.optionalString (unknown != []) ''
+      UNKNOWN ENTRIES (these name no othrys enable option):
+      ${lib.concatMapStringsSep "\n" (name: "  - ${name}") unknown}
     '';
 in
   pkgs.runCommand "othrys-enable-matrix" {

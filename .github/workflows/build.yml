@@ -54,6 +54,12 @@ jobs:
             '.#checks.x86_64-linux.eval-host-server' \
             '.#checks.x86_64-linux.eval-host-anonymous' \
             '.#checks.x86_64-linux.eval-host-server-account' \
+            '.#checks.x86_64-linux.eval-host-app-no-hm' \
+            '.#checks.x86_64-linux.eval-host-app-no-hm-full' \
+            '.#checks.x86_64-linux.eval-host-app-no-hm-noctalia' \
+            '.#checks.x86_64-linux.eval-pairs' \
+            '.#checks.x86_64-linux.eval-contract' \
+            '.#checks.x86_64-linux.ci-coverage' \
             '.#checks.x86_64-linux.eval-bootloader' \
             '.#checks.x86_64-linux.eval-nvidia' \
             '.#checks.x86_64-linux.eval-hardware' \

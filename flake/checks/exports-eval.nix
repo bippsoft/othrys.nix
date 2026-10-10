@@ -7,18 +7,16 @@
 {
   pkgs,
   inputs,
+  moduleHelpers,
 }: let
   inherit (inputs.nixpkgs) lib;
   root = toString inputs.self;
   groups = ["system" "desktop" "hardware" "services"];
-  # Files under the infrastructure groups that are not modules. Each is a
-  # plain function that modules import directly, and says so in its header.
-  helpers = ["modules/desktop/compositors/hyprland-lua.nix" "modules/desktop/session.nix"];
   relative = path: lib.removePrefix "${root}/" (toString path);
   isModule = path: let
     rel = relative path;
   in
-    lib.hasSuffix ".nix" rel && baseNameOf rel != "default.nix" && !(builtins.elem rel helpers);
+    lib.hasSuffix ".nix" rel && baseNameOf rel != "default.nix" && !(builtins.elem rel moduleHelpers);
   tree = lib.unique (map relative (builtins.filter isModule (lib.concatMap (g: lib.filesystem.listFilesRecursive "${root}/modules/${g}") groups)));
   # flake-parts types the outputs as deferred modules, so each export arrives
   # as a module whose imports hold the path it was declared with, wrapped

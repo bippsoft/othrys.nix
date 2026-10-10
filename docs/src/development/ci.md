@@ -37,6 +37,10 @@ tier reports early while the whole suite still gates what lands:
 | `docs-includes` | Every include, anchor, relative link and heading fragment under `docs/src` resolves |
 | `eval-host-min` | A minimal functioning host evaluates |
 | `eval-host-headless`, `eval-host-server`, `eval-host-anonymous`, `eval-host-server-account` | The four server-contract host shapes |
+| `eval-host-app-no-hm`, `eval-host-app-no-hm-full`, `eval-host-app-no-hm-noctalia` | A slice of the app and desktop modules, all of them, and the noctalia shell, each on a host with an account that Home Manager does not manage |
+| `eval-pairs` | Every conflict or requirement between two modules or two options, each matched by a fragment of its assertion message |
+| `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/users.nix` writes `home-manager.users`, and the fixtures and the template pass `inputs` alone |
+| `ci-coverage` | Every check is named by a job in `build.yml`, and every name there is a check |
 | `eval-bootloader` | Every bootloader type with `secureBoot` off and on |
 | `eval-host-hardening`, `eval-host-hardening-hibernate` | The hardening profile's values, and its hibernation assertion |
 | `eval-impermanence` | What the impermanence module writes into the initrd |
@@ -82,7 +86,7 @@ pass.
 |-------|----------------|
 | `eval-default`, `eval-host-desktop`, `eval-host-desktop-niri` | The whole module tree with defaults, and the two desktop stacks |
 | `eval-ashell` | The bar's generated config for a desktop and a laptop |
-| `enable-matrix` | Every `othrys.*.enable` option turned on with defaults |
+| `enable-matrix` | Every `othrys.*.enable` option turned on with defaults, where an expected failure has to carry the assertion message the allowlist names |
 | `restic-test` | A backup, a restore and the integrity check, in a VM |
 | `headscale-test` | A Tailscale client registering against Headscale |
 | `auto-upgrade-test` | The signature gate in front of the unattended upgrade |
@@ -94,8 +98,19 @@ pass.
 
 Unchanged derivations are pulled from the cache and not rebuilt.
 `nix flake check` locally runs every check regardless of tier. That includes
-`comment-hygiene` and `contract-guards` as checks of their own and the three
-`eval-host-app-no-hm*` evaluations, which no workflow job builds by name.
+`comment-hygiene`, `contract-guards` and `treefmt` as checks of their own,
+which no workflow job builds by name, since `pre-commit-check` runs all three
+as hooks over the whole tree.
+
+The workflow lists its checks by name, so a check added to `flake/checks/`
+and left out of `build.yml` would be built by no job. The `ci-coverage` check
+fails on that. It reads the attribute names of `checks.x86_64-linux`, reads
+`build.yml` for every `checks.x86_64-linux.<name>` installable and every item
+of the extended matrix, and fails naming any check that no job builds and any
+listed name that is not a check. The three checks above are named in
+`localOnly` in `flake/checks/ci-coverage.nix`, and an entry there that a job
+does build, or that names no check, fails as well. A new check therefore
+needs a line in `build.yml` or an entry in `localOnly` with its reason.
 
 Branch protection on `main` requires two statuses, `Core checks` and
 `Extended verdict`. That requirement is a repository setting, and the workflow
@@ -120,7 +135,7 @@ job reads the pull request title or any other event text.
 
 | File | Jobs | Purpose |
 |------|------|---------|
-| `build.yml` | **core** | Every PR/push: lint, docs, `docs-includes`, `eval-host-min`, the server-contract evals, `eval-bootloader`, `impermanence-test` (fast gate) |
+| `build.yml` | **core** | Every PR/push: lint, docs, `docs-includes`, `ci-coverage`, `eval-host-min`, the server-contract and app-contract evals, `eval-pairs`, `eval-contract`, `eval-bootloader`, `impermanence-test` (fast gate) |
 | `build.yml` | **core-aarch64** | Every PR/push: the portable host evaluations for `aarch64-linux` on an ARM runner |
 | `build.yml` | **extended** | Every PR/push: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
 | `build.yml` | **extended-ok** | Every PR/push: one status for the matrix, passing only when every leg succeeded |

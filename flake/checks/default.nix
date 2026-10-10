@@ -139,6 +139,12 @@
     # compositor pair, with niri covered by eval-host-desktop-niri. ashell,
     # idle and nightLight stand for the shell layer, with noctalia covered by
     # the companion fixture below, since noctalia asserts against all three.
+    #
+    # Two modules are set past their defaults, since each holds a code path a
+    # bare enable never reaches. IDEA repackages the IDE only when a plugin is
+    # selected, and Steam writes steam_dev.cfg only when a console variable is
+    # set. Both are per-user writes, so they are rendered on the managed host
+    # of eval-persistence, which forces its toplevel.
     appDesktopModules = {
       # Prerequisites the modules below assert on, rather than things under
       # test. Several apps refuse to evaluate without theming, a Steam install,
@@ -147,7 +153,14 @@
       othrys.system.secrets.enable = true;
       othrys.system.nix.allowUnfree = true;
       othrys.desktop.graphical = true;
-      othrys.apps.gaming.steam.enable = true;
+      othrys.apps.gaming.steam = {
+        enable = true;
+        shaderPrecache.backgroundThreads = 4;
+        devConfig = {
+          "@nClientDownloadEnableHTTP2PlatformLinux" = 0;
+          "@fDownloadRateImprovementToAddAnotherConnection" = "1.0";
+        };
+      };
       othrys.apps.languages.java.enable = true;
       # The GitHub MCP module defaults its sops file to secretFiles.common, which
       # only exists when a consumer declares a secrets input. The fixture has
@@ -170,18 +183,23 @@
         yazi.enable = true;
         discord.enable = true;
         floorp.enable = true;
+        gaming.gamemode.enable = true;
         gaming.mangohud.enable = true;
         gaming.osu.enable = true;
         gaming.prismlauncher.enable = true;
         gaming.r2modman.enable = true;
         ghostty.enable = true;
-        idea.enable = true;
+        idea = {
+          enable = true;
+          plugins.ideavim = true;
+        };
         kitty.enable = true;
         localsend.enable = true;
         mpv.enable = true;
         obs.enable = true;
         picard.enable = true;
         plexamp.enable = true;
+        rustdesk.enable = true;
         signal.enable = true;
         vesktop.enable = true;
         vscode.enable = true;
@@ -252,6 +270,12 @@
     # provides one evaluates cleanly and still breaks any other consumer, and an
     # unguarded per-user write only shows up on a host shape nobody tests. A
     # grep catches both the moment the module is written.
+    #
+    # A grep reads spelling, and an argument set written on one line or a
+    # specialArgs set written across several passes it. eval-contract
+    # (./contract-eval.nix) reads clauses 1, 2 and 4 back from evaluation, and
+    # the two run side by side, since the greps also cover flake/ and the
+    # account and persistence halves of clause 2.
     contractGuards = pkgs.writeShellApplication {
       name = "contract-guards";
       runtimeInputs = [pkgs.gnugrep pkgs.findutils pkgs.coreutils];
@@ -482,14 +506,31 @@
       '';
     };
 
-    # The evaluated config of a host built the way a consumer builds one.
-    hostConfig = hostModules:
-      (inputs.nixpkgs.lib.nixosSystem {
+    # A host built the way a consumer builds one, as the whole evaluation.
+    # `options` and `_module` sit beside `config` there, which is what lets a
+    # check read where a definition came from and which specialArgs it was
+    # handed.
+    hostEval = hostModules:
+      inputs.nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {inherit inputs;};
         modules = upstreamModules ++ hostModules;
-      })
-      .config;
+      };
+
+    # The evaluated config of such a host.
+    hostConfig = hostModules: (hostEval hostModules).config;
+
+    # The default template, instantiated with its othrys input pointed at this
+    # flake and only the inputs a consumer would have.
+    templateHost =
+      ((import ../../templates/default/flake.nix).outputs {
+        othrys = inputs.self;
+        inherit (inputs) nixpkgs home-manager disko stylix sops-nix impermanence;
+      }).nixosConfigurations.myhost;
+
+    # Files under modules/ that are not modules. Each is a plain function that
+    # modules import directly, and says so in its header.
+    moduleHelpers = ["modules/desktop/compositors/hyprland-lua.nix" "modules/desktop/session.nix"];
 
     # Force a host's toplevel derivation so any option/module error fails the
     # check. Only the tiny wrapper is realised, not the system. The string
@@ -742,8 +783,8 @@
       #
       # A cheap representative slice runs here in CORE, one CLI module, one GUI
       # module, one desktop module, and vscode for its cross-read of nixvim's
-      # build product. The full set runs in EXTENDED below, since a subset only
-      # proves that a subset is guarded.
+      # build product. The full set follows below, since a subset only proves
+      # that a subset is guarded.
       eval-host-app-no-hm = mkHostEval "othrys-eval-host-app-no-hm" [
         accountNoHomeManager
         {
@@ -854,12 +895,26 @@
         inherit hostConfig mkExpectations rejectedWith functioningHost;
       };
 
-      # EXTENDED, heavy, main and manual dispatch
+      # Every conflict and dependency assertion that takes two modules or
+      # two options to fire (see ./pairs.nix).
+      eval-pairs = import ./pairs.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost;};
+
+      # Three clauses of the consumer contract, read back from evaluation
+      # (see ./contract-eval.nix).
+      eval-contract = import ./contract-eval.nix {
+        inherit inputs hostEval mkExpectations templateHost moduleHelpers;
+        inherit functioningHost accountNoHomeManager appDesktopModules serverModules;
+      };
+
+      # The check names in .github/workflows/build.yml, held to the checks
+      # defined here (see ./ci-coverage.nix).
+      ci-coverage = import ./ci-coverage.nix {inherit pkgs inputs system;};
 
       # The same contract over every app and desktop module that writes per-user
-      # configuration. Heavy enough for EXTENDED (browser and Electron closures
-      # evaluate here), and the only fixture that proves the claim for all of
-      # them rather than for four.
+      # configuration. It is an evaluation, and only the wrapper that records
+      # the derivation path is built, so it runs in CORE beside
+      # eval-persistence, which evaluates the same module set twice. It is the
+      # only fixture that proves the claim for all of them rather than for four.
       eval-host-app-no-hm-full = mkHostEval "othrys-eval-host-app-no-hm-full" [
         accountNoHomeManager
         appDesktopModules
@@ -878,6 +933,8 @@
           othrys.desktop.noctalia.enable = true;
         }
       ];
+
+      # EXTENDED, heavy, one runner each
 
       # Whole-tree evaluation over the minimal host plus theming and the mangohud
       # settings merge (mangohud reads Stylix colors, so both must be on. This
@@ -953,17 +1010,16 @@
             sessionCommand = "niri-session";
           };
           # idle/nightLight must stay OFF here, since noctalia owns both and their
-          # conflict assertions are exercised by the enable matrix instead.
+          # conflict assertions are exercised by eval-pairs instead.
         }
       ];
 
       # The export list, held to the module tree (see ./exports-eval.nix).
-      eval-exports = import ./exports-eval.nix {inherit pkgs inputs;};
+      eval-exports = import ./exports-eval.nix {inherit pkgs inputs moduleHelpers;};
 
-      # The default template, instantiated with its othrys input pointed at
-      # this flake and only the inputs a consumer would have. A template that
-      # stops matching the consumer contract, or the required options, fails
-      # here instead of in a new user's first build.
+      # The default template, as templateHost above instantiates it. A
+      # template that stops matching the consumer contract, or the required
+      # options, fails here instead of in a new user's first build.
       #
       # The host the template describes also has to be one somebody can log
       # in to. It ships a bootstrap hash rather than a secrets path, since no
@@ -975,11 +1031,7 @@
       # unedited. That one warning is expected, and any other means an othrys
       # module objects to the template as shipped.
       eval-template = let
-        template =
-          ((import ../../templates/default/flake.nix).outputs {
-            othrys = inputs.self;
-            inherit (inputs) nixpkgs home-manager disko stylix sops-nix impermanence;
-          }).nixosConfigurations.myhost.config;
+        template = templateHost.config;
         account = template.users.users.${template.othrys.system.user.name};
       in
         pkgs.runCommand "othrys-eval-template" {
