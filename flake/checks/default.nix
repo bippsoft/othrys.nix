@@ -767,6 +767,8 @@
       # What the app and desktop modules persist, read back on an impermanence
       # host without a managed account and on one with (see ./persistence-eval.nix).
       eval-persistence = import ./persistence-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost appDesktopModules;};
+      # What the service modules persist under impermanence (see ./service-state-eval.nix).
+      eval-service-state = import ./service-state-eval.nix {inherit hostConfig mkExpectations bootBase;};
 
       eval-lock = import ./lock.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-login = import ./login.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};

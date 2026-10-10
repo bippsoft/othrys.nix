@@ -68,6 +68,7 @@ jobs:
             '.#checks.x86_64-linux.eval-host-hardening-hibernate' \
             '.#checks.x86_64-linux.eval-impermanence' \
             '.#checks.x86_64-linux.eval-persistence' \
+            '.#checks.x86_64-linux.eval-service-state' \
             '.#checks.x86_64-linux.eval-lock' \
             '.#checks.x86_64-linux.eval-login' \
             '.#checks.x86_64-linux.impermanence-test'
