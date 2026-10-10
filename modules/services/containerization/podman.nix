@@ -97,9 +97,29 @@ in {
       # DNS required for containers to communicate (especially with podman-compose)
       defaultNetwork.settings.dns_enabled = cfg.enableDns;
 
-      # Auto-prune unused images (retention policy is the consumer's call)
+      # Auto-prune unused images (retention policy is the consumer's call).
+      # Upstream's unit prunes the root store; the primary user's rootless
+      # store is pruned by the user timer below.
       autoPrune = {
         inherit (cfg.autoPrune) enable dates flags;
+      };
+    };
+
+    systemd.user = lib.mkIf cfg.autoPrune.enable {
+      services.podman-prune = {
+        description = "Prune unused rootless Podman resources.";
+        unitConfig.ConditionPathExists = "%h/.local/share/containers";
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = "${pkgs.podman}/bin/podman system prune -f ${lib.escapeShellArgs cfg.autoPrune.flags}";
+        };
+      };
+      timers.podman-prune = {
+        wantedBy = ["timers.target"];
+        timerConfig = {
+          OnCalendar = cfg.autoPrune.dates;
+          Persistent = true;
+        };
       };
     };
 

@@ -12,6 +12,11 @@
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
   nvidiaEnabled = config.othrys.hardware.nvidia.enable;
+  routerEnabled = config.othrys.services.router.enable;
+  # Docker's own iptables rules sit ahead of the router's chain, so a
+  # published port is reachable from the WAN whatever the router says. The
+  # daemon setting that stops it is read back here.
+  dockerManagesIptables = (cfg.daemon.settings.iptables or true) != false;
 
   # Daemon defaults, merged into both the rootful and rootless settings.
   #
@@ -127,6 +132,10 @@ in {
         assertion = !(cfg.rootless.enable && cfg.nvidia.enable);
         message = "Docker rootless mode is incompatible with NVIDIA container runtime. Disable rootless or nvidia.enable.";
       }
+      {
+        assertion = !(routerEnabled && !cfg.rootless.enable && dockerManagesIptables);
+        message = "othrys.services.containerization.docker: the rootful daemon writes its own iptables rules ahead of the router's chain, so a published container port is reachable from the WAN whatever othrys.services.router allows. Set daemon.settings.iptables = false and publish ports through the router, or run Docker rootless.";
+      }
     ];
 
     environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
@@ -152,8 +161,13 @@ in {
 
     hardware.nvidia-container-toolkit.enable = cfg.nvidia.enable;
 
+    # The rootful daemon runs only when the host asked for it. Upstream
+    # renders the rootless daemon under its own switch, so with rootless on
+    # there is one daemon, the user's, and no root socket for a group to
+    # reach. The rootful prune unit prunes the root store, which is empty
+    # then, so the user timer below does the pruning in rootless mode.
     virtualisation.docker = {
-      enable = true;
+      enable = !cfg.rootless.enable;
 
       # Daemon settings
       daemon.settings = daemonSettings;
@@ -167,12 +181,36 @@ in {
 
       # Auto-prune unused resources (retention policy is the consumer's call)
       autoPrune = {
-        inherit (cfg.autoPrune) enable dates flags;
+        enable = cfg.autoPrune.enable && !cfg.rootless.enable;
+        inherit (cfg.autoPrune) dates flags;
+      };
+    };
+
+    # Rootless prune, in the user's session where the daemon runs. The
+    # condition keeps it quiet for a user with no rootless socket.
+    systemd.user = lib.mkIf (cfg.rootless.enable && cfg.autoPrune.enable) {
+      services.docker-prune = {
+        description = "Prune unused rootless Docker resources.";
+        unitConfig.ConditionPathExists = "%t/docker.sock";
+        environment.DOCKER_HOST = "unix://%t/docker.sock";
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = "${pkgs.docker}/bin/docker system prune -f ${lib.escapeShellArgs cfg.autoPrune.flags}";
+        };
+      };
+      timers.docker-prune = {
+        wantedBy = ["timers.target"];
+        timerConfig = {
+          OnCalendar = cfg.autoPrune.dates;
+          Persistent = true;
+        };
       };
     };
 
     # Guarded at the attrset level, since writing users.users.<name> for an account
     # othrys doesn't manage would materialize a phantom user on headless hosts.
+    # The docker group owns the root daemon's socket, so membership is root;
+    # it is granted only for the rootful daemon the host asked for.
     users.users = lib.mkIf (usersEnabled && !cfg.rootless.enable) {
       ${username}.extraGroups = ["docker"];
     };

@@ -33,6 +33,23 @@ access to the root daemon's API, which is root. A host that wants a user on
 the rootful socket adds the group in `users.users.<name>.extraGroups` itself.
 - Persistence for container storage and config
 
+## Docker
+
+The Docker runtime (`othrys.services.containerization.docker`), rootless by
+default. With `rootless.enable` the only daemon is the user's, started in the
+user's session, and no rootful daemon or root socket runs; the user's store is
+pruned by a user timer on `autoPrune.dates`. With `rootless.enable = false`
+the rootful daemon runs, the primary user joins group `docker`, and upstream's
+prune unit prunes the root store. That group owns the root daemon's socket, so
+membership is root.
+
+The rootful daemon writes its own iptables rules ahead of the router's chain,
+so on a host with `othrys.services.router` a published container port is
+reachable from the WAN whatever the router allows. The module refuses that
+pairing unless `daemon.settings.iptables = false` is set, after which ports
+are published through the router's `portForwards`. Rootless Docker reaches the
+network through its own namespace and touches no host rules.
+
 ## k3s
 
 Lightweight Kubernetes (`othrys.services.containerization.k3s`) for a single-node
