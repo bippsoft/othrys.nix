@@ -8,6 +8,7 @@
   hostConfig,
   mkExpectations,
   bootBase,
+  functioningHost,
 }: let
   host = extra:
     hostConfig [
@@ -87,6 +88,7 @@
   metrics = host {othrys.services.victoriametrics.enable = true;};
 
   settings = cfg: cfg.services.ntfy-sh.settings;
+  podmanUser = (hostConfig [functioningHost {othrys.services.containerization.podman.enable = true;}]).users.users.alice;
   warnsAbout = needle: cfg: builtins.any (w: builtins.match ".*${needle}.*" w != null) cfg.warnings;
   persistedDirs = cfg: map (d: d.directory) cfg.environment.persistence."/persist".directories;
 in
@@ -105,4 +107,5 @@ in
     "victoriametrics with the port open warns" = warnsAbout "writes and deletes" metricsOpen;
     "victorialogs with the port open warns" = warnsAbout "log ingestion" logsOpen;
     "victoriametrics on loopback does not warn" = !warnsAbout "no authentication" metrics;
+    "podman does not put the primary user in the rootful socket's group" = !builtins.elem "podman" podmanUser.extraGroups;
   }
