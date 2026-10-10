@@ -57,6 +57,7 @@ jobs:
             '.#checks.x86_64-linux.eval-tailscale' \
             '.#checks.x86_64-linux.eval-exposure' \
             '.#checks.x86_64-linux.eval-claude-code' \
+            '.#checks.x86_64-linux.eval-k3s' \
             '.#checks.x86_64-linux.eval-pam' \
             '.#checks.x86_64-linux.eval-containers' \
             '.#checks.x86_64-linux.eval-nix' \
