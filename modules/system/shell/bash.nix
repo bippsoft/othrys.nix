@@ -45,11 +45,8 @@ in {
         "clear"
       ];
 
-      # Prompt is handled by starship (enableBashIntegration).
-      initExtra = ''
-        export EDITOR="${config.othrys.system.defaultEditor}"
-        export VISUAL="${config.othrys.system.defaultEditor}"
-      '';
+      # Prompt is handled by starship (enableBashIntegration), and EDITOR by
+      # shell/default.nix through environment.variables.
     };
   };
 }

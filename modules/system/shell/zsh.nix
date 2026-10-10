@@ -77,6 +77,11 @@ in {
 
     programs.zsh.enable = true;
 
+    # Enabling the shell makes it the primary user's login shell. The option
+    # is read only when the account exists, and a host that wants another
+    # shell states it.
+    othrys.system.users.defaultShell = lib.mkIf usersEnabled (lib.mkDefault pkgs.zsh);
+
     othrys.internal.homeConfig."system.shell.zsh" = {
       programs.zsh = {
         enable = true;
@@ -117,9 +122,10 @@ in {
           lib.optionalAttrs p.nix {
             rebuild = "sudo nixos-rebuild switch --flake .";
             rebuild-test = "sudo nixos-rebuild test --flake .";
-            hm-switch = "home-manager switch --flake .";
             nix-search = "nix search nixpkgs";
-            nix-clean = "sudo nix-collect-garbage -d && nix-collect-garbage -d";
+            # Keeps a week of generations, so a rollback target survives the
+            # routine clean. -d would delete every one but the current.
+            nix-clean = "sudo nix-collect-garbage --delete-older-than 7d && nix-collect-garbage --delete-older-than 7d";
           }
           // lib.optionalAttrs p.navigation {
             ".." = "cd ..";
@@ -211,9 +217,6 @@ in {
           zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
           zstyle ':completion:*' list-colors "''${(s.:.)LS_COLORS}"
 
-          export EDITOR="${config.othrys.system.defaultEditor}"
-          export VISUAL="${config.othrys.system.defaultEditor}"
-
           bindkey -e
           bindkey '^A' beginning-of-line
           bindkey '^E' end-of-line
@@ -233,10 +236,13 @@ in {
         '';
       };
 
+      # fzf's file listing calls fd, which nothing else installs.
+      home.packages = [pkgs.fd];
+
       programs.fzf = {
         enable = true;
         enableZshIntegration = true;
-        defaultCommand = "fd --type f --hidden --follow --exclude .git";
+        defaultCommand = "${lib.getExe pkgs.fd} --type f --hidden --follow --exclude .git";
         defaultOptions =
           [
             "--height 40%"

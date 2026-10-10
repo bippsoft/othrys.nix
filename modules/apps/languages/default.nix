@@ -116,5 +116,10 @@ in {
 
   # The shared toolchain lands on the user's PATH (home-manager scope) so
   # editors, terminals, direnv shells, and hooks all see the same binaries.
-  config.othrys.internal.homeConfig."apps.languages".home.packages = lib.concatMap toolchainOf (lib.attrNames languages);
+  # The entry exists only while a language is enabled, since the registry
+  # warns about every entry it skips on a host without a managed user, and an
+  # empty package list is nothing to warn about.
+  config.othrys.internal.homeConfig."apps.languages" = lib.mkIf (lib.any (lang: cfg.${lang}.enable) (lib.attrNames languages)) {
+    home.packages = lib.concatMap toolchainOf (lib.attrNames languages);
+  };
 }

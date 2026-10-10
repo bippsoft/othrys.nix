@@ -24,7 +24,12 @@ Full-featured Zsh with:
   `HISTFILE` and a rename onto a bind-mounted file fails. The direnv allow
   database is persisted by `othrys.apps.development`, which owns direnv.
 
-The default editor behind `EDITOR`/`VISUAL`, git's `core.editor`, and the `v`/`vim`/`vi` aliases is `othrys.system.defaultEditor` (default `vim`).
+Enabling zsh makes it the primary user's login shell through
+`othrys.system.users.defaultShell`, which a host overrides when it wants
+another. The `nix` preset's `nix-clean` keeps a week of generations, so a
+rollback target survives it.
+
+The default editor behind `EDITOR`/`VISUAL`, git's `core.editor`, and the `v`/`vim`/`vi` aliases is `othrys.system.defaultEditor` (default `vim`). The variables are set once, through `environment.variables`, and an editor module such as nixvim makes itself the default with `mkDefault` when enabled.
 
 ## Starship
 

@@ -66,6 +66,10 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # Enabling the editor makes it the host's default, and a host that wants
+    # another one states it.
+    othrys.system.defaultEditor = lib.mkDefault "nvim";
+
     # Undo history and shada live under share, and persistence.nvim writes its
     # sessions under stdpath("state"), so both directories are kept.
     environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
@@ -99,7 +103,8 @@ in {
         # the fleet builds against one nixpkgs. Upstream warns when a follows
         # overrides that default, so state the choice explicitly to silence it.
         nixpkgs.source = inputs.nixpkgs;
-        defaultEditor = true;
+        # EDITOR is owned by othrys.system.defaultEditor, set below, rather
+        # than exported here a second time.
         viAlias = true;
         vimAlias = true;
         vimdiffAlias = true;

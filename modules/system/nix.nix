@@ -282,8 +282,12 @@ in {
     # Per-user state goes through the registry rather than home-manager.users
     # directly, so othrys.system.users applies the homeManaged guard once, at
     # the attrset level. See modules/system/users.nix for why the guard cannot
-    # sit on a leaf.
-    othrys.internal.homeConfig."system.nix".home.stateVersion = cfg.stateVersion;
+    # sit on a leaf. The entry is withheld on a host with no managed user,
+    # since a Home Manager state version means nothing there and the registry
+    # warns about every entry it has to skip.
+    othrys.internal.homeConfig."system.nix" = lib.mkIf config.othrys.system.users.homeManaged {
+      home.stateVersion = cfg.stateVersion;
+    };
 
     # cachix-push <path>... loads the auth token only into the push process,
     # not every interactive shell, so it never leaks via /proc or subprocesses.
