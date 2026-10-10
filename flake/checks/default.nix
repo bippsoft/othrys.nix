@@ -872,6 +872,9 @@
         }
       ];
 
+      # The export list, held to the module tree (see ./exports-eval.nix).
+      eval-exports = import ./exports-eval.nix {inherit pkgs inputs;};
+
       # The default template, instantiated with its othrys input pointed at
       # this flake and only the inputs a consumer would have. A template that
       # stops matching the consumer contract, or the required options, fails

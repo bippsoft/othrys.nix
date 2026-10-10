@@ -64,6 +64,7 @@ jobs:
             '.#checks.x86_64-linux.eval-grafana' \
             '.#checks.x86_64-linux.eval-listen' \
             '.#checks.x86_64-linux.eval-template' \
+            '.#checks.x86_64-linux.eval-exports' \
             '.#checks.x86_64-linux.eval-ssh' \
             '.#checks.x86_64-linux.eval-traefik' \
             '.#checks.x86_64-linux.eval-host-hardening' \
