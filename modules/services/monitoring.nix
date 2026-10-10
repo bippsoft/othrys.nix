@@ -5,9 +5,14 @@
   lib,
   ...
 }: let
+  inherit (import ../lib/net.nix {inherit lib;}) local;
   cfg = config.othrys.services.monitoring;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
+  # Both targets are this host's own listeners, so they are scraped at the
+  # bound address seen from here (modules/lib/net.nix) rather than at
+  # loopback, where nothing listens once listenAddress names one interface.
+  target = port: "${local cfg.listenAddress}:${toString port}";
 in {
   options.othrys.services.monitoring = {
     enable = lib.mkEnableOption "Prometheus monitoring";
@@ -98,16 +103,15 @@ in {
         };
       };
 
+      # The job name is the `job` label the alert rules and dashboards see. A
+      # `job` entry under labels would replace it, so none is written.
       scrapeConfigs = [
         {
-          job_name = "node";
+          job_name = "node-exporter";
           static_configs = [
             {
-              targets = ["127.0.0.1:${toString config.services.prometheus.exporters.node.port}"];
-              labels = {
-                instance = config.networking.hostName;
-                job = "node-exporter";
-              };
+              targets = [(target config.services.prometheus.exporters.node.port)];
+              labels.instance = config.networking.hostName;
             }
           ];
         }
@@ -115,10 +119,8 @@ in {
           job_name = "prometheus";
           static_configs = [
             {
-              targets = ["127.0.0.1:${toString config.services.prometheus.port}"];
-              labels = {
-                instance = config.networking.hostName;
-              };
+              targets = [(target config.services.prometheus.port)];
+              labels.instance = config.networking.hostName;
             }
           ];
         }

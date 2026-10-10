@@ -9,21 +9,23 @@
   lib,
   ...
 }: let
+  inherit (import ../lib/net.nix {inherit lib;}) local;
   cfg = config.othrys.services.victoriametrics;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
   monitoringCfg = config.othrys.services.monitoring;
 
+  # The node exporter binds the monitoring module's listenAddress, so it is
+  # scraped there as seen from this host (modules/lib/net.nix). The job name
+  # is the `job` label the alert rules see, and a `job` entry under labels
+  # would replace it.
   scrapeConfigs =
     lib.optional cfg.scrapeNodeExporter {
-      job_name = "node";
+      job_name = "node-exporter";
       static_configs = [
         {
-          targets = ["127.0.0.1:${toString monitoringCfg.nodePort}"];
-          labels = {
-            instance = config.networking.hostName;
-            job = "node-exporter";
-          };
+          targets = ["${local monitoringCfg.listenAddress}:${toString monitoringCfg.nodePort}"];
+          labels.instance = config.networking.hostName;
         }
       ];
     }

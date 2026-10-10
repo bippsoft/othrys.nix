@@ -11,6 +11,7 @@
   lib,
   ...
 }: let
+  inherit (import ../lib/net.nix {inherit lib;}) local;
   cfg = config.othrys.services.alerting;
   sandbox = import ../lib/sandbox.nix;
   monitoringCfg = config.othrys.services.monitoring;
@@ -75,11 +76,13 @@ in {
 
     datasourceUrl = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
+      # The store runs on this host, so the URL is its listener seen from here
+      # (modules/lib/net.nix). 0.0.0.0 is a bind address and not a destination.
       default =
         if vmCfg.enable
-        then "http://${vmCfg.listenAddress}:${toString vmCfg.port}"
+        then "http://${local vmCfg.listenAddress}:${toString vmCfg.port}"
         else if monitoringCfg.enable
-        then "http://127.0.0.1:${toString monitoringCfg.port}"
+        then "http://${local monitoringCfg.listenAddress}:${toString monitoringCfg.port}"
         else null;
       defaultText = lib.literalExpression "the local VictoriaMetrics instance when enabled, else the local Prometheus, else null";
       description = "Prometheus-compatible datasource rules are evaluated against. Auto-discovered from the enabled othrys metrics store.";

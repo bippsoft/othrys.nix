@@ -8,6 +8,7 @@
   lib,
   ...
 }: let
+  inherit (import ../lib/net.nix {inherit lib;}) local;
   cfg = config.othrys.services.victorialogs;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -93,10 +94,11 @@ in {
     };
 
     # Native journald ingestion, where systemd-journal-upload speaks to
-    # VictoriaLogs' /insert/journald endpoint directly.
+    # VictoriaLogs' /insert/journald endpoint directly, at the bound address
+    # seen from this host (modules/lib/net.nix).
     services.journald.upload = lib.mkIf cfg.collectJournal {
       enable = true;
-      settings.Upload.URL = "http://127.0.0.1:${toString cfg.port}/insert/journald";
+      settings.Upload.URL = "http://${local cfg.listenAddress}:${toString cfg.port}/insert/journald";
     };
 
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [cfg.port];

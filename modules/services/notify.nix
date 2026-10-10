@@ -16,9 +16,15 @@
   ...
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
+  inherit (import ../lib/net.nix {inherit lib;}) local;
   sandbox = import ../lib/sandbox.nix;
   cfg = config.othrys.services.notify;
   ntfyCfg = config.othrys.services.ntfy;
+
+  # A plain-HTTP URL whose host is this machine. The token is sent as a
+  # bearer header, so over any other http:// URL it crosses the network in
+  # clear, and the warning below says so.
+  loopbackUrl = url: builtins.match "http://(127\\.[0-9.]+|localhost|[[]::1[]])(:[0-9]+)?(/.*)?" url != null;
 
   # The token never becomes a curl argument. An `-H "Authorization: Bearer $t"`
   # argv is world-readable through /proc/<pid>/cmdline for the life of the
@@ -28,7 +34,15 @@
   #
   # Two callers read the token. A human running othrys-notify reads tokenFile
   # directly, and notify-failure@ runs under DynamicUser with no access to it,
-  # so systemd stages it at $CREDENTIALS_DIRECTORY/token instead.
+  # so systemd stages it at $CREDENTIALS_DIRECTORY/token instead. When neither
+  # is readable the script stops and names the file. A token was configured,
+  # so a request without it would be refused by a topic that requires one and
+  # would silently reach a topic that does not, and neither is what the
+  # operator asked for.
+  #
+  # Every external tool is called by store path. The unit runs with no PATH
+  # worth relying on, and an interactive caller's PATH is not this script's
+  # concern either.
   notifyScript = pkgs.writeShellScriptBin "othrys-notify" ''
     set -eu
     title="''${1:?usage: othrys-notify <title> [message...]}"
@@ -37,22 +51,23 @@
 
     auth=()
     ${lib.optionalString (cfg.tokenFile != null) ''
-      tokensrc=""
+      token_file=${lib.escapeShellArg cfg.tokenFile}
       if [ -n "''${CREDENTIALS_DIRECTORY:-}" ] && [ -r "$CREDENTIALS_DIRECTORY/token" ]; then
         tokensrc="$CREDENTIALS_DIRECTORY/token"
-      elif [ -r ${lib.escapeShellArg cfg.tokenFile} ]; then
-        tokensrc=${lib.escapeShellArg cfg.tokenFile}
+      elif [ -r "$token_file" ]; then
+        tokensrc="$token_file"
+      else
+        echo "othrys-notify: token file $token_file is missing or unreadable, refusing to send without it" >&2
+        exit 1
       fi
 
-      if [ -n "$tokensrc" ]; then
-        umask 077
-        # An interactive run lands on the per-user tmpfs. The unit has no
-        # XDG_RUNTIME_DIR and falls back to its private /tmp.
-        hdrfile="$(${pkgs.coreutils}/bin/mktemp -p "''${XDG_RUNTIME_DIR:-/tmp}")"
-        trap 'rm -f "$hdrfile"' EXIT
-        printf 'Authorization: Bearer %s\n' "$(cat "$tokensrc")" > "$hdrfile"
-        auth=(-H "@$hdrfile")
-      fi
+      umask 077
+      # An interactive run lands on the per-user tmpfs. The unit has no
+      # XDG_RUNTIME_DIR and falls back to its private /tmp.
+      hdrfile="$(${pkgs.coreutils}/bin/mktemp -p "''${XDG_RUNTIME_DIR:-/tmp}")"
+      trap '${pkgs.coreutils}/bin/rm -f "$hdrfile"' EXIT
+      printf 'Authorization: Bearer %s\n' "$(${pkgs.coreutils}/bin/cat "$tokensrc")" > "$hdrfile"
+      auth=(-H "@$hdrfile")
     ''}
 
     ${pkgs.curl}/bin/curl -fsS -m 10 \
@@ -68,9 +83,11 @@ in {
 
     url = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
+      # The local server is reached at its listener as seen from this host
+      # (modules/lib/net.nix), so an ntfy moved to one interface still works.
       default =
         if ntfyCfg.enable
-        then "http://127.0.0.1:${toString ntfyCfg.port}"
+        then "http://${local ntfyCfg.listenAddress}:${toString ntfyCfg.port}"
         else null;
       defaultText = lib.literalExpression "the local othrys.services.ntfy instance when enabled, else null";
       example = "https://ntfy.example.com";
@@ -99,6 +116,8 @@ in {
         message = "othrys.services.notify: set url (or enable othrys.services.ntfy for a local server).";
       }
     ];
+
+    warnings = lib.optional (cfg.tokenFile != null && cfg.url != null && lib.hasPrefix "http://" cfg.url && !loopbackUrl cfg.url) "othrys.services.notify: url is ${cfg.url} and tokenFile is set, so the token is sent in clear over the network on every notification. Use an https:// URL, or an ntfy on this host.";
 
     environment.systemPackages = [notifyScript];
 

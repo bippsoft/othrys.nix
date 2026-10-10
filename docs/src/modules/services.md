@@ -525,6 +525,14 @@ MetricsQL). A thin wrapper over `services.victoriametrics`: loopback by default
 of the node exporter the [Monitoring](#monitoring) module runs, so enabling both
 wires them together automatically.
 
+The stores, Grafana, alerting and the journal upload all run on one host and
+find each other through `listenAddress`. A store moved to one interface is
+scraped and queried at that address, while a store on every interface
+(`0.0.0.0` or `::`) is reached over loopback, so the scrape targets and
+datasources follow the listener wherever it is bound. The node exporter is
+scraped under the job name `node-exporter`, which is the `job` label the
+starter alert rules and any dashboard see.
+
 ### Options
 
 ```nix
@@ -682,7 +690,13 @@ Host notification dispatch: the `othrys-notify` CLI and a
 `notify-failure@.service` template that modules hook via `onFailure`, so
 failing backups, SMART warnings, and UPS events reach a phone instead of
 dying in the journal. Points at the local [Ntfy](#ntfy) server automatically
-when both are enabled.
+when both are enabled, at whatever address that server binds.
+
+With `tokenFile` set, `othrys-notify` sends nothing unless it can read the
+token, and it exits naming the file instead of posting unauthenticated. The
+token travels as a bearer header, so the module warns when `url` is plain
+`http://` and not on this host, since every notification then carries the
+token across the network in clear. Use `https://` for a remote server.
 
 ### Options
 

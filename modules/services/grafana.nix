@@ -11,19 +11,13 @@
   ...
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
+  inherit (import ../lib/net.nix {inherit lib;}) local;
   cfg = config.othrys.services.grafana;
   monitoringCfg = config.othrys.services.monitoring;
   vmCfg = config.othrys.services.victoriametrics;
   vlCfg = config.othrys.services.victorialogs;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
-
-  # A store listening on all interfaces is still queried locally, since Grafana
-  # runs on the same host as every auto-provisioned datasource.
-  local = addr:
-    if addr == "0.0.0.0"
-    then "127.0.0.1"
-    else addr;
 
   loopback = cfg.listenAddress == "127.0.0.1" || cfg.listenAddress == "::1" || cfg.listenAddress == "localhost";
   # Opening the port on a loopback listener publishes nothing, but a consumer
@@ -181,11 +175,14 @@ in {
       provision = {
         enable = true;
 
+        # Every store runs on this host, so each URL is its listener seen from
+        # here (modules/lib/net.nix), which keeps a store moved to one
+        # interface reachable and a store on every interface on loopback.
         datasources.settings.datasources =
           lib.optional monitoringCfg.enable {
             name = "Prometheus";
             type = "prometheus";
-            url = "http://127.0.0.1:${toString monitoringCfg.port}";
+            url = "http://${local monitoringCfg.listenAddress}:${toString monitoringCfg.port}";
             isDefault = !vmCfg.enable;
           }
           ++ lib.optional vmCfg.enable {
