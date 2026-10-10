@@ -982,6 +982,9 @@
       # What the hardware, mount and disk modules write (see ./hardware-eval.nix).
       eval-hardware = import ./hardware-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
 
+      # What the smaller service modules pass upstream and refuse (see ./services-eval.nix).
+      eval-services = import ./services-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
+
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
 
@@ -1010,7 +1013,7 @@
 
       # EXTENDED. Runtime VM tests, one file each.
       integration-test = import ./integration.nix {inherit pkgs inputs;};
-      restic-test = import ./restic.nix {inherit pkgs inputs;};
+      restic-test = import ./restic.nix {inherit pkgs inputs hostConfig rejectedWith bootBase;};
       crowdsec-test = import ./crowdsec.nix {inherit pkgs inputs;};
       headscale-test = import ./headscale.nix {inherit pkgs inputs;};
       impermanence-reboot-test = import ./impermanence-reboot.nix {inherit pkgs inputs;};
