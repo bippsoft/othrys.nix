@@ -964,6 +964,9 @@
         inherit hostConfig mkExpectations functioningHost;
       };
 
+      # What the hardware, mount and disk modules write (see ./hardware-eval.nix).
+      eval-hardware = import ./hardware-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
+
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
 

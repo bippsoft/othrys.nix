@@ -104,6 +104,7 @@
     "othrys.services.alerting.enable" # requires a datasource (VM or monitoring)
     "othrys.services.grafana.enable" # requires secretKeyFile
     "othrys.hardware.ups.enable" # requires passwordFile
+    "othrys.hardware.nvidia.prime.enable" # requires hardware.nvidia and both bus ids
     "othrys.system.autoUpgrade.enable" # requires the fleet flake URI
     "othrys.services.ddns.enable" # requires provider/hostnames/credentialsFile
     "othrys.apps.idea.enable" # requires othrys.apps.languages.java
