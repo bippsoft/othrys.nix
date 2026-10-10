@@ -5,8 +5,9 @@ _: {
     plugins.conform-nvim = {
       enable = true;
       settings = {
-        # Per-language formatters_by_ft configured by language modules
-        # in nixvim/languages/*.nix, gated by othrys.apps.languages.*.enable
+        # formatters_by_ft and formatters come from nixvim/languages/*.nix,
+        # gated by othrys.apps.languages.*.enable, and each formatter's
+        # command is the registry package's store path.
         format_on_save = {
           lsp_fallback = true;
           async = false;

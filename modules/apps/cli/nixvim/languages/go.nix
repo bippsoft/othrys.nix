@@ -7,16 +7,16 @@
   ...
 }: let
   lang = osConfig.othrys.apps.languages.go;
+  conform = import ./conform.nix {inherit lib;};
 in {
   config = lib.mkIf lang.enable {
     programs.nixvim = {
-      lsp.servers.gopls = {
+      lsp.servers.gopls = lib.mkIf (lang.server != null) {
         enable = true;
         package = lang.server;
       };
 
-      # gofmt ships with the go toolchain installed by the language module.
-      plugins.conform-nvim.settings.formatters_by_ft.go = ["gofmt"];
+      plugins.conform-nvim.settings = conform ["go"] lang.formatter;
 
       plugins.treesitter.grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
         go

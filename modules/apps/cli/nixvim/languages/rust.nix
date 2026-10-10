@@ -9,15 +9,16 @@
   ...
 }: let
   lang = osConfig.othrys.apps.languages.rust;
+  conform = import ./conform.nix {inherit lib;};
 in {
   config = lib.mkIf lang.enable {
     programs.nixvim = {
-      lsp.servers.rust_analyzer = {
+      lsp.servers.rust_analyzer = lib.mkIf (lang.server != null) {
         enable = true;
         package = lang.server;
       };
 
-      plugins.conform-nvim.settings.formatters_by_ft.rust = ["rustfmt"];
+      plugins.conform-nvim.settings = conform ["rust"] lang.formatter;
 
       plugins.treesitter.grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
         rust

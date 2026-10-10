@@ -13,13 +13,18 @@ in {
       extensions = with pkgs.vscode-extensions; [
         jnoortheen.nix-ide
       ];
-      userSettings = {
-        "nix.enableLanguageServer" = true;
-        # The SAME server binary the whole host uses (previously a bare "nil"
-        # that was never installed anywhere).
-        "nix.serverPath" = lib.getExe lang.server;
-        "nix.formatterPath" = lib.getExe lang.formatter;
-      };
+      # A null server is a legal registry value, and getExe on null aborts
+      # evaluation with no assertion able to catch it. The extension then
+      # runs without a language server and keeps the formatter.
+      userSettings = lib.mkMerge [
+        {
+          "nix.enableLanguageServer" = lang.server != null;
+          "nix.formatterPath" = lib.getExe lang.formatter;
+        }
+        (lib.mkIf (lang.server != null) {
+          "nix.serverPath" = lib.getExe lang.server;
+        })
+      ];
     };
   };
 }

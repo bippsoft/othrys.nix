@@ -7,16 +7,16 @@
   ...
 }: let
   lang = osConfig.othrys.apps.languages.bash;
+  conform = import ./conform.nix {inherit lib;};
 in {
   config = lib.mkIf lang.enable {
     programs.nixvim = {
-      lsp.servers.bashls = {
+      lsp.servers.bashls = lib.mkIf (lang.server != null) {
         enable = true;
         package = lang.server;
       };
 
-      # Formatter binary comes from the shared toolchain on PATH.
-      plugins.conform-nvim.settings.formatters_by_ft.sh = ["shfmt"];
+      plugins.conform-nvim.settings = conform ["sh"] lang.formatter;
 
       plugins.treesitter.grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
         bash

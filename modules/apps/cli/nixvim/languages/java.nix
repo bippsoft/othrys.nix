@@ -10,10 +10,11 @@
   ...
 }: let
   lang = osConfig.othrys.apps.languages.java;
+  conform = import ./conform.nix {inherit lib;};
 in {
   config = lib.mkIf lang.enable {
     programs.nixvim = {
-      plugins.conform-nvim.settings.formatters_by_ft.java = ["google-java-format"];
+      plugins.conform-nvim.settings = conform ["java"] lang.formatter;
 
       plugins.treesitter.grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
         java

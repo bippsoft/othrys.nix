@@ -11,6 +11,7 @@ No desktop environment required, so these are usable on servers and headless sys
 | Module | Option | Description |
 |--------|--------|-------------|
 | Nixvim | `othrys.apps.nixvim` | Neovim configured via Nix (sub-modules for plugins/languages) |
+| Languages | `othrys.apps.languages.<name>` | Per-language toolchains shared by the PATH and both editors |
 | Development | `othrys.apps.development` | Development tools bundle, direnv with its allow database persisted |
 | GitHub CLI | `othrys.apps.gh` | GitHub CLI with persistence |
 | Yazi | `othrys.apps.yazi` | Terminal file manager |
@@ -46,6 +47,84 @@ built-in password manager is off beside Bitwarden
 (`builtinPasswordManager`), tracking protection exempts nothing until a host
 lists sites in `trackingProtectionExemptions`, and the theme follows the
 Stylix polarity.
+
+## Language Toolchains (`modules/apps/languages/`)
+
+`othrys.apps.languages.<name>.enable` is the one signal that a host develops in
+a language. Each entry holds a `server`, a `formatter` and a list of
+`extraTools`, and enabling it installs all three on the primary user's PATH.
+Nixvim and VSCodium read the same entry, so neither editor carries a toolchain
+of its own.
+
+| Language | Server | Formatter | Extra tools |
+|----------|--------|-----------|-------------|
+| `bash` | `bash-language-server` | `shfmt` | `shellcheck` |
+| `go` | `gopls` | `gofmt` from `go` | |
+| `java` | none | `google-java-format` | `jdk21`, `maven`, `gradle` |
+| `json` | `vscode-langservers-extracted` | `prettier` | |
+| `lua` | `lua-language-server` | `stylua` | |
+| `nix` | `nil` | `alejandra` | |
+| `python` | `basedpyright` | `ruff` | |
+| `rust` | `rust-analyzer` | `rustfmt` | |
+| `typescript` | `typescript-language-server` | `prettier` | `typescript` |
+| `yaml` | `yaml-language-server` | `prettier` | |
+
+JSON and YAML are entries of their own. A host that edits YAML without writing
+TypeScript enables `yaml` alone, and enabling `typescript` configures neither of
+them.
+
+### Overriding a tool
+
+Both editors name the registry package by its store path, so an override reaches
+them and the PATH together.
+
+```nix
+othrys.apps.languages.nix = {
+  enable = true;
+  formatter = pkgs.nixfmt;
+};
+```
+
+Nixvim formats through conform.nvim, which keeps a definition with the right
+arguments for each formatter it knows. The module selects that definition by the
+executable name of the package and sets its command to the store path. The
+override above therefore runs under conform's `nixfmt` definition and not under
+the `alejandra` one with a different binary behind it. A tool conform has no
+definition for is run with no arguments and the buffer on stdin. Two languages
+whose formatters share an executable name share one definition, so `typescript`,
+`json` and `yaml` must hold the same `prettier` package or evaluation reports
+the conflicting commands.
+
+VSCodium takes a binary only where an extension has a setting for one. The
+table shows what each extension reads from the registry.
+
+| Language | From the registry | Bundled by the extension or the editor |
+|----------|-------------------|-----------------------------------------|
+| `bash` | `shfmt`, `shellcheck` | `bash-language-server` |
+| `go` | `gopls`, the formatter | |
+| `java` | | `jdtls` |
+| `json` | `prettier` | the JSON language service |
+| `lua` | `lua-language-server` | formatting, done by the server |
+| `nix` | `nil`, the formatter | |
+| `python` | `ruff` | `basedpyright` |
+| `rust` | `rust-analyzer` | |
+| `typescript` | `prettier` | the TypeScript language service |
+| `yaml` | `prettier` | `yaml-language-server` |
+
+The bash extensions read `shellcheck` out of `extraTools`, found by its
+executable name. A host that removes it from the list gets no shellcheck path in
+either extension. The prettier and ruff settings apply only while the formatter
+is still that tool, since each extension can drive nothing else. A host that
+replaces one of them also chooses its own `editor.defaultFormatter` through
+`othrys.apps.vscode.userSettings`.
+
+### A language with no server
+
+`server` accepts `null`, and `java` ships that way. An editor then configures no
+external server for the language. Nixvim enables no LSP client for it, while
+VSCodium omits the server path and the extension runs whatever it bundles. For
+Nix the extension has no bundled server, so the language server is switched off
+and formatting continues to work.
 
 See also: [Gaming](./gaming.md), [AI Assistants](./ai.md)
 

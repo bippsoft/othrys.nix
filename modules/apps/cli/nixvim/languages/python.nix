@@ -9,15 +9,16 @@
   ...
 }: let
   lang = osConfig.othrys.apps.languages.python;
+  conform = import ./conform.nix {inherit lib;};
 in {
   config = lib.mkIf lang.enable {
     programs.nixvim = {
-      lsp.servers.basedpyright = {
+      lsp.servers.basedpyright = lib.mkIf (lang.server != null) {
         enable = true;
         package = lang.server;
       };
 
-      plugins.conform-nvim.settings.formatters_by_ft.python = ["ruff_format"];
+      plugins.conform-nvim.settings = conform ["python"] lang.formatter;
 
       plugins.treesitter.grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
         python

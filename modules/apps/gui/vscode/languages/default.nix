@@ -10,5 +10,8 @@
     ./lua.nix
     ./bash.nix
     ./java.nix
+    ./json.nix
+    ./yaml.nix
+    ./prettier.nix
   ];
 }

@@ -2,13 +2,13 @@
 # Per-language development toolchains, the single "this host develops
 # language X" signal (othrys.apps.languages.<lang>).
 #
-# Each language declares ONE canonical toolchain (server/formatter/extras),
-# installed ONCE into the user's PATH via home-manager. Editor modules
-# (nixvim, vscode) consume the same options to configure themselves and point
-# at these shared binaries, and they never bundle their own divergent copies.
-# This is the graphical/persistRoot pattern applied to languages, with one signal,
-# curated swappable defaults, consumed everywhere (editors, shells, direnv,
-# hooks all see identical tools).
+# Each language declares one canonical toolchain (server, formatter, extras),
+# installed once into the user's PATH through Home Manager. The editor modules
+# (nixvim, vscode) read the same options and name these packages by store
+# path, so an override of `server` or `formatter` reaches every editor and the
+# PATH together. This is the graphical/persistRoot pattern applied to
+# languages, with one signal and curated swappable defaults that editors,
+# shells, direnv and hooks all see.
 {
   config,
   lib,
@@ -18,7 +18,8 @@
   cfg = config.othrys.apps.languages;
 
   # Canonical toolchain table. server = null means no standalone LSP binary
-  # exists/is wanted for the language (editors bring their own where needed).
+  # exists or is wanted for the language. An editor then configures no
+  # external server for it and keeps whatever its own extension bundles.
   languages = {
     bash = {
       name = "Bash";
@@ -40,6 +41,14 @@
       server = null;
       formatter = pkgs.google-java-format;
       extraTools = [pkgs.jdk21 pkgs.maven pkgs.gradle];
+    };
+    json = {
+      name = "JSON";
+      # Ships vscode-json-language-server beside the css, html and eslint
+      # servers, and carries no meta.mainProgram, so editors name the binary.
+      server = pkgs.vscode-langservers-extracted;
+      formatter = pkgs.prettier;
+      extraTools = [];
     };
     lua = {
       name = "Lua";
@@ -73,6 +82,12 @@
       formatter = pkgs.prettier;
       extraTools = [pkgs.typescript];
     };
+    yaml = {
+      name = "YAML";
+      server = pkgs.yaml-language-server;
+      formatter = pkgs.prettier;
+      extraTools = [];
+    };
   };
 
   mkLanguageOptions = _lang: def: {
@@ -81,13 +96,13 @@
     server = lib.mkOption {
       type = lib.types.nullOr lib.types.package;
       default = def.server;
-      description = "Canonical ${def.name} language server, installed on the user's PATH and referenced by every editor. Null when the language has no standalone server.";
+      description = "Canonical ${def.name} language server, installed on the user's PATH and named by store path in every editor that takes an external server. Null leaves the language without a standalone server, and an editor then configures none.";
     };
 
     formatter = lib.mkOption {
       type = lib.types.package;
       default = def.formatter;
-      description = "Canonical ${def.name} formatter, installed on the user's PATH and referenced by every editor.";
+      description = "Canonical ${def.name} formatter, installed on the user's PATH and named by store path in every editor. A replacement is run under the formatter definition that matches its executable name.";
     };
 
     extraTools = lib.mkOption {
@@ -106,11 +121,12 @@
       ++ c.extraTools
     );
 in {
-  # Migration aliases for the former pure-signal namespace.
+  # Migration aliases for the former pure-signal namespace, which held these
+  # eight languages. Entries added since have no old name to alias.
   imports =
-    lib.mapAttrsToList
-    (lang: _: lib.mkRenamedOptionModule ["othrys" "apps" "lsp" lang "enable"] ["othrys" "apps" "languages" lang "enable"])
-    languages;
+    map
+    (lang: lib.mkRenamedOptionModule ["othrys" "apps" "lsp" lang "enable"] ["othrys" "apps" "languages" lang "enable"])
+    ["bash" "go" "java" "lua" "nix" "python" "rust" "typescript"];
 
   options.othrys.apps.languages = lib.mapAttrs mkLanguageOptions languages;
 

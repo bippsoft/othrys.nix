@@ -10,5 +10,7 @@
     ./rust.nix
     ./go.nix
     ./bash.nix
+    ./json.nix
+    ./yaml.nix
   ];
 }
