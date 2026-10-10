@@ -164,6 +164,7 @@
         ai.mcp.nixos.enable = true;
         ai.ollama.enable = true;
         comma.enable = true;
+        development.enable = true;
         gh.enable = true;
         nixvim.enable = true;
         yazi.enable = true;
@@ -176,6 +177,7 @@
         ghostty.enable = true;
         idea.enable = true;
         kitty.enable = true;
+        localsend.enable = true;
         mpv.enable = true;
         obs.enable = true;
         picard.enable = true;
@@ -284,6 +286,28 @@
         done < <(grep -rln --include='*.nix' -E '^ *users\.users' modules | sort)
         [ ''${#account_unguarded[@]} -eq 0 ] ||
           report "modules writing users.users without an othrys.system.users.enable guard:" "''${account_unguarded[@]}"
+
+        # Clause 2, persistence half. impermanence reads users.users.<name>.home
+        # for every entry under `users`, so a per-user persistence write is an
+        # account write and carries usersEnabled beside impermanenceEnabled,
+        # on the write itself. An environment.persistence block whose mkIf
+        # names no usersEnabled is followed to its closing brace, and a
+        # `users.` line inside it is the unguarded form. System paths never
+        # write `users.`, so a block of those passes whatever its guard.
+        persist_unguarded=()
+        while IFS= read -r f; do
+          while IFS= read -r hit; do
+            persist_unguarded+=("$f:$hit")
+          done < <(awk '
+            /environment\.persistence\./ && /mkIf/ && !/usersEnabled/ {
+              start = NR; match($0, /^ */); indent = RLENGTH; next
+            }
+            start && /^ *users\./ { print start ": per-user persistence guarded on impermanence alone"; start = 0; next }
+            start && /^ *}/ { match($0, /^ */); if (RLENGTH <= indent) start = 0 }
+          ' "$f")
+        done < <(grep -rl --include='*.nix' 'environment\.persistence' modules | sort)
+        [ ''${#persist_unguarded[@]} -eq 0 ] ||
+          report "per-user persistence must be guarded on usersEnabled as well as impermanenceEnabled:" "''${persist_unguarded[@]}"
 
         # Clause 1. No module takes a `username` argument. Identity is read from
         # othrys.system.user.name, which has no default.
@@ -739,6 +763,10 @@
         };
 
       eval-impermanence = import ./impermanence-eval.nix {inherit hostConfig mkExpectations bootBase;};
+
+      # What the app and desktop modules persist, read back on an impermanence
+      # host without a managed account and on one with (see ./persistence-eval.nix).
+      eval-persistence = import ./persistence-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost appDesktopModules;};
 
       eval-lock = import ./lock.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-login = import ./login.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
