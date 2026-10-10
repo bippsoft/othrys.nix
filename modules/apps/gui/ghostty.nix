@@ -7,6 +7,10 @@
 }: let
   cfg = config.othrys.apps.ghostty;
 in {
+  imports = [
+    (lib.mkRemovedOptionModule ["othrys" "apps" "ghostty" "scrollbackLines"] "Ghostty measures its scrollback in bytes, so the value was never a line count. Set othrys.apps.ghostty.scrollbackLimit, in bytes, instead.")
+  ];
+
   options.othrys.apps.ghostty = {
     enable = lib.mkEnableOption "Ghostty terminal emulator";
 
@@ -80,10 +84,13 @@ in {
     };
 
     # Scrollback
-    scrollbackLines = lib.mkOption {
-      type = lib.types.int;
-      default = 10000;
-      description = "Number of scrollback lines to retain.";
+    # Ghostty's `scrollback-limit` is a size in bytes and not a line count.
+    # The default is Ghostty's own, 10 MB for each terminal surface.
+    scrollbackLimit = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 10000000;
+      example = 50000000;
+      description = "Scrollback each terminal surface retains, in bytes. A line of 80 plain characters takes roughly 80 bytes.";
     };
 
     # Extra settings passthrough
@@ -126,8 +133,8 @@ in {
             window-padding-y = cfg.window.padding.y;
             gtk-titlebar = cfg.window.gtkTitlebar;
 
-            # Scrollback
-            scrollback-limit = cfg.scrollbackLines;
+            # Scrollback, in bytes
+            scrollback-limit = cfg.scrollbackLimit;
 
             # Mouse
             mouse-hide-while-typing = cfg.mouseHideWhileTyping;

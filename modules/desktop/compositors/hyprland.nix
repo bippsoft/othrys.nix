@@ -163,8 +163,17 @@ in {
 
     browser = lib.mkOption {
       type = lib.types.str;
-      default = "firefox";
-      description = "Browser command bound to the `browser` Lua local.";
+      default =
+        if config.othrys.apps.floorp.enable
+        then "floorp"
+        else "firefox";
+      defaultText = lib.literalExpression ''"floorp" when othrys.apps.floorp.enable is set, "firefox" otherwise'';
+      description = ''
+        Browser command bound to the `browser` Lua local. The default follows
+        `othrys.apps.floorp`, the browser this library installs. Without it
+        the default names `firefox`, which no othrys module installs, so a
+        host with another browser sets this.
+      '';
     };
 
     input.keyboardLayout = lib.mkOption {
@@ -319,9 +328,7 @@ in {
         grim
         slurp
         wl-clipboard
-        cliphist
         playerctl
-        nautilus
       ];
 
       # withUWSM below turns programs.uwsm on for every hyprland host, and
@@ -342,6 +349,9 @@ in {
         portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
       };
 
+      # No sandbox baseline. The agent authenticates through polkit's setuid
+      # helper, which NoNewPrivileges and RestrictSUIDSGID would stop, and it
+      # draws its prompt in the user's session like any other client.
       systemd.user.services.hyprpolkitagent = {
         description = "Hyprland Polkit Authentication Agent.";
         partOf = ["graphical-session.target"];
@@ -385,7 +395,6 @@ in {
               {_args = ["XCURSOR_SIZE" "24"];}
               {_args = ["HYPRCURSOR_SIZE" "24"];}
               {_args = ["EDITOR" config.othrys.system.defaultEditor];}
-              {_args = ["TERM" "xterm-256color"];}
             ];
 
             monitor = cfg.monitors;
@@ -397,7 +406,6 @@ in {
                   "hyprland.start"
                   (lib.generators.mkLuaInline ''
                     function()
-                      hl.exec_cmd("wl-paste --watch cliphist store")
                       hl.dispatch(hl.dsp.focus({ workspace = 1 }))
                     end'')
                 ];

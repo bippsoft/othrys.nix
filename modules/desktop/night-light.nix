@@ -1,8 +1,9 @@
 # modules/desktop/night-light.nix
 # Screen color temperature (blue-light reduction) via gammastep. Coordinates
-# are identity-shaped, so the host provides them for the manual provider, and
-# without them, geoclue resolves location automatically. Noctalia hosts are
-# excluded, since the shell has its own night light.
+# are identity-shaped, so the host provides them for the manual provider. A
+# host that wants its location resolved instead turns geoclue on explicitly,
+# since that enables a location service for the whole host. Noctalia hosts
+# are excluded, since the shell has its own night light.
 {
   config,
   lib,
@@ -32,14 +33,29 @@ in {
       type = lib.types.nullOr lib.types.float;
       default = null;
       example = 43.7;
-      description = "Latitude for sunrise/sunset calculation. Identity-shaped, set from the consuming host. With longitude also null it falls back to geoclue.";
+      description = "Latitude for sunrise/sunset calculation. Identity-shaped, set from the consuming host together with longitude.";
     };
 
     longitude = lib.mkOption {
       type = lib.types.nullOr lib.types.float;
       default = null;
       example = -79.4;
-      description = "Longitude for sunrise/sunset calculation; null (with latitude null) falls back to geoclue.";
+      description = "Longitude for sunrise/sunset calculation, set together with latitude.";
+    };
+
+    geoclue.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      example = true;
+      description = ''
+        Resolve the location through geoclue when no coordinates are set.
+        This enables `services.geoclue2` for the whole host. With the nixpkgs
+        defaults geoclue scans for nearby Wi-Fi networks, sends their
+        hardware addresses to an online location service on every query, and
+        answers any application that asks for the location. It is off by
+        default for that reason, and a host with fixed coordinates does not
+        need it.
+      '';
     };
   };
   # ANCHOR_END: night-light-options
@@ -56,12 +72,16 @@ in {
       }
       {
         assertion = (cfg.latitude == null) == (cfg.longitude == null);
-        message = "othrys.desktop.nightLight: set latitude and longitude together (or neither, for geoclue).";
+        message = "othrys.desktop.nightLight: set latitude and longitude together.";
+      }
+      {
+        assertion = manual || cfg.geoclue.enable;
+        message = "othrys.desktop.nightLight needs a location: set latitude and longitude, or set othrys.desktop.nightLight.geoclue.enable to resolve it through geoclue.";
       }
     ];
 
-    # geoclue is only needed when no manual coordinates are provided.
-    services.geoclue2.enable = lib.mkIf (!manual) true;
+    # Coordinates win when both are given, and geoclue then stays off.
+    services.geoclue2.enable = lib.mkIf (!manual && cfg.geoclue.enable) true;
 
     othrys.internal.homeConfig."desktop.nightLight" = {
       services.gammastep = {

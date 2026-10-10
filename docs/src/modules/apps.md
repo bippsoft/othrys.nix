@@ -36,6 +36,42 @@ Require a desktop environment.
 | LocalSend | `othrys.apps.localsend` | Local file sharing |
 | MPV | `othrys.apps.mpv` | Media player |
 
+### Kitty
+
+Remote control is accepted on a unix socket only. Each kitty process listens
+on `$XDG_RUNTIME_DIR/kitty-<pid>.sock`, a directory other users cannot read,
+and `kitty @` inside the terminal finds it through `KITTY_LISTEN_ON`. Control
+sequences written to the terminal itself are ignored, so the output of a
+program, or of a remote host over SSH, cannot drive the windows.
+
+`extraSettings` takes `kitty.conf` keys and is merged over the defaults the
+module writes, so a key set there wins.
+
+```nix
+othrys.apps.kitty = {
+  enable = true;
+  extraSettings = {
+    scrollback_lines = "50000";
+    tab_bar_style = "fade";
+  };
+};
+```
+
+### Ghostty
+
+Ghostty measures its scrollback in bytes and not in lines.
+`scrollbackLimit` is that byte count for each terminal surface, and it
+defaults to Ghostty's own 10 MB. It replaces `scrollbackLines`, whose default
+of 10000 was written as 10000 bytes, about a hundred lines of plain text.
+Setting the old option now fails with a message naming the new one.
+
+```nix
+othrys.apps.ghostty = {
+  enable = true;
+  scrollbackLimit = 50000000;
+};
+```
+
 ## Floorp
 
 The browser force-installs a curated extension set, Sidebery, Bitwarden,

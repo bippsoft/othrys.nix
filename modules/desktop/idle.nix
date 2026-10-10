@@ -2,7 +2,7 @@
 # Staged idle policy, lock then screen off then optional suspend, via hypridle
 # (ext-idle-notify, which works on hyprland and niri alike). The lock command
 # comes from the othrys.desktop.lockCommand signal, while the screen-off dispatch
-# is compositor-flavored. Noctalia hosts are excluded, since the shell owns idle
+# follows the running compositor. Noctalia hosts are excluded, since the shell owns idle
 # behavior there, and noctalia.nix reads the timeouts declared here for its
 # own idle behaviors, so one set of numbers describes every host.
 {
@@ -12,19 +12,19 @@
   ...
 }: let
   cfg = config.othrys.desktop.idle;
-  hyprlandEnabled = config.othrys.desktop.compositors.hyprland.enable;
+  session = import ./session.nix {inherit config pkgs;};
 
   # Under Hyprland's Lua config provider `hyprctl dispatch` is a shorthand for
   # hl.dispatch(...), so the argument is a Lua expression rather than a
   # hyprlang dispatcher name.
-  screenOff =
-    if hyprlandEnabled
-    then "hyprctl dispatch 'hl.dsp.dpms({ action = \"off\" })'"
-    else "niri msg action power-off-monitors";
-  screenOn =
-    if hyprlandEnabled
-    then "hyprctl dispatch 'hl.dsp.dpms({ action = \"on\" })'"
-    else "niri msg action power-on-monitors";
+  screenOff = session.bySession "othrys-screen-off" {
+    hyprland = "hyprctl dispatch 'hl.dsp.dpms({ action = \"off\" })'";
+    niri = "niri msg action power-off-monitors";
+  };
+  screenOn = session.bySession "othrys-screen-on" {
+    hyprland = "hyprctl dispatch 'hl.dsp.dpms({ action = \"on\" })'";
+    niri = "niri msg action power-on-monitors";
+  };
 
   mkListener = timeout: onTimeout: onResume:
     lib.optional (timeout != null) ({
@@ -102,10 +102,10 @@ in {
     # unlocked. programs.hyprlock declares hyprlock's and installs the
     # package. swaylock has no NixOS module, and niri-flake declares its
     # service only on niri hosts, so it is declared here for every host that
-    # locks with it.
-    programs.hyprlock.enable = hyprlandEnabled;
-    security.pam.services = lib.mkIf (!hyprlandEnabled) {swaylock = {};};
-    environment.systemPackages = lib.optional (!hyprlandEnabled) pkgs.swaylock;
+    # locks with it. A host with both compositors gets both lockers.
+    programs.hyprlock.enable = session.hyprlock;
+    security.pam.services = lib.mkIf session.swaylock {swaylock = {};};
+    environment.systemPackages = lib.optional session.swaylock pkgs.swaylock;
 
     othrys.internal.homeConfig."desktop.idle" = {
       home.packages = lib.optional (cfg.timeouts.dim != null) pkgs.brightnessctl;

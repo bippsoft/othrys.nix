@@ -14,10 +14,11 @@
   fontName = config.stylix.fonts.sansSerif.name;
 
   hlLua = import ../compositors/hyprland-lua.nix {inherit lib;};
+  session = import ../session.nix {inherit config pkgs;};
 
   # Lock comes from the shared signal (one authority for every lock
-  # consumer), while logout stays compositor-flavored, hyprland winning when both
-  # compositors are enabled (one bar config per host).
+  # consumer), while logout follows the running compositor, since a host
+  # with both compositors has one bar config for the two sessions.
   #
   # Under the Lua config provider `hyprctl dispatch` is a shorthand for
   # hl.dispatch(...), so the argument is a Lua expression, not a hyprlang
@@ -37,10 +38,13 @@
       ++ ["Audio" "Microphone" "Brightness" "Network"]
       ++ lib.optional config.hardware.bluetooth.enable "Bluetooth"
       ++ ["PeripheralBattery" "Battery"];
-  logoutCmd =
-    if hyprlandEnabled
-    then "hyprctl dispatch 'hl.dsp.exit()'"
-    else "niri msg action quit";
+  logoutCmd = session.bySession "othrys-logout" {
+    hyprland = "hyprctl dispatch 'hl.dsp.exit()'";
+    niri = "niri msg action quit";
+  };
+
+  leftModules = ["Custom:launcher"] ++ lib.optional cfg.clipboard.enable "Custom:clipboard" ++ ["Workspaces"];
+  tomlList = lib.concatMapStringsSep ", " (name: "\"${name}\"");
 
   configToml = ''
     position = "Top"
@@ -53,7 +57,7 @@
     region = "en_US"
 
     [modules]
-    left = [["Custom:launcher", "Custom:clipboard", "Workspaces"]]
+    left = [[${tomlList leftModules}]]
     center = ["WindowTitle"]
     right = ["MediaPlayer", "Tray", "SystemInfo", "Tempo", "Settings", "Notifications"]
 
@@ -134,7 +138,7 @@
 
     [tempo]
     clock_format = "${cfg.clockFormat}"
-    weather_location = ${cfg.weatherLocation}
+    ${lib.optionalString (cfg.weatherLocation != null) "weather_location = ${cfg.weatherLocation}"}
     weather_indicator = "IconAndTemperature"
     wind_speed_unit = "Mph"
 
@@ -150,7 +154,7 @@
     audio_sources_more_cmd = "pavucontrol -t 4"
     peripheral_battery_format = "IconAndPercentage"
     peripheral_indicators = "All"
-    indicators = [${lib.concatMapStringsSep ", " (name: "\"${name}\"") cfg.indicators}]
+    indicators = [${tomlList cfg.indicators}]
 
     [notifications]
     format = "%I:%M %p"
@@ -171,11 +175,13 @@
     name = "launcher"
     icon = "󱗼"
     command = "wofi --show drun"
+    ${lib.optionalString cfg.clipboard.enable ''
 
-    [[CustomModule]]
-    name = "clipboard"
-    icon = "󰅍"
-    command = "cliphist list | wofi --dmenu | cliphist decode | wl-copy"
+      [[CustomModule]]
+      name = "clipboard"
+      icon = "󰅍"
+      command = "cliphist list | wofi --dmenu | cliphist decode | wl-copy"
+    ''}
   '';
 in {
   # ANCHOR: ashell-options
@@ -183,10 +189,36 @@ in {
     enable = lib.mkEnableOption "Ashell status bar";
 
     weatherLocation = lib.mkOption {
-      type = lib.types.str;
-      default = "{ Coordinates = [0.0, 0.0] }";
+      type = lib.types.nullOr lib.types.str;
+      default = null;
       example = "{ Coordinates = [40.7128, -74.0060] }";
-      description = "ashell weather_location value, e.g. { Coordinates = [lat, lng] }.";
+      description = ''
+        ashell `weather_location` value, written as the TOML ashell reads, so
+        `{ Coordinates = [lat, lng] }` or `{ City = "name" }`. The clock shows
+        the weather for it and fetches the forecast over the network. With
+        `null` the key is left out, the bar shows no weather and makes no
+        request. The location is identity-shaped, so the consuming host sets
+        it.
+      '';
+    };
+
+    clipboard = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Keep a clipboard history with cliphist and show the bar button that
+          picks from it. The history is a plain file under `~/.cache/cliphist`
+          holding everything copied, apart from entries a password manager
+          marks as sensitive. It is capped at `maxItems` and wiped each time
+          the session locks through `othrys.desktop.lockCommand`.
+        '';
+      };
+      maxItems = lib.mkOption {
+        type = lib.types.ints.positive;
+        default = 100;
+        description = "Entries the clipboard history keeps before the oldest is dropped.";
+      };
     };
 
     indicators = lib.mkOption {
@@ -293,10 +325,18 @@ in {
       # its PAM service exist here as well as in the idle module, since a
       # host can run the bar without idle management. The YubiKey module
       # adds its factor to both lockers itself.
-      programs.hyprlock.enable = hyprlandEnabled;
-      environment.systemPackages = lib.optional (!hyprlandEnabled) pkgs.swaylock;
-      security.pam.services = lib.mkIf (!hyprlandEnabled) {swaylock = {};};
+      programs.hyprlock.enable = session.hyprlock;
+      environment.systemPackages = lib.optional session.swaylock pkgs.swaylock;
+      security.pam.services = lib.mkIf session.swaylock {swaylock = {};};
 
+      # The history holds whatever was copied while the session was open, so
+      # locking the session empties it. A failed wipe must not stop the lock.
+      othrys.desktop.lockHooks = lib.mkIf cfg.clipboard.enable "${lib.getExe pkgs.cliphist} wipe || true";
+
+      # No sandbox baseline. The bar is a GPU client of the user's own
+      # session, so it needs the render devices PrivateDevices hides and the
+      # home directory ProtectHome hides, and its buttons start the user's
+      # programs, which would inherit every restriction placed on the unit.
       systemd.user.services.ashell = {
         description = "Ashell status bar.";
         partOf = ["graphical-session.target"];
@@ -325,6 +365,13 @@ in {
           ++ lib.optional hyprlandEnabled pkgs.hyprpicker;
 
         home.file.".config/ashell/config.toml".text = configToml;
+
+        # The watcher that feeds the history, on either compositor. The unit
+        # is Home Manager's own and starts with the graphical session.
+        services.cliphist = lib.mkIf cfg.clipboard.enable {
+          enable = true;
+          extraOptions = ["-max-items" (toString cfg.clipboard.maxItems)];
+        };
 
         wayland.windowManager.hyprland.settings = lib.mkIf hyprlandEnabled {
           bind = map hlLua.mkBind [

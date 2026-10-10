@@ -27,16 +27,17 @@
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
   idleTimeouts = config.othrys.desktop.idle.timeouts;
+  session = import ./session.nix {inherit config pkgs;};
 
   # noctalia owns the lock screen, and the lock command is an IPC call to it.
   # With the shell not running that call fails and every lock consumer would
   # leave the session unlocked, so the compositor's locker takes over. Its
   # PAM service is declared below, since an undeclared one denies every
   # unlock.
-  fallbackLocker =
-    if hyprlandEnabled
-    then lib.getExe pkgs.hyprlock
-    else lib.getExe pkgs.swaylock;
+  fallbackLocker = session.bySession "noctalia-fallback-locker" {
+    hyprland = lib.getExe pkgs.hyprlock;
+    niri = lib.getExe pkgs.swaylock;
+  };
   lockCommand = pkgs.writeShellScript "noctalia-lock" ''
     if ! noctalia msg session lock; then
       exec ${fallbackLocker}
@@ -434,7 +435,27 @@ in {
     settings = lib.mkOption {
       type = lib.types.attrsOf lib.types.anything;
       default = {};
-      description = "Extra noctalia config.toml settings, deep-merged over (and overriding) the generated config. Validated at build time by upstream's module.";
+      example = lib.literalExpression ''
+        {
+          osd.position = "bottom_center";
+          notification.show_actions = false;
+          shell.show_location = false;
+        }
+      '';
+      description = ''
+        Extra noctalia `config.toml` settings, written as the tables and keys
+        of that file. They are deep-merged over the config this module
+        generates, so a key set here replaces the value an option above would
+        have written and any other key passes through. Upstream's module
+        validates the result at build time.
+
+        With `theme.source = "stylix"` the Stylix target writes
+        `theme.source`, `theme.custom_palette`, `theme.mode`, the popup and
+        dock opacities, `shell.font_family` and the default wallpaper path
+        as a second definition. Setting one of those here is a conflict the
+        module system reports, so change them through Stylix or pick another
+        `theme.source`.
+      '';
     };
 
     customPalettes = lib.mkOption {
@@ -468,8 +489,19 @@ in {
       # Noctalia owns the lock screen, and every lock consumer dispatches to
       # it, with the compositor's locker behind it when the shell is down.
       othrys.desktop.lockCommand = "${lockCommand}";
-      programs.hyprlock.enable = hyprlandEnabled;
-      security.pam.services = lib.mkIf (!hyprlandEnabled) {swaylock = {};};
+      programs.hyprlock.enable = session.hyprlock;
+      security.pam.services = lib.mkMerge [
+        (lib.mkIf session.swaylock {swaylock = {};})
+        # Unlocks the keyring below with the login password, so the session
+        # does not open on a second password prompt.
+        (lib.mkIf config.othrys.desktop.login.enable {greetd.enableGnomeKeyring = true;})
+      ];
+
+      # Noctalia keeps its stored credentials in the Secret Service, and the
+      # tray applications it hosts expect one too. niri-flake brings
+      # gnome-keyring to a niri host and nothing brings one to a Hyprland
+      # host, so the provider is enabled here for both.
+      services.gnome.gnome-keyring.enable = true;
     })
     (lib.mkIf (cfg.enable && config.othrys.system.stylix.enable) {
       # The GUI's runtime overrides (settings.toml) live in the state dir, so
@@ -477,6 +509,7 @@ in {
       environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
         users.${username}.directories = [
           ".local/state/noctalia"
+          ".local/share/keyrings"
         ];
       };
 
@@ -494,6 +527,13 @@ in {
         # for noctalia's own engines it must stand down or its
         # theme.source = "custom" write conflicts.
         stylix.targets.noctalia.enable = stylixThemed;
+
+        # One wallpaper engine. On a Hyprland host with a Stylix wallpaper
+        # the Stylix target starts hyprpaper, which would draw under
+        # noctalia's own engine. Noctalia's is kept, since its picker and
+        # wallpaper-generated palettes depend on it, and hyprpaper is turned
+        # off. A host that sets wallpaper.enable = false keeps hyprpaper.
+        stylix.targets.hyprland.hyprpaper.enable = lib.mkIf cfg.wallpaper.enable false;
 
         wayland.windowManager.hyprland.settings = lib.mkIf hyprlandEnabled {
           bind = hyprlandBinds;

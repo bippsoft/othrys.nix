@@ -3,8 +3,17 @@
 {
   config,
   lib,
+  pkgs,
   ...
-}: {
+}: let
+  session = import ./session.nix {inherit config pkgs;};
+  compositorEnabled = config.othrys.desktop.compositors.hyprland.enable || config.othrys.desktop.compositors.niri.enable;
+
+  locker = session.bySession "othrys-locker" {
+    hyprland = "hyprlock";
+    niri = "swaylock";
+  };
+in {
   imports = [
     ./ashell
     ./compositors
@@ -33,16 +42,39 @@
   };
 
   # The single "lock this session" command, consumed by every module that
-  # needs to lock (ashell's lock button, the idle module's lock stage).
-  # Compositor-flavored default. Shell layers with their own lock (noctalia)
-  # override it.
+  # needs to lock (ashell's lock button, the idle module's lock stage). The
+  # default runs the locker of the running compositor. Shell layers with
+  # their own lock (noctalia) override it.
   options.othrys.desktop.lockCommand = lib.mkOption {
     type = lib.types.str;
     default =
-      if config.othrys.desktop.compositors.hyprland.enable
-      then "hyprlock"
-      else "swaylock";
-    defaultText = lib.literalExpression ''"hyprlock" on hyprland hosts, "swaylock" otherwise (noctalia sets "noctalia msg session lock")'';
+      if config.othrys.desktop.lockHooks == ""
+      then locker
+      else "${pkgs.writeShellScript "othrys-lock" ''
+        ${config.othrys.desktop.lockHooks}
+        exec ${locker}
+      ''}";
+    defaultText = lib.literalExpression ''"hyprlock" in a Hyprland session, "swaylock" otherwise (noctalia sets "noctalia msg session lock")'';
     description = "Command that locks the session; one authority for every lock consumer.";
+  };
+
+  # Shell lines the default lock command runs before the locker starts. A
+  # module that keeps session data which should not outlive an unlocked
+  # session adds its cleanup here, as ashell does for the clipboard history.
+  # A host that sets lockCommand itself replaces the hooks with it.
+  options.othrys.desktop.lockHooks = lib.mkOption {
+    type = lib.types.lines;
+    default = "";
+    internal = true;
+    description = "Shell lines the default lock command runs before the locker.";
+  };
+
+  # The file manager belongs to the graphical session and not to one
+  # compositor, so it is installed here for either of them. It is a user-facing
+  # application and goes into the user's packages.
+  config = lib.mkIf compositorEnabled {
+    othrys.internal.homeConfig."desktop.graphical" = {
+      home.packages = [pkgs.nautilus];
+    };
   };
 }
