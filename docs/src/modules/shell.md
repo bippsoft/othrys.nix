@@ -18,7 +18,11 @@ Full-featured Zsh with:
 - Direnv integration for automatic dev shell activation
 - Zoxide for smart directory jumping
 - Toggleable alias presets (`aliasPresets.{nix,navigation,modernUnix,editor,git,python,jvm,ansible,opentofu,node,docker,clipboard}`, all on by default) plus `extraAliases` for consumer additions
-- Persistence for history, zoxide database, and direnv state
+- Persistence for history and the zoxide database. History is kept in
+  `~/.local/share/zsh/history`, and the module persists that directory rather
+  than the file, since zsh saves history by renaming a temporary file over
+  `HISTFILE` and a rename onto a bind-mounted file fails. The direnv allow
+  database is persisted by `othrys.apps.development`, which owns direnv.
 
 The default editor behind `EDITOR`/`VISUAL`, git's `core.editor`, and the `v`/`vim`/`vi` aliases is `othrys.system.defaultEditor` (default `vim`).
 

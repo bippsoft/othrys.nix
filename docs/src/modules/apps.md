@@ -11,7 +11,7 @@ No desktop environment required, so these are usable on servers and headless sys
 | Module | Option | Description |
 |--------|--------|-------------|
 | Nixvim | `othrys.apps.nixvim` | Neovim configured via Nix (sub-modules for plugins/languages) |
-| Development | `othrys.apps.development` | Development tools bundle |
+| Development | `othrys.apps.development` | Development tools bundle, direnv with its allow database persisted |
 | GitHub CLI | `othrys.apps.gh` | GitHub CLI with persistence |
 | Yazi | `othrys.apps.yazi` | Terminal file manager |
 | Comma | `othrys.apps.comma` | Run uninstalled programs with nix-index |

@@ -6,7 +6,11 @@
   pkgs,
   ...
 }: let
+  username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.localsend;
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.apps.localsend = {
     enable = lib.mkEnableOption "LocalSend file sharing";
@@ -24,6 +28,14 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # The alias, the saved devices and the receive PIN live in the app's
+    # share directory, and the app has no other state.
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
+      users.${username}.directories = [
+        ".local/share/localsend_app"
+      ];
+    };
+
     networking.firewall = lib.mkIf cfg.openFirewall {
       allowedTCPPorts = [53317];
       allowedUDPPorts = [53317];

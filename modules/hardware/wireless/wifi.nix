@@ -75,20 +75,24 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    # Persistence for NetworkManager state (manual connections, leases, etc.)
+    # The saved connections and the daemon's state (leases, seen BSSIDs, the
+    # timestamps autoconnect ranks by). /etc/NetworkManager itself is not
+    # persisted, because NixOS writes NetworkManager.conf and conf.d there as
+    # store symlinks at activation, and a bind mount over the directory would
+    # hide every one of them.
     environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
       directories = [
-        {
-          directory = "/etc/NetworkManager";
-          user = "root";
-          group = "root";
-          mode = "0755";
-        }
         {
           directory = "/etc/NetworkManager/system-connections";
           user = "root";
           group = "root";
           mode = "0700";
+        }
+        {
+          directory = "/var/lib/NetworkManager";
+          user = "root";
+          group = "root";
+          mode = "0755";
         }
       ];
     };

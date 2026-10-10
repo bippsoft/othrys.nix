@@ -8,7 +8,8 @@
 # - Audio → modules/hardware/audio.nix
 # - Printing → modules/services/printing.nix
 # - Tailscale → modules/services/tailscale.nix
-# - Zsh/Zoxide/Direnv → modules/system/shell/zsh.nix
+# - Zsh/Zoxide → modules/system/shell/zsh.nix
+# - Direnv → modules/apps/cli/development.nix
 # - Bluetooth → modules/hardware/wireless/bluetooth.nix
 # - WiFi → modules/hardware/wireless/wifi.nix
 # - GPG/YubiKey → modules/services/security/yubikey.nix

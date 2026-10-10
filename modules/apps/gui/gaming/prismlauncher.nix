@@ -7,6 +7,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.gaming.prismlauncher;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -22,10 +23,14 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    # Persistence for Minecraft instances, accounts, settings
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    # Instances, settings and accounts.json, which holds the Microsoft refresh
+    # tokens, so the directory is 0700.
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username}.directories = [
-        ".local/share/PrismLauncher"
+        {
+          directory = ".local/share/PrismLauncher";
+          mode = "0700";
+        }
       ];
     };
 

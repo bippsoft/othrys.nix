@@ -13,10 +13,7 @@
   inputs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.desktop.compositors.hyprland;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   hlLua = import ./hyprland-lua.nix {inherit lib;};
   inherit (hlLua) execCmd;
@@ -337,12 +334,6 @@ in {
         binPath = "/run/current-system/sw/bin/Hyprland";
       };
       othrys.desktop.login.defaultDesktop = lib.mkIf config.othrys.desktop.login.enable (lib.mkDefault "hyprland-uwsm.desktop");
-
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
-        users.${username}.directories = [
-          ".config/hypr"
-        ];
-      };
 
       programs.hyprland = {
         enable = true;

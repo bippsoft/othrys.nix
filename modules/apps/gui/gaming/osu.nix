@@ -7,6 +7,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.gaming.osu;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -65,7 +66,7 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persistence for osu! songs, skins, replays, scores and tablet settings
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username}.directories = [
         ".local/share/osu"
         ".config/OpenTabletDriver"

@@ -22,14 +22,15 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    # Persistence for Bluetooth pairings
+    # Pairings. The tree holds the link keys of every paired device, and
+    # bluetoothd creates it 0700, so the persisted directory matches.
     environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
       directories = [
         {
           directory = "/var/lib/bluetooth";
           user = "root";
           group = "root";
-          mode = "0755";
+          mode = "0700";
         }
       ];
     };

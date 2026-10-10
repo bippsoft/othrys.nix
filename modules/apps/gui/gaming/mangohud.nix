@@ -7,6 +7,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.gaming.mangohud;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -50,7 +51,7 @@ in {
     })
     (lib.mkIf (cfg.enable && config.othrys.system.stylix.enable) {
       # Persistence for MangoHud configuration
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
         users.${username}.directories = [
           ".config/MangoHud"
           ".local/share/MangoHud"

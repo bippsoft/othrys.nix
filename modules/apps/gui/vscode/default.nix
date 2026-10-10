@@ -7,6 +7,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.vscode;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -54,7 +55,7 @@ in {
       ];
     })
     (lib.mkIf (cfg.enable && (!cfg.neovimIntegration.enable || config.othrys.apps.nixvim.enable)) {
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
         users.${username}.directories = [
           ".config/VSCodium"
           ".vscode-oss"

@@ -20,6 +20,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.desktop.noctalia;
   hyprlandEnabled = config.othrys.desktop.compositors.hyprland.enable;
   niriEnabled = config.othrys.desktop.compositors.niri.enable;
@@ -473,7 +474,7 @@ in {
     (lib.mkIf (cfg.enable && config.othrys.system.stylix.enable) {
       # The GUI's runtime overrides (settings.toml) live in the state dir, so
       # persisting them keeps in-shell tweaks across the root wipe.
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
         users.${username}.directories = [
           ".local/state/noctalia"
         ];

@@ -60,15 +60,18 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # The history file is persisted through its directory rather than on its
+    # own. zsh saves history by writing a temporary file and renaming it over
+    # HISTFILE, and a rename onto a bind-mounted file fails, so a persisted
+    # file would never take a save. The direnv allow database belongs to the
+    # development module, which owns direnv.
     environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username} = {
         directories = [
           ".local/share/zoxide"
-          ".local/share/direnv"
+          ".local/share/zsh"
         ];
-        files =
-          [".zsh_history"]
-          ++ lib.optionals cfg.persistCompdump [".zcompdump"];
+        files = lib.optionals cfg.persistCompdump [".zcompdump"];
       };
     };
 
@@ -98,7 +101,7 @@ in {
         history = {
           size = 50000;
           save = 50000;
-          path = "$HOME/.zsh_history";
+          path = "$HOME/.local/share/zsh/history";
           ignoreAllDups = true;
           ignoreSpace = true;
           share = true;

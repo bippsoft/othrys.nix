@@ -7,12 +7,9 @@
   inputs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.desktop.ashell;
   hyprlandEnabled = config.othrys.desktop.compositors.hyprland.enable;
   niriEnabled = config.othrys.desktop.compositors.niri.enable;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   inherit (config.lib.stylix) colors;
   fontName = config.stylix.fonts.sansSerif.name;
 
@@ -292,12 +289,6 @@ in {
       ];
     })
     (lib.mkIf (cfg.enable && (hyprlandEnabled || niriEnabled) && config.othrys.system.stylix.enable) {
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
-        users.${username}.directories = [
-          ".config/ashell"
-        ];
-      };
-
       # The bar's lock button runs the shared lock command, so the locker and
       # its PAM service exist here as well as in the idle module, since a
       # host can run the bar without idle management. The YubiKey module

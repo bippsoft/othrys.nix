@@ -7,6 +7,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.plexamp;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -25,9 +26,13 @@ in {
       }
     ];
 
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
+      # The directory holds the Plex auth token.
       users.${username}.directories = [
-        ".config/Plexamp"
+        {
+          directory = ".config/Plexamp";
+          mode = "0700";
+        }
       ];
     };
 

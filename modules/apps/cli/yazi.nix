@@ -7,6 +7,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.yazi;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -17,7 +18,7 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persist yazi state (file operation history, last directory, etc.)
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username}.directories = [
         ".local/state/yazi"
       ];

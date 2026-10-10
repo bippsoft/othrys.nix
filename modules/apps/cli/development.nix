@@ -7,7 +7,11 @@
   pkgs,
   ...
 }: let
+  username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.development;
+  impermanenceEnabled = config.othrys.system.impermanence.enable;
+  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.apps.development = {
     enable = lib.mkEnableOption "Development tools";
@@ -19,6 +23,15 @@ in {
     programs.direnv = {
       enable = true;
       nix-direnv.enable = true;
+    };
+
+    # The allow database, so a `direnv allow` outlives the root wipe. It lives
+    # here rather than in the zsh module because this module is what turns
+    # direnv on, and a host can run it without zsh.
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
+      users.${username}.directories = [
+        ".local/share/direnv"
+      ];
     };
 
     # Placement rule. System Nix tooling lives in environment.systemPackages, NOT

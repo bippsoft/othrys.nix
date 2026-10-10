@@ -76,6 +76,19 @@ Cross-cutting user directories (XDG, SSH, Projects):
 {{#include ../../../modules/system/persistence.nix:user-persistence}}
 ```
 
+Every entry under `users` is guarded on `othrys.system.users.enable` as well as
+on impermanence, here and in each app module. impermanence reads
+`users.users.<name>.home` to place the bind mount, so an entry written on a
+host with impermanence on and no managed account fails evaluation rather than
+being skipped. A host of that shape, with every app and desktop module on, is
+what the `eval-persistence` check evaluates, and `contract-guards` rejects a
+per-user entry that carries the impermanence guard alone.
+
+Directories that hold a token, a key or a session are persisted at mode
+`0700`. A file a program saves by renaming a temporary over it, such as zsh
+history, is persisted through its directory, since a rename onto a
+bind-mounted file fails.
+
 ## App-Specific Persistence
 
 Each module declares its own persistence:

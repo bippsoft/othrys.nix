@@ -7,6 +7,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.floorp;
   inherit (config.lib.stylix) colors;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
@@ -89,7 +90,7 @@ in {
     })
     (lib.mkIf (cfg.enable && config.othrys.system.stylix.enable) {
       # Persistence for browser profile data
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
         users.${username}.directories = [
           ".floorp"
         ];

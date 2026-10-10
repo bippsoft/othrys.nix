@@ -72,6 +72,7 @@ All modules follow the `othrys.*` namespace convention:
 }: let
   cfg = config.othrys.{category}.{name};
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
@@ -80,7 +81,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username}.directories = [
         ".config/{name}"
       ];
@@ -100,10 +101,12 @@ per-user path must therefore sit behind a guard.
 
 Two guards exist, and they are not interchangeable. Account-level writes
 (`users.users.<name>`, `/persist` home directories, wipe-script home recreation)
-go behind `othrys.system.users.enable`, spelled in the module. Home Manager
-writes do not spell a guard at all. A module contributes to
-`othrys.internal.homeConfig`, keyed by its own option path, and
-`modules/system/users.nix` splices the whole registry into
+go behind `othrys.system.users.enable`, spelled in the module. A per-user
+persistence entry is an account-level write, since impermanence reads
+`users.users.<name>.home` to place the bind mount, so `impermanenceEnabled`
+alone is not a guard for it. Home Manager writes do not spell a guard at all.
+A module contributes to `othrys.internal.homeConfig`, keyed by its own option
+path, and `modules/system/users.nix` splices the whole registry into
 `home-manager.users.<name>` behind `othrys.system.users.homeManaged`. Nothing
 else in `modules/` may write `home-manager.users`, and `contract-guards` in
 `flake/checks/` enforces that as a prohibition.
@@ -217,13 +220,34 @@ All persistent state must be declared explicitly. If a module stores state on
 disk, declare the persistence in that module rather than in `persistence.nix`.
 
 ```nix
-environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
   users.${username}.directories = [
     ".config/{app}"
     ".local/share/{app}"
   ];
 };
 ```
+
+A system path carries `impermanenceEnabled` alone. A per-user path carries
+`usersEnabled` as well, because impermanence dereferences the account's home
+directory for every entry under `users`, and a host with impermanence on and
+`othrys.system.users.enable` off has no such account. `contract-guards` rejects
+the per-user form without the second guard. The `eval-persistence` check
+evaluates that host shape with every app and desktop module on.
+
+Three further rules apply to what goes in the list:
+
+- A directory that holds a token, a key or a session gets `mode = "0700"`.
+  The home directory is private already, so this is consistency rather than
+  containment, and it keeps the mode right when the directory is created by
+  the bind mount before the program first runs.
+- A directory Home Manager fills with store symlinks and nothing else is not
+  persisted. The symlinks are recreated at every activation, so the bind mount
+  preserves nothing.
+- A file a program saves by writing a temporary and renaming it over the
+  original is persisted through its parent directory, never on its own. A
+  rename onto a bind-mounted file fails, so a persisted file of that kind
+  never takes a save. zsh history is the worked example.
 
 ## Documentation
 

@@ -21,7 +21,9 @@ get fast feedback while the exhaustive suite still gates what lands:
   of Suricata and CrowdSec read back), `eval-dev-shells` (the hooks each dev
   shell installs read back), `eval-rustdesk` (what the RustDesk module persists
   and launches), `eval-nvidia` (which NVIDIA driver and kernel modules a host
-  gets), and `impermanence-test` (the persistence and
+  gets), `eval-persistence` (what the app and desktop modules persist, read
+  back on an impermanence host with a managed account and on one without),
+  and `impermanence-test` (the persistence and
   root-wipe invariant, the defining principle of the system). Small closures.
 - **Core on ARM** (`core-aarch64` job) runs on every PR/push/dispatch on an
   `ubuntu-24.04-arm` runner. It builds the portable host evaluations for

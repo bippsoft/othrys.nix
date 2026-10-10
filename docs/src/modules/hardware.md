@@ -17,8 +17,8 @@ Hardware modules under `othrys.hardware.*`.
 | UPS | `othrys.hardware.ups` | UPS monitoring and clean shutdown (NUT) |
 | Webcam | `othrys.hardware.webcam` | Webcam support |
 | USB | `othrys.hardware.usb` | USB utilities (usbutils) |
-| Bluetooth | `othrys.hardware.wireless.bluetooth` | Bluetooth with persistence |
-| WiFi | `othrys.hardware.wireless.wifi` | WiFi via NetworkManager |
+| Bluetooth | `othrys.hardware.wireless.bluetooth` | Bluetooth, with `/var/lib/bluetooth` persisted at 0700 since it holds the link keys |
+| WiFi | `othrys.hardware.wireless.wifi` | WiFi via NetworkManager, persisting `system-connections` and `/var/lib/NetworkManager` only |
 
 ## NVIDIA (Dedicated)
 
@@ -124,3 +124,19 @@ notify module is enabled. The monitor password is a secrets-provider path.
 ```nix
 {{#include ../../../modules/hardware/ups.nix:ups-options}}
 ```
+
+## Wireless
+
+NetworkManager persists `/etc/NetworkManager/system-connections`, which holds
+the saved connections and their secrets, and `/var/lib/NetworkManager`, which
+holds the leases, the seen BSSIDs and the timestamps autoconnect ranks by.
+`/etc/NetworkManager` itself is left on the ephemeral root. NixOS writes
+`NetworkManager.conf` and the `conf.d` fragments there as store symlinks at
+activation, and a bind mount over the whole directory would hide every one of
+them, so the daemon would start with its stock defaults and none of the
+settings the host declares.
+
+Bluetooth persists `/var/lib/bluetooth` at mode `0700`. The tree holds the
+link keys of every paired device under a directory per adapter, and
+`bluetoothd` creates it `0700` itself, so the persisted directory keeps the
+mode the daemon would have chosen.

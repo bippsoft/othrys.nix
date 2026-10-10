@@ -7,6 +7,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.nixvim;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -65,10 +66,12 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    # Persistence for Neovim data (undo history, shada, etc.)
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    # Undo history and shada live under share, and persistence.nvim writes its
+    # sessions under stdpath("state"), so both directories are kept.
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username}.directories = [
         ".local/share/nvim"
+        ".local/state/nvim"
       ];
     };
 

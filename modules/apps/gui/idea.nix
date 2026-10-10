@@ -12,6 +12,7 @@
   ...
 }: let
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.idea;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -158,7 +159,7 @@ in {
     # Config, plugins and the project indexes. The index cache is the expensive
     # one, since without it every boot re-indexes each project from scratch, which is
     # minutes of CPU on anything non-trivial.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username}.directories = [
         ".config/JetBrains"
         ".local/share/JetBrains"

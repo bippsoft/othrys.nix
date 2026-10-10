@@ -22,6 +22,7 @@ Modules live at `modules/{category}/{name}.nix`, where the category is one of
 }: let
   cfg = config.othrys.{category}.{name};
   username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   hmEnabled = config.othrys.system.users.homeManaged;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
@@ -33,7 +34,7 @@ in {
   config = lib.mkIf cfg.enable {
     environment.systemPackages = with pkgs; [package-name];
 
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
       users.${username}.directories = [
         ".config/{name}"
       ];
@@ -53,7 +54,9 @@ There is no `username` module argument. Read the primary user from
 since the option has no default and a headless host may never set it. Account
 writes use `othrys.system.users.enable`, Home Manager writes use
 `othrys.system.users.homeManaged`, and both guards belong at the attrset level
-rather than on a leaf.
+rather than on a leaf. A per-user persistence entry counts as an account write,
+since impermanence reads the account's home directory to place it, which is why
+the template guards it on `usersEnabled` beside `impermanenceEnabled`.
 
 ### 3. Import in Category default.nix
 
