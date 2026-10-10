@@ -245,7 +245,6 @@ pattern, package placement and comment conventions. AI usage is governed by
 [ashell](https://github.com/MalpenZibo/ashell),
 [noctalia](https://github.com/noctalia-dev/noctalia-shell),
 [nix-index-database](https://github.com/nix-community/nix-index-database),
-[nixos-hardware](https://github.com/NixOS/nixos-hardware),
 [git-hooks.nix](https://github.com/cachix/git-hooks.nix) and
 [treefmt-nix](https://github.com/numtide/treefmt-nix).
 

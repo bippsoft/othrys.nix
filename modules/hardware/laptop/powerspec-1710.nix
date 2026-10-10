@@ -10,7 +10,7 @@ in {
   # nixos-hardware profiles (common-pc-laptop, common-pc-laptop-ssd,
   # common-cpu-intel) are NOT imported here, since imports can't be gated on
   # cfg.enable (they resolve before config), so the host config imports them
-  # directly. common-gpu-nvidia stays out entirely, since it causes PRIME assertion
+  # directly, from a nixos-hardware input of its own. common-gpu-nvidia stays out entirely, since it causes PRIME assertion
   # failures when loaded unconditionally, and othrys.hardware.nvidia.prime sets
   # proper bus IDs instead.
   options.othrys.hardware.laptop.powerspec-1710 = {

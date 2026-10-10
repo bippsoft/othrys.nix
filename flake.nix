@@ -47,10 +47,10 @@
     niri = {
       url = "github:sodiboo/niri-flake";
       inputs.nixpkgs.follows = "nixpkgs";
-      # nixpkgs-stable is deliberately left unfollowed. niri-flake builds its
-      # stable package set against it, and pointing it at unstable defeats
-      # what the separate pin exists for. It is the second-largest node in the
-      # lock after hyprland's nixpkgs and it stays on purpose.
+      # niri-flake builds its own niri-stable package against nixpkgs-stable.
+      # The compositor module takes niri from pkgs and never reads that
+      # package, so the second nixpkgs follows ours and leaves the lock.
+      inputs.nixpkgs-stable.follows = "nixpkgs";
     };
 
     # Noctalia Wayland desktop shell (bar/launcher/notifications/lock/...).
@@ -91,12 +91,6 @@
       url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
-    };
-
-    # nixos-hardware - Hardware-specific configurations and optimizations
-    nixos-hardware = {
-      url = "github:NixOS/nixos-hardware";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Git hooks for pre-commit validation

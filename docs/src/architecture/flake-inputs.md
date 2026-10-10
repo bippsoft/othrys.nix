@@ -20,7 +20,6 @@ All external dependencies are declared in `flake.nix`:
 | `impermanence` | Opt-in state persistence |
 | `nixvim` | Neovim configuration via Nix modules (used by the nixvim module) |
 | `stylix` | System-wide base16 theming |
-| `nixos-hardware` | Hardware-specific optimizations |
 | `git-hooks` | Pre-commit validation (treefmt, Statix, Deadnix) |
 | `treefmt-nix` | Multi-language formatter behind `nix fmt` |
 | `sops-nix` | Secrets management with age encryption |
