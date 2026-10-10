@@ -8,6 +8,7 @@
   ...
 }: let
   cfg = config.othrys.apps.ai.mcp.nixos;
+  inherit (import ./plugin-name.nix) pluginName;
 in {
   options.othrys.apps.ai.mcp.nixos = {
     enable = lib.mkEnableOption "NixOS MCP server";
@@ -20,12 +21,11 @@ in {
         args = [];
       };
 
-      # Pre-approve this server's read-only query tools. programs.claude-code
-      # bundles programs.mcp.servers into a plugin named "claude-code-home-manager",
-      # so the tools surface under the mcp__plugin_claude-code-home-manager_* namespace.
+      # Pre-approve this server's read-only query tools, under the plugin
+      # name Home Manager gives the servers it bundles (see ./plugin-name.nix).
       programs.claude-code.settings.permissions.allow = [
-        "mcp__plugin_claude-code-home-manager_nixos__nix"
-        "mcp__plugin_claude-code-home-manager_nixos__nix_versions"
+        "mcp__plugin_${pluginName}_nixos__nix"
+        "mcp__plugin_${pluginName}_nixos__nix_versions"
       ];
     };
   };

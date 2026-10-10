@@ -7,6 +7,8 @@
   ...
 }: let
   cfg = config.othrys.apps.ai.mcp.github;
+  username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
   secretPath = config.sops.secrets.${cfg.secret.path}.path;
 in {
   options.othrys.apps.ai.mcp.github = {
@@ -46,10 +48,15 @@ in {
       }
     ];
 
-    # Declare the sops secret
-    sops.secrets.${cfg.secret.path} = {
-      inherit (cfg.secret) sopsFile;
-    };
+    # Declare the sops secret. The wrapper that reads it runs as the primary
+    # user, and sops-nix's default is root with mode 0400, which that user
+    # cannot read, so the secret is owned by the user. Guarded, since an
+    # account othrys does not manage has no name to give it.
+    sops.secrets.${cfg.secret.path} =
+      {
+        inherit (cfg.secret) sopsFile;
+      }
+      // lib.optionalAttrs usersEnabled {owner = username;};
 
     othrys.internal.homeConfig."apps.ai.mcp.github" = {
       # A local stdio server rather than the hosted HTTP endpoint, because
