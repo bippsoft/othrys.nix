@@ -61,13 +61,32 @@ Consumers choose their risk level:
 
 - **Pin a tag** (`othrys.url = "github:<owner>/othrys.nix/v0.4.0"`) for
   hosts that must not drift. Upgrade deliberately by bumping the tag.
-- **Track `main`** for hosts on the weekly auto-update cadence; every push
-  to main has passed the CORE and EXTENDED check tiers (server contracts,
-  the enable-with-defaults matrix, and the VM tests).
+- **Track `main`** for hosts on the weekly auto-update cadence. The next
+  section states what has run against a commit by the time it is there.
+
+## What the merge gate enforces
+
+The `Build` workflow runs the CORE and EXTENDED check tiers on every pull
+request and again on every push to `main`. It reports two statuses for branch
+protection to require, `Core checks` and `Extended verdict`. The verdict passes
+only when every extended check succeeded, so a failed, cancelled or skipped
+check fails it. A newer push to a pull request cancels the run before it, while
+a run on `main` is never cancelled.
+
+Requiring the two statuses is a repository setting, and the workflow reports
+them without enforcing anything itself. With the setting in place, a commit that
+reaches `main` through a pull request has passed both tiers as the head of that
+pull request. The ARM evaluation job runs on the same events and is not one of
+the two required statuses.
+
+The release commit is the exception. `just release` runs every check locally
+before it writes the commit, and the commit is pushed to `main` without a pull
+request. The workflow runs both tiers on it after the push, so a consumer
+tracking `main` can receive it before that run has finished.
 
 ## What the checks guarantee
 
-Every commit on main evaluates: the three server-contract host shapes
+The two tiers between them evaluate the three server-contract host shapes
 (named/anonymous/account-without-home-manager), both desktop stacks, every
 `othrys.*.enable` flipped on with defaults (the enable matrix), the
 impermanence wipe-script behavior against real btrfs, and a reboot of a VM with

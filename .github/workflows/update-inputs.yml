@@ -3,10 +3,10 @@ name: Update Inputs
 # input bump reaches main only when someone reads it, which is the point of
 # raising it as a PR rather than pushing the lockfile.
 #
-# The PR title carries the "chore(flake)" prefix, which build.yml uses to run the
-# EXTENDED check tier (full-tree evals, enable matrix, VM tests) on the update
-# instead of just CORE, since input bumps are exactly the changes that break deep
-# surfaces.
+# build.yml runs both check tiers on the PR as it does on any other, which
+# matters here since input bumps are exactly the changes that break deep
+# surfaces. The "chore(flake)" title is the commit convention and selects
+# nothing.
 #
 # TOKEN. This needs a token other than the default GITHUB_TOKEN, supplied as the
 # FLAKE_UPDATE_TOKEN secret. Two separate GitHub behaviours make the default
@@ -19,15 +19,15 @@ name: Update Inputs
 #  2. More importantly, events raised by GITHUB_TOKEN do not start new workflow
 #     runs. A PR it opens therefore never fires build.yml, so `Core checks` and
 #     `Extended verdict` never report, and since both are required by branch
-#     protection the PR can never merge. Running the EXTENDED tier on these
-#     updates is the whole reason for testing them, so a bump that arrives with
-#     nothing run against it is the outcome to avoid.
+#     protection the PR can never merge. A bump that arrives with nothing run
+#     against it is the outcome to avoid.
 #
 # A PAT or GitHub App token raises events normally, so the checks attach on open.
 # The secret should be a fine-grained personal access token restricted to this
 # repository, with read and write on "Contents" and "Pull requests" and nothing
 # else. It is bound to the one step that opens the PR, so checkout and the Nix
-# install never see it.
+# install never see it. Checkout does not persist the default token either, and
+# the step that opens the PR pushes with the token it is given.
 # The workflow falls back to GITHUB_TOKEN when the secret is absent so the update
 # still happens, and the guard below says plainly that the PR arrived untested.
 on:
@@ -35,8 +35,7 @@ on:
     - cron: "0 5 * * 1"
   workflow_dispatch:
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -44,6 +43,10 @@ jobs:
   update:
     name: Update flake inputs
     runs-on: ubuntu-latest
+    # The fallback GITHUB_TOKEN needs both to push the branch and open the PR.
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       # Resolved here rather than in the step below, since the `secrets` context
       # is not available in a step-level `if` and the guard would silently never
@@ -51,6 +54,8 @@ jobs:
       HAS_DEDICATED_TOKEN: ${{ secrets.FLAKE_UPDATE_TOKEN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          persist-credentials: false
       - name: Install Nix
         uses: DeterminateSystems/determinate-nix-action@4d65ea9cab522b6d9f29a170aed23ededc1b27af # v3
       - name: Update flake.lock and open PR

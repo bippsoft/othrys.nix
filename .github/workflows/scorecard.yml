@@ -10,10 +10,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-permissions: read-all
+permissions:
+  contents: read
 concurrency:
   group: ${{ github.workflow }}
-  cancel-in-progress: true
+  # No pull request starts this workflow, so no run of it is ever cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   analysis:
     name: Scorecard analysis

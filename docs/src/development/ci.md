@@ -4,8 +4,9 @@ GitHub Actions workflow for continuous integration. Each repository carries its 
 
 ## Pipeline
 
-The **Build** workflow splits the flake's checks into two tiers so pull requests
-get fast feedback while the exhaustive suite still gates what lands:
+The **Build** workflow splits the flake's checks into two tiers. Both run on
+every pull request, every push to `main` and every manual dispatch, so the core
+tier reports early while the whole suite still gates what lands:
 
 - **Core** (`core` job) runs on every PR/push/dispatch. The cheap, high-value
   gate: lint (pre-commit), `secret-scan` (gitleaks over every tracked file), the docs build, `eval-host-min` (a minimal
@@ -33,18 +34,39 @@ get fast feedback while the exhaustive suite still gates what lands:
   `ubuntu-24.04-arm` runner. It builds the portable host evaluations for
   `aarch64-linux`, which is every check named in `portableChecks` in
   `flake/checks/default.nix`. It is not required by branch protection.
-- **Extended** (`extended` job) runs on push to `main`, manual
-  `workflow_dispatch`, and input-update PRs titled `chore(flake)`, since input
-  bumps are exactly the changes that break deep surfaces. A matrix fans the suite out, one runner per check:
+- **Extended** (`extended` job) runs on every PR/push/dispatch. Neither the
+  changed paths nor the pull request title decides whether it runs. A matrix fans the suite out, one runner per check:
   `eval-default` and the two desktop evals, `eval-ashell` (the bar's generated
   config for a desktop and a laptop), `enable-matrix` (every module
   enabled with defaults), and the runtime VM tests (`restic-test`,
   `headscale-test`, `auto-upgrade-test`, `crowdsec-test`, `router-test`, `router-ips-test`,
-  `integration-test`, `impermanence-reboot-test`).
+  `integration-test`, `impermanence-reboot-test`, `impermanence-wipe-test`).
+- **Extended verdict** (`extended-ok` job) turns the matrix into one status
+  that branch protection can require. It passes only when every matrix leg
+  succeeded, so a failed, cancelled or skipped leg fails it.
 
 Core builds its checks in one `nix build`; each extended matrix leg builds one check, and unchanged
 derivations are pulled from the cache rather than rebuilt. `nix flake check`
 locally still runs **every** check regardless of tier.
+
+Branch protection on `main` requires two statuses, `Core checks` and
+`Extended verdict`. That requirement is a repository setting, and the workflow
+only reports them.
+
+A newer push to a pull request cancels the run before it. A run on `main` is
+never cancelled, since its concurrency group is keyed on the commit, so a
+release commit keeps its run when another push follows it.
+
+## Permissions
+
+Every workflow starts from `permissions: contents: read`, and a job that needs
+more declares it on itself. The `deploy` job of `pages.yml` holds `pages: write`
+and `id-token: write`, while the `build` job beside it holds read access only.
+The `analysis` job of `scorecard.yml` holds `security-events: write` and
+`id-token: write`. The `update` job of `update-inputs.yml` holds
+`contents: write` and `pull-requests: write`. Every `actions/checkout` step sets
+`persist-credentials: false`, so no job leaves the token in `.git/config`. No
+job reads the pull request title or any other event text.
 
 ## Workflows
 
@@ -52,7 +74,8 @@ locally still runs **every** check regardless of tier.
 |------|------|---------|
 | `build.yml` | **core** | Every PR/push: lint, docs, `eval-host-min`, the server-contract evals, `eval-bootloader`, `impermanence-test` (fast gate) |
 | `build.yml` | **core-aarch64** | Every PR/push: the portable host evaluations for `aarch64-linux` on an ARM runner |
-| `build.yml` | **extended** | main, manual dispatch, `chore(flake)` PRs: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
+| `build.yml` | **extended** | Every PR/push: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
+| `build.yml` | **extended-ok** | Every PR/push: one status for the matrix, passing only when every leg succeeded |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |
 | `flake-inputs.yml` | **flake-inputs** | Freshness/advisory check for the flake lock (runs when `flake.{lock,nix}` change, plus weekly) |
 | `scorecard.yml` | **analysis** | OpenSSF Scorecard on `main`, weekly, and on branch protection changes. Publishes the score behind the README badge and uploads findings to code scanning |

@@ -211,11 +211,14 @@ just docs      # mdBook (build, serve, clean)
 
 Host builds do not happen here. They belong to the consuming flake.
 
-CI runs a fast core tier on every pull request covering lint, the docs build,
-the minimal-host and server-contract evaluations, and the impermanence VM
-test. A heavier extended tier runs
-on `main`, adding whole-tree evaluation, the enable-with-defaults matrix, and
-runtime VM tests for CrowdSec, restic, Headscale and a full integration host.
+CI runs two tiers on every pull request and on every push to `main`. The core
+tier covers lint, the secret scan, the docs build, the host and module
+evaluations, and the impermanence VM test. The extended tier adds whole-tree
+evaluation, the enable-with-defaults matrix, and runtime VM tests for the
+router, CrowdSec, restic, Headscale, auto-upgrade, an impermanence reboot and a
+full integration host. Branch protection requires one status from each tier,
+`Core checks` and `Extended verdict`, and the verdict passes only when every
+extended check succeeded.
 
 What that buys you is narrow but real. Every module evaluates with its defaults or
 is allowlisted with an assertion explaining why it cannot. The headless surface
