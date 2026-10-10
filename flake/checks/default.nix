@@ -736,7 +736,14 @@
           "net.ipv4.tcp_syncookies" = 1;
           "net.ipv4.icmp_echo_ignore_broadcasts" = 1;
           "net.ipv4.tcp_rfc1337" = 1;
+          "fs.suid_dumpable" = 0;
+          "fs.protected_fifos" = 2;
+          "fs.protected_regular" = 2;
+          "vm.unprivileged_userfaultfd" = 0;
+          "dev.tty.ldisc_autoload" = 0;
+          "kernel.perf_event_paranoid" = 2;
         };
+        sandbox = (import ../../modules/lib/sandbox.nix).baseline;
       in
         mkExpectations "othrys-eval-host-hardening" (
           inputs.nixpkgs.lib.mapAttrs' (key: value:
@@ -744,6 +751,9 @@
           expected
           // {
             "the hardened host evaluates" = hardenedHost.system.build.toplevel.drvPath != null;
+            "the profile adds its kernel parameters" = builtins.all (p: builtins.elem p hardenedHost.boot.kernelParams) ["slab_nomerge" "page_alloc.shuffle=1" "vsyscall=none"];
+            "the sandbox baseline hides the clock, the host name, the kernel log and other processes" = sandbox.ProtectClock && sandbox.ProtectHostname && sandbox.ProtectKernelLogs && sandbox.ProtectProc == "invisible" && sandbox.ProcSubset == "pid";
+            "the sandbox baseline keeps mounts, IPC and new files private" = sandbox.PrivateMounts && sandbox.RemoveIPC && sandbox.UMask == "0077";
             "a plain host assignment of kernel.yama.ptrace_scope wins" = sysctl."kernel.yama.ptrace_scope" == 0;
             "security.lockKernelModules is set" = hardenedHost.security.lockKernelModules;
             "security.protectKernelImage is set" = hardenedHost.security.protectKernelImage;
