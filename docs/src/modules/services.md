@@ -559,6 +559,30 @@ password arrives as a secrets-provider file path.
 {{#include ../../../modules/services/grafana.nix:grafana-options}}
 ```
 
+## Scrutiny
+
+[Scrutiny](https://github.com/AnalogJ/scrutiny) keeps every S.M.A.R.T.
+reading in InfluxDB and judges disks against observed failure rates, which is
+how a slowly dying disk shows months before `smartd` alarms. The module has a
+hub-and-spoke shape: a hub (`enable`) runs the web UI, InfluxDB and a
+collector for its own disks; a satellite runs `collector.enable` with
+`collector.endpoint` pointing at the hub.
+
+The hub's web UI and collector API have no authentication of their own:
+anyone who reaches the port reads every disk and can post readings. The hub
+listens on loopback by default, and the module warns when it is moved off
+loopback or its port is opened. Its default port, 8080, is also the CrowdSec
+local API's and Headscale's, and the module refuses that clash on one host.
+Failures of the collector are routed to `notify-failure@` when notify is on.
+The state directory is persisted at `/var/lib/private/scrutiny`, where a
+`DynamicUser` service keeps it.
+
+### Options
+
+```nix
+{{#include ../../../modules/services/scrutiny.nix:scrutiny-options}}
+```
+
 ## Alerting
 
 Rule evaluation via vmalert, datasource-agnostic (any Prometheus-compatible
@@ -581,6 +605,29 @@ Self-hosted [ntfy](https://ntfy.sh/) push-notification server, the
 implementation-named server half of the notification pair, related to
 [Notify](#notify) the way [Headscale](#headscale) relates to
 [Tailscale](#tailscale).
+
+Anonymous clients are denied by default (`defaultAccess = "deny-all"`).
+ntfy's own default is `read-write`, which lets anyone who reaches the port
+publish to and read every topic, the alert topic included. Access comes from
+`users` (name, bcrypt hash from `ntfy user hash`, role), `access` (user,
+topic, permission) and `tokensFile`, an environment file from the secrets
+provider holding `NTFY_AUTH_TOKENS=user:tk_token:label`. A publisher then
+sets `othrys.services.notify.tokenFile` to a file holding its token. The
+same can be done on the host with `ntfy user`, `ntfy access` and
+`ntfy token`, which write the auth database the module persists.
+
+```nix
+othrys.services.ntfy = {
+  enable = true;
+  users = ["fleet:$2a$10$...:user"];
+  access = ["fleet:alerts:write-only"];
+  tokensFile = config.sops.secrets."ntfy/tokens".path;
+};
+```
+
+The state directory is persisted at `/var/lib/private/ntfy-sh`, which is
+where a `DynamicUser` service keeps it; `/var/lib/ntfy-sh` is systemd's
+symlink to it.
 
 ### Options
 

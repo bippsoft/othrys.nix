@@ -37,6 +37,7 @@
     then "ntfy://${lib.removePrefix "https://" url}/${topic}"
     else "ntfy://${lib.removePrefix "http://" url}/${topic}?scheme=http";
 in {
+  # ANCHOR: scrutiny-options
   options.othrys.services.scrutiny = {
     enable = lib.mkEnableOption "the Scrutiny hub: web UI + InfluxDB, and a collector for this host's own disks";
 
@@ -98,7 +99,14 @@ in {
     };
   };
 
+  # ANCHOR_END: scrutiny-options
+
   config = lib.mkIf (cfg.enable || cfg.collector.enable) {
+    # The hub's web UI and its collector API carry no authentication of
+    # their own: anyone who reaches the port reads every disk and can post
+    # readings. Loopback behind a proxy that authenticates is the shape.
+    warnings = lib.optional (cfg.enable && (cfg.openFirewall || (cfg.listenAddress != "127.0.0.1" && cfg.listenAddress != "::1"))) "othrys.services.scrutiny: the hub listens on ${cfg.listenAddress}${lib.optionalString cfg.openFirewall " with the port open"} and has no authentication of its own; put an authenticating proxy in front or keep it on loopback.";
+
     assertions = [
       {
         assertion = cfg.collector.enable -> (cfg.enable || cfg.collector.endpoint != null);
@@ -149,13 +157,15 @@ in {
     systemd.services.scrutiny-collector.onFailure =
       lib.mkIf (cfg.collector.enable && notifyCfg.enable) ["notify-failure@%n.service"];
 
-    # Scrutiny's device DB + the InfluxDB time series.
+    # Scrutiny's device DB + the InfluxDB time series. The upstream unit runs
+    # with DynamicUser + StateDirectory, so the real directory is under
+    # /var/lib/private and /var/lib/scrutiny is systemd's symlink to it.
     environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
       directories =
         lib.optionals cfg.enable
         [
           {
-            directory = "/var/lib/scrutiny";
+            directory = "/var/lib/private/scrutiny";
             user = "root";
             group = "root";
             mode = "0750";

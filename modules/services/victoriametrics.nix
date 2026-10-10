@@ -115,5 +115,7 @@ in {
     };
 
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [cfg.port];
+
+    warnings = lib.optional cfg.openFirewall "othrys.services.victoriametrics: openFirewall publishes its HTTP API, which accepts writes and deletes, with no authentication of its own, on every interface. Put an authenticating proxy in front, or reach it over a private network and leave the port closed.";
   };
 }
