@@ -68,6 +68,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-k3s`, `eval-containers` | What k3s opens and requires, and what the container modules run and prune |
 | `eval-hardware`, `eval-nvidia` | What the hardware, mount and disk modules write, and which NVIDIA driver a host gets |
 | `eval-desktop`, `eval-lock`, `eval-login` | What the desktop modules and terminals write, the session lock, and what greetd is handed |
+| `eval-theme` | The palette, fonts and schemes of `othrys.theme` on hosts with no Stylix module, and what the Stylix adapter hands over and takes back |
 | `eval-languages` | The binaries nixvim and VSCodium take from the language registry |
 | `eval-floorp`, `eval-rustdesk` | The Floorp and Discord settings, and what RustDesk persists and launches |
 | `eval-claude-code` | The settings, pre-approved tools and context the AI modules hand Claude Code |

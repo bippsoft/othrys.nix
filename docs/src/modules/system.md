@@ -25,7 +25,8 @@ under **System Infrastructure**, and the rest are summarized here.
 | Disko | `othrys.system.disko` | Disk layout with LUKS and BTRFS subvolumes, see [Disko](../system/disko.md) |
 | Bootloader | `othrys.system.bootloader` | Limine, systemd-boot or GRUB, with optional Secure Boot, see [Bootloader & Secure Boot](../system/bootloader.md) |
 | Secrets | `othrys.system.secrets` | sops-nix wiring and the manual-editing age identity, see [Secrets Management](../system/secrets.md) |
-| Stylix | `othrys.system.stylix` | System-wide base16 theming (fonts/cursor/opacity) |
+| Theme | `othrys.theme` | The palette, fonts, opacity and wallpaper every module reads, see [Theming](../guides/theming.md) |
+| Stylix adapter | `othrys.system.stylix` | Stylix configured from `othrys.theme`, exported as `nixosModules.stylix` and not part of `default` |
 | Shell | `othrys.system.shell.{bash,zsh,starship}` | Interactive shells and prompt, see [Shell](./shell.md) |
 | Default editor | `othrys.system.defaultEditor` | The command behind `EDITOR` and `VISUAL`, `vim` by default |
 

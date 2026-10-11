@@ -30,8 +30,11 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   ├── persistence.nix    # System-critical persistence
   │   ├── secrets.nix        # sops-nix secrets
   │   ├── git.nix            # Git configuration
-  │   ├── stylix.nix         # System-wide theming
   │   └── shell/             # Shell (Zsh, Bash, Starship)
+  ├── theme/                 # The theme every module reads
+  │   ├── default.nix        # othrys.theme: palette, fonts, opacity, wallpaper
+  │   ├── schemes/           # Colour schemes as Nix data
+  │   └── stylix.nix         # Stylix adapter, exported on its own
   ├── desktop/               # Desktop environment
   │   ├── compositors/       # Hyprland, Niri
   │   ├── ashell/            # Status bar
@@ -61,7 +64,6 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   └── languages/         # Per-language toolchains shared by both editors
   └── lib/                   # Shared option types, address helpers, the systemd sandbox baseline
 templates/                   # The `nix flake init` template
-assets/                      # Themes (base24 YAML)
 scripts/                     # Operational scripts
   └── yubikey-onboard.sh     # YubiKey provisioning (PGP, U2F, age)
 docs/                        # This book

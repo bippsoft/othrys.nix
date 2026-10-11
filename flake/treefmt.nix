@@ -51,7 +51,6 @@ _: {
         "*.woff2"
         ".envrc" # direnv stub: no shebang, triggers shellcheck SC2148
         ".envrc.local"
-        "assets/**"
         "docs/book/**" # built mdbook output
       ];
     };

@@ -1,11 +1,16 @@
 # flake/modules.nix
 # Exports nixosModules for use by other flakes.
 #
-# `default` aggregates the entire module tree (system, desktop, hardware,
-# services, apps). Every reusable infrastructure module (system, desktop,
-# hardware, services) is also exported individually below so a consumer can
-# import just one without the whole tree. App modules (modules/apps/**) are
-# personal-workflow-shaped and reachable only via `default`.
+# `default` aggregates the entire module tree (system, theme, desktop,
+# hardware, services, apps). Every reusable infrastructure module (system,
+# theme, desktop, hardware, services) is also exported individually below so a
+# consumer can import just one without the whole tree. App modules
+# (modules/apps/**) are personal-workflow-shaped and reachable only via
+# `default`.
+#
+# `stylix` is the one export `default` leaves out. It is the adapter between
+# othrys.theme and Stylix, and a host imports it together with the Stylix
+# module or imports neither.
 #
 # Rule when adding a module. If it lives outside modules/apps/, add an
 # individual export here. The `eval-exports` check (flake/checks/) lists the
@@ -17,12 +22,13 @@
 # system/user.nix and system/users.nix, the persist root from
 # system/impermanence.nix, the default editor from system/shell, the
 # graphical signal from desktop/default.nix and the notification hook from
-# services/notify.nix. Import `system` beside any individual export, and
-# `desktop` beside a desktop or hardware one, or use `default`.
+# services/notify.nix. The palette and fonts come from theme/default.nix.
+# Import `system` beside any individual export, `theme` beside one that draws
+# colour, and `desktop` beside a desktop or hardware one, or use `default`.
 #
 # Several modules write into option namespaces owned by upstream flakes
-# (disko, home-manager, stylix, sops-nix, impermanence). A consumer of
-# `default` must also import those flakes' nixosModules, see
+# (disko, home-manager, sops-nix, impermanence). A consumer of `default` must
+# also import those flakes' nixosModules, see
 # docs/src/architecture/host-configuration.md. This holds even when the
 # corresponding othrys feature is disabled.
 #
@@ -51,7 +57,12 @@
 
     # The option-declaring groups, imported beside an individual export.
     system = ../modules/system;
+    theme = ../modules/theme;
     desktop = ../modules/desktop;
+
+    # The Stylix adapter, which `default` does not import. A host that wants
+    # Stylix imports this and the Stylix module together.
+    stylix = ../modules/theme/stylix.nix;
 
     # System fundamentals
     disko = ../modules/system/disko.nix;
@@ -72,7 +83,6 @@
     # Desktop environment and compositors
     hyprland = ../modules/desktop/compositors/hyprland.nix;
     niri = ../modules/desktop/compositors/niri.nix;
-    stylix = ../modules/system/stylix.nix;
     uwsm = ../modules/desktop/uwsm.nix;
     login = ../modules/desktop/login.nix;
     idle = ../modules/desktop/idle.nix;

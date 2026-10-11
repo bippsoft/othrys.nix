@@ -10,8 +10,11 @@
   cfg = config.othrys.desktop.ashell;
   hyprlandEnabled = config.othrys.desktop.compositors.hyprland.enable;
   niriEnabled = config.othrys.desktop.compositors.niri.enable;
-  inherit (config.lib.stylix) colors;
-  fontName = config.stylix.fonts.sansSerif.name;
+  theme = config.othrys.theme;
+  themed = theme.palette != null;
+  # Read only where `themed` holds. Null without a palette.
+  colors = theme.colors.withHashtag;
+  font = theme.fonts.sansSerif;
 
   hlLua = import ../compositors/hyprland-lua.nix {inherit lib;};
   session = import ../session.nix {inherit config pkgs;};
@@ -72,10 +75,14 @@
     center = ["WindowTitle"]
     right = ["MediaPlayer", "Tray", "SystemInfo", "Tempo", "Settings", "Notifications"]
 
+    # The font and every colour below come from othrys.theme. A key whose
+    # theme value is null is left out, and ashell then uses its own default.
     [appearance]
-    font_name = "${fontName}"
-    workspace_colors = ["#${colors.base0D}", "#${colors.base0E}", "#${colors.base0C}", "#${colors.base0B}", "#${colors.base09}"]
-    special_workspace_colors = ["#${colors.base08}"]
+    ${lib.optionalString (font != null) "font_name = \"${font.name}\""}
+    ${lib.optionalString themed ''
+      workspace_colors = ["${colors.base0D}", "${colors.base0E}", "${colors.base0C}", "${colors.base0B}", "${colors.base09}"]
+      special_workspace_colors = ["${colors.base08}"]
+    ''}
 
     # Bar surface and opacity live under [appearance.bar]. They were
     # previously emitted as `style`/`opacity` directly under [appearance],
@@ -88,35 +95,37 @@
     surface = "${cfg.bar.surface}"
     opacity = ${lib.strings.floatToString cfg.bar.opacity}
 
-    [appearance.background_color]
-    base = "#${colors.base00}"
-    weakest = "#${colors.base00}"
-    weaker = "#${colors.base01}"
-    weak = "#${colors.base01}"
-    neutral = "#${colors.base02}"
-    strong = "#${colors.base02}"
-    stronger = "#${colors.base03}"
-    strongest = "#${colors.base04}"
-    text = "#${colors.base05}"
+    ${lib.optionalString themed ''
+      [appearance.background_color]
+      base = "${colors.base00}"
+      weakest = "${colors.base00}"
+      weaker = "${colors.base01}"
+      weak = "${colors.base01}"
+      neutral = "${colors.base02}"
+      strong = "${colors.base02}"
+      stronger = "${colors.base03}"
+      strongest = "${colors.base04}"
+      text = "${colors.base05}"
 
-    [appearance.primary_color]
-    base = "#${colors.base0D}"
-    text = "#${colors.base00}"
+      [appearance.primary_color]
+      base = "${colors.base0D}"
+      text = "${colors.base00}"
 
-    [appearance.success_color]
-    base = "#${colors.base0B}"
-    text = "#${colors.base00}"
+      [appearance.success_color]
+      base = "${colors.base0B}"
+      text = "${colors.base00}"
 
-    [appearance.warning_color]
-    base = "#${colors.base0A}"
-    text = "#${colors.base00}"
+      [appearance.warning_color]
+      base = "${colors.base0A}"
+      text = "${colors.base00}"
 
-    [appearance.danger_color]
-    base = "#${colors.base08}"
-    text = "#${colors.base00}"
+      [appearance.danger_color]
+      base = "${colors.base08}"
+      text = "${colors.base00}"
 
-    [appearance.text_color]
-    base = "#${colors.base06}"
+      [appearance.text_color]
+      base = "${colors.base06}"
+    ''}
 
     [appearance.menu]
     opacity = 0.95
@@ -344,9 +353,9 @@ in {
   };
   # ANCHOR_END: ashell-options
 
-  # The assertion lives in its own mkIf because the body interpolates Stylix colors
-  # and fonts, so it must stay unevaluated when its dependencies are off or
-  # the deep Stylix error preempts the assertion message.
+  # The assertion lives in its own mkIf because the body reads the session of
+  # a compositor, so it stays unevaluated on a host that has none and the
+  # assertion message is what surfaces.
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
       assertions = [
@@ -356,7 +365,7 @@ in {
         }
       ];
     })
-    (lib.mkIf (cfg.enable && (hyprlandEnabled || niriEnabled) && config.othrys.system.stylix.enable) {
+    (lib.mkIf (cfg.enable && (hyprlandEnabled || niriEnabled)) {
       # The bar's lock button runs the shared lock command, so the locker and
       # its PAM service exist here as well as in the idle module, since a
       # host can run the bar without idle management. The YubiKey module

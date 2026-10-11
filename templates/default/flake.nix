@@ -5,12 +5,11 @@
     othrys.url = "github:bippsoft/othrys.nix";
     nixpkgs.follows = "othrys/nixpkgs";
 
-    # othrys writes into the option namespaces of these five, so their modules
+    # othrys writes into the option namespaces of these four, so their modules
     # are imported below even when the matching othrys feature is off.
     # Following othrys keeps one copy of each in the lock.
     home-manager.follows = "othrys/home-manager";
     disko.follows = "othrys/disko";
-    stylix.follows = "othrys/stylix";
     sops-nix.follows = "othrys/sops-nix";
     impermanence.follows = "othrys/impermanence";
   };
@@ -24,7 +23,6 @@
         inputs.othrys.nixosModules.default
         inputs.home-manager.nixosModules.home-manager
         inputs.disko.nixosModules.disko
-        inputs.stylix.nixosModules.stylix
         inputs.sops-nix.nixosModules.sops
         inputs.impermanence.nixosModules.impermanence
 

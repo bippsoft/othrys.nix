@@ -19,6 +19,8 @@
         inputs.home-manager.nixosModules.home-manager
         inputs.disko.nixosModules.disko
         inputs.impermanence.nixosModules.impermanence
+        # The reference covers the Stylix adapter too, which `default` leaves out.
+        inputs.self.nixosModules.stylix
         inputs.stylix.nixosModules.stylix
         inputs.sops-nix.nixosModules.sops
         {

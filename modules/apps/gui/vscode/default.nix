@@ -104,7 +104,7 @@ in {
 
             userSettings =
               {
-                # Editor (fonts/colors handled by Stylix)
+                # Editor (fonts and colours are left to a theming module)
                 "editor.formatOnSave" = true;
                 "editor.tabSize" = 2;
                 "editor.minimap.enabled" = false;

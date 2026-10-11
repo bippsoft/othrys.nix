@@ -17,6 +17,5 @@
     ./git.nix
     ./networking.nix
     ./shell
-    ./stylix.nix
   ];
 }

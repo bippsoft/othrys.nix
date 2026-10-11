@@ -32,7 +32,7 @@ mkdir myhost && cd myhost
 nix flake init -t github:bippsoft/othrys.nix
 ```
 
-The template is a minimal host with the five upstream imports and the mandatory
+The template is a minimal host with the four upstream imports and the mandatory
 options in place. A check instantiates it against this flake on every change,
 so it always evaluates. Replace `hardware.nix`, set the user and `stateVersion`
 in `configuration.nix`, and build with `nixos-rebuild build --flake .#myhost`.
@@ -48,7 +48,6 @@ The same shape written out by hand, with a desktop enabled:
     # Follow the inputs whose modules you import below.
     home-manager.follows = "othrys/home-manager";
     disko.follows = "othrys/disko";
-    stylix.follows = "othrys/stylix";
     sops-nix.follows = "othrys/sops-nix";
     impermanence.follows = "othrys/impermanence";
   };
@@ -64,7 +63,6 @@ The same shape written out by hand, with a desktop enabled:
         # imported even when the matching othrys feature is off.
         inputs.home-manager.nixosModules.home-manager
         inputs.disko.nixosModules.disko
-        inputs.stylix.nixosModules.stylix
         inputs.sops-nix.nixosModules.sops
         inputs.impermanence.nixosModules.impermanence
 
@@ -127,9 +125,11 @@ leaves, since a leaf-level `mkIf` still materializes the Home Manager user and
 trips NixOS's user assertions on a headless host.
 
 **The upstream module imports are unconditional.** othrys writes into option
-namespaces owned by home-manager, disko, stylix, sops-nix and impermanence, and
-writing to an undeclared namespace fails evaluation regardless of `mkIf`. Import
-all five even when the matching othrys feature is off.
+namespaces owned by home-manager, disko, sops-nix and impermanence, and writing
+to an undeclared namespace fails evaluation regardless of `mkIf`. Import all
+four even when the matching othrys feature is off. Stylix is optional. A host
+that wants it imports `nixosModules.stylix` and the Stylix module together, and
+every other host imports neither.
 
 **Enabling a module configures the capability, not the machine.** Anything
 identity-shaped, meaning disk IDs, interface names, domains, monitor descriptors
@@ -154,7 +154,8 @@ a typo'd input name used to surface much later as a missing sops file.
 
 | Namespace | Covers |
 |---|---|
-| `othrys.system.*` | Identity, locale, Nix settings, kernel, systemd-networkd, bootloader, [disko](https://github.com/nix-community/disko) with LUKS and BTRFS, [impermanence](https://github.com/nix-community/impermanence), persistence, [sops-nix](https://github.com/Mic92/sops-nix) secrets, git, [Stylix](https://github.com/nix-community/stylix) theming, shells, unattended upgrades |
+| `othrys.system.*` | Identity, locale, Nix settings, kernel, systemd-networkd, bootloader, [disko](https://github.com/nix-community/disko) with LUKS and BTRFS, [impermanence](https://github.com/nix-community/impermanence), persistence, [sops-nix](https://github.com/Mic92/sops-nix) secrets, git, shells, unattended upgrades |
+| `othrys.theme.*` | One base16 palette, fonts, opacity and wallpaper that every module reads, with named schemes a host can extend and an optional [Stylix](https://github.com/nix-community/stylix) adapter |
 | `othrys.desktop.*` | [Hyprland](https://hyprland.org) through [UWSM](https://github.com/Vladimir-csp/uwsm), [niri](https://github.com/YaLTeR/niri), the [ashell](https://github.com/MalpenZibo/ashell) status bar, greetd login, a Secret Service keyring, idle policy, night light |
 | `othrys.hardware.*` | NVIDIA with PRIME offload and shader-cache tuning, PipeWire audio, WiFi and Bluetooth, laptop profiles, USB, webcam, SMART, UPS, scanners |
 | `othrys.services.*` | Router stack (nftables router and NAT, [Suricata](https://suricata.io) IDS/IPS, Kea DHCP, Unbound DNS), CrowdSec, fail2ban, SSH, Tailscale and Headscale, WireGuard, DDNS, VictoriaMetrics, VictoriaLogs, Grafana, vmalert, ntfy, restic, Traefik, Docker, Podman, k3s, mounts, printing |

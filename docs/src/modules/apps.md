@@ -104,8 +104,9 @@ default set because a userscript manager runs whatever scripts it is given
 with page access on the sites they match. The
 built-in password manager is off beside Bitwarden
 (`builtinPasswordManager`), tracking protection exempts nothing until a host
-lists sites in `trackingProtectionExemptions`, and the theme follows the
-Stylix polarity.
+lists sites in `trackingProtectionExemptions`, and the theme follows
+`othrys.theme.polarity`. The browser chrome is styled from
+`othrys.theme.palette`, and on a host with no palette no stylesheet is written.
 
 `search.extraEngines` adds search engines over the curated set. Each engine
 is an attribute set of JSON values in the shape Home Manager documents for

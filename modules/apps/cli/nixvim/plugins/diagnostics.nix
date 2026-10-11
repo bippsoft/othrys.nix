@@ -5,12 +5,12 @@
   osConfig,
   ...
 }: let
-  # Todo-comment highlight fallbacks, using the Stylix scheme when the host themes
-  # itself, neutral literals otherwise (lazy branch, no stylix dependency).
+  # Todo-comment highlight fallbacks, from the theme palette when the host has
+  # one and neutral literals otherwise.
   todoColors =
-    if osConfig.othrys.system.stylix.enable
+    if osConfig.othrys.theme.palette != null
     then
-      with osConfig.lib.stylix.colors.withHashtag; {
+      with osConfig.othrys.theme.colors.withHashtag; {
         error = base08;
         warning = base0A;
         info = base0D;

@@ -16,6 +16,7 @@
   ...
 }: let
   cfg = config.othrys.desktop.compositors.niri;
+  theme = config.othrys.theme;
 
   # A single action keybinding. The module defines the dispatcher and the
   # consumer picks the chord (or null to drop the bind entirely). Niri
@@ -103,6 +104,21 @@
       input.touchpad = {
         tap = true;
         natural-scroll = true;
+      };
+    }
+    # A border in the palette's accent around the focused window, in place of
+    # niri's focus ring. Each value sits between a default and a plain
+    # definition, so it wins over another module's mkDefault and a host's own
+    # `settings` win over it without mkForce. Without a palette nothing is
+    # written and niri keeps its own ring and colours.
+    // lib.optionalAttrs (theme.palette != null) {
+      layout = {
+        focus-ring.enable = lib.mkOverride 900 false;
+        border = {
+          enable = lib.mkOverride 900 true;
+          active = lib.mkOverride 900 {color = theme.colors.withHashtag.base0D;};
+          inactive = lib.mkOverride 900 {color = theme.colors.withHashtag.base03;};
+        };
       };
     };
 in {
@@ -241,9 +257,6 @@ in {
   };
   # ANCHOR_END: niri-options
 
-  # The assertion lives in its own mkIf because the stylix target (auto-imported by
-  # niri-flake) themes borders/cursor from the palette, so the body stays
-  # unevaluated when stylix is off and the assertion message surfaces.
   config = lib.mkMerge [
     {
       # niri-flake's auto-cache activates on IMPORT, not enable, and would
@@ -261,36 +274,11 @@ in {
       # a consumer can point back at a niri-flake build (the niri.cachix
       # substituter in othrys.system.nix still covers that).
       programs.niri.package = lib.mkDefault pkgs.niri;
-
-      # niri-flake also injects its Stylix HM target into every home-manager
-      # user on import. That module reads the HM-scoped `config.stylix.enable`,
-      # which only exists when Stylix manages the user. On stylix-disabled
-      # hosts it would crash eval. Declare a minimal `stylix.enable = false`
-      # there so the target's guard short-circuits. When othrys stylix is on,
-      # the real Stylix HM module provides the option instead.
-      home-manager.sharedModules = lib.optionals (!config.othrys.system.stylix.enable) [
-        {
-          options.stylix.enable = lib.mkOption {
-            type = lib.types.bool;
-            default = false;
-            internal = true;
-            description = "Shim for niri-flake's injected Stylix target on hosts without Stylix home-manager config.";
-          };
-        }
-      ];
     }
     (lib.mkIf cfg.enable {
-      assertions = [
-        {
-          assertion = config.othrys.system.stylix.enable;
-          message = "othrys.desktop.compositors.niri requires othrys.system.stylix.enable = true (compositor theming reads the Stylix palette).";
-        }
-      ];
-
       # This host runs a graphical session, and modules key GUI behavior on this.
       othrys.desktop.graphical = true;
-    })
-    (lib.mkIf (cfg.enable && config.othrys.system.stylix.enable) {
+
       programs.niri.enable = true;
 
       environment.systemPackages =

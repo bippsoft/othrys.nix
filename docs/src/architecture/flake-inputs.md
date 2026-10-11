@@ -20,7 +20,7 @@ All external dependencies are declared in `flake.nix`:
 | `nix-index-database` | Prebuilt database for `comma` and `nix-locate` |
 | `impermanence` | Opt-in state persistence |
 | `nixvim` | Neovim configuration via Nix modules (used by the nixvim module) |
-| `stylix` | System-wide theming from one color scheme |
+| `stylix` | System-wide theming, read by the optional Stylix adapter and the checks |
 | `git-hooks` | Pre-commit hooks (treefmt, Statix, Deadnix, commitizen, gitleaks and the three repository hooks) |
 | `treefmt-nix` | Multi-language formatter behind `nix fmt` |
 | `sops-nix` | Secrets management with age encryption |

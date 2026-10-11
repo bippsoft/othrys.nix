@@ -22,13 +22,13 @@ are Home Manager modules of their own and read it through `osConfig`:
   lives at the NixOS layer. Standalone HM has no `osConfig`; every gate
   would need an HM-scoped equivalent.
 - **Cross-module signals.** `othrys.desktop.graphical`,
-  `othrys.desktop.lockCommand`, `othrys.system.stylix.*`,
+  `othrys.desktop.lockCommand`, `othrys.theme.*`,
   `othrys.apps.languages.*`: the single-signal architecture is declared in
   NixOS options. Fragments consult these signals constantly (nixvim's
   palette fallback, yazi's clipboard dep, editor toolchain wiring).
 - **Mixed-scope modules.** Most modules write *both* system and user
   config (languages installs toolchains via HM but is gated at the system
-  layer, and stylix theming spans both). Splitting them is a rewrite rather than a
+  layer, and theming spans both). Splitting them is a rewrite rather than a
   refactor.
 
 ## What portability would take

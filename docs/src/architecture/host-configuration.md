@@ -23,7 +23,6 @@ inputs = {
   hyprland.follows = "othrys/hyprland";
   disko.follows = "othrys/disko";
   impermanence.follows = "othrys/impermanence";
-  stylix.follows = "othrys/stylix";
   sops-nix.follows = "othrys/sops-nix";
 };
 ```
@@ -40,7 +39,6 @@ inputs.nixpkgs.lib.nixosSystem {
 
     inputs.disko.nixosModules.disko
     inputs.impermanence.nixosModules.impermanence
-    inputs.stylix.nixosModules.stylix
     inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager
     {
@@ -54,7 +52,11 @@ inputs.nixpkgs.lib.nixosSystem {
 }
 ```
 
-The five upstream modules above are required on every host, even when the matching othrys feature is off, because `nixosModules.default` writes into their option namespaces. Lanzaboote is an optional sixth. It is needed only for Secure Boot on `systemd-boot`, where the host adds a `lanzaboote` input and imports `inputs.lanzaboote.nixosModules.lanzaboote`. Every other host leaves it out and evaluates the same without it. See [Bootloader & Secure Boot](../system/bootloader.md).
+The four upstream modules above are required on every host, even when the matching othrys feature is off, because `nixosModules.default` writes into their option namespaces. Two more are optional.
+
+Stylix is needed only on a host that wants it. Nothing in `nixosModules.default` writes into the `stylix` namespace, since every module reads its colours and fonts from `othrys.theme`. The adapter that configures Stylix from the theme is the separate export `nixosModules.stylix`, and a host imports it together with `inputs.stylix.nixosModules.stylix`, with a `stylix.follows = "othrys/stylix"` input beside the others. A host that imports neither evaluates the same without them. See [Theming](../guides/theming.md).
+
+Lanzaboote is needed only for Secure Boot on `systemd-boot`, where the host adds a `lanzaboote` input and imports `inputs.lanzaboote.nixosModules.lanzaboote`. Every other host leaves it out and evaluates the same without it. See [Bootloader & Secure Boot](../system/bootloader.md).
 
 ## Re-exporting the Dev Shell
 

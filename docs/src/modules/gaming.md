@@ -92,9 +92,8 @@ leaves the others in place.
 
 The overlay package is installed system-wide, since it loads into the graphics
 stack of every Vulkan and OpenGL application, while its configuration goes
-through Home Manager. The module requires `othrys.system.stylix.enable`,
-because the overlay colours are read from the Stylix palette, and it fails an
-assertion naming that option without it.
+through Home Manager. The overlay colours come from `othrys.theme.palette`, and
+on a host with no palette the overlay keeps MangoHud's own colours.
 
 `enableSessionWide`, off by default, sets `MANGOHUD=1` for the session so every
 Vulkan application shows the overlay. With it off, a game is started through

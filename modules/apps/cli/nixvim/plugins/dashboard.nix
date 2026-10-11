@@ -11,14 +11,13 @@
   inherit (osConfig.othrys.apps.nixvim) presets;
   inherit (osConfig.othrys.apps.nixvim.dashboard) subHeader;
 
-  # Dashboard palette, derived from the Stylix scheme when the host themes
-  # itself, with a neutral NixOS-blue fallback so nixvim stays fully usable on
-  # servers that never enable stylix (the branch keeps the stylix read lazy, so
-  # there is no hard dependency).
+  # Dashboard palette, derived from the theme palette when the host has one,
+  # with a neutral NixOS-blue fallback so nixvim stays fully usable on a host
+  # without a palette.
   palette =
-    if osConfig.othrys.system.stylix.enable
+    if osConfig.othrys.theme.palette != null
     then
-      with osConfig.lib.stylix.colors.withHashtag; {
+      with osConfig.othrys.theme.colors.withHashtag; {
         primary = base0D;
         accent = base0C;
         emphasis = base05;

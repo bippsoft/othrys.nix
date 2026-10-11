@@ -124,8 +124,8 @@ in {
   # cosmetic. Every ordinary option type resolves definition priorities at its
   # own level, so a module writing `gtk.gtk4.theme = lib.mkForce null` through
   # an `anything`-typed option would have that mkForce discharged here and
-  # arrive at home-manager as a plain definition, silently losing to upstream
-  # Stylix. raw passes each value through unprocessed, so mkForce and mkDefault
+  # arrive at home-manager as a plain definition, silently losing to an
+  # upstream one. raw passes each value through unprocessed, so mkForce and mkDefault
   # inside a module's contribution still reach home-manager.users and still
   # win or lose against upstream as the module intended. A top-level mkIf is
   # unaffected either way, since definition properties are discharged before

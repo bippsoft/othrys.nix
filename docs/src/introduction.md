@@ -11,7 +11,7 @@ A reusable NixOS module library of composable, opt-in modules under a unified `o
 - **Impermanence.** An ephemeral root filesystem with opt-in persistence.
 - **One namespace.** Every custom option lives under `othrys.*`.
 - **Home Manager** integrated as a NixOS module rather than standalone.
-- **Stylix** for system-wide base16 theming from a single color scheme.
+- **One theme.** A base16 palette under `othrys.theme` that every module reads, with Stylix as an optional adapter.
 
 ## How This Book Is Organized
 

@@ -2,13 +2,13 @@
 
 Desktop environment modules under `othrys.desktop.*`. Handles compositors, status bar, and session management.
 
-Theming (Stylix) has moved to `othrys.system.stylix`, see [Theming](../guides/theming.md).
+Colours and fonts come from `othrys.theme`, see [Theming](../guides/theming.md).
 
 ## Available Modules
 
 | Module | Option | Description |
 |--------|--------|-------------|
-| Ashell | `othrys.desktop.ashell` | GPU-accelerated status bar with Stylix theming |
+| Ashell | `othrys.desktop.ashell` | GPU-accelerated status bar, coloured from `othrys.theme` |
 | Hyprland | `othrys.desktop.compositors.hyprland` | Wayland compositor (dynamic tiling) |
 | Niri | `othrys.desktop.compositors.niri` | Wayland compositor (scrollable tiling) |
 | Idle | `othrys.desktop.idle` | Staged idle management (dim, lock, screen off, suspend) |
@@ -19,7 +19,7 @@ Theming (Stylix) has moved to `othrys.system.stylix`, see [Theming](../guides/th
 
 ## Ashell
 
-Status bar for Hyprland or Niri. Either compositor satisfies its assertion, and the lock and logout commands follow the session that is running, as described under [Sessions](#sessions). Installed from the `ashell` flake input, configured via a generated `~/.config/ashell/config.toml` with Stylix colors injected at build time. Hot-reloads on config changes.
+Status bar for Hyprland or Niri. Either compositor satisfies its assertion, and the lock and logout commands follow the session that is running, as described under [Sessions](#sessions). Installed from the `ashell` flake input, configured via a generated `~/.config/ashell/config.toml` with the colours of `othrys.theme.palette` and the font of `othrys.theme.fonts.sansSerif` written in at build time. A null palette or font leaves the matching keys out, and ashell uses its own defaults. Hot-reloads on config changes.
 
 The module installs wofi as the launcher, rofimoji as the emoji picker, the
 locker of each enabled compositor and, on Hyprland, hyprpicker. The audio
@@ -127,8 +127,9 @@ for consumers). The option surface mirrors hyprland where concepts map (chords,
 terminal/browser, outputs, touchpad, screenshots) and is niri-native where they
 do not (columns scroll, and `Mod+S` opens the overview). Niri manages its own
 systemd session, and the login module starts `niri-session` by default on a
-host where niri is the only compositor. Stylix themes borders and cursor
-through niri-flake's auto-imported target.
+host where niri is the only compositor. The window border takes the accent
+of `othrys.theme.palette` in place of niri's focus ring. On a host with the
+Stylix adapter, niri-flake's Stylix target themes the cursor as well.
 
 `outputs` takes JSON values only, which is everything an output is made of.
 `extraBinds` and `settings` stay free-form, since an action written with

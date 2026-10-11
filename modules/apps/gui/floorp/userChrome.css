@@ -2,7 +2,7 @@
 /* FLOORP BROWSER CUSTOM THEME */
 /* ============================================================================ */
 /* Custom CSS for Floorp's Fluent UI design system */
-/* Colors are dynamically injected from Stylix base16 theme */
+/* Colors are injected from the othrys.theme base16 palette */
 /* This file is managed declaratively via Home Manager */
 /* Do not edit manually - changes will be overwritten */
 
@@ -10,7 +10,7 @@
 /* COLOR VARIABLES */
 /* ============================================================================ */
 /* Base16 color variables are injected from Nix at build time */
-/* The actual values come from your active Stylix theme (YAML-based) */
+/* The actual values come from othrys.theme.palette */
 
 /* ============================================================================ */
 /* HORIZONTAL TAB BAR STYLING */

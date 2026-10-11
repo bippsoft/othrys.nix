@@ -3,6 +3,7 @@
 {
   imports = [
     ./system
+    ./theme
     ./desktop
     ./hardware
     ./services
