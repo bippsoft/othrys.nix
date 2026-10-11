@@ -88,6 +88,7 @@
     idle = ../modules/desktop/idle.nix;
     night-light = ../modules/desktop/night-light.nix;
     keyring = ../modules/desktop/keyring.nix;
+    wallpaper = ../modules/desktop/wallpaper.nix;
     ashell = ../modules/desktop/ashell;
 
     # Hardware-specific

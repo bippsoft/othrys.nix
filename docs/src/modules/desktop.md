@@ -16,6 +16,7 @@ Colours and fonts come from `othrys.theme`, see [Theming](../guides/theming.md).
 | Login | `othrys.desktop.login` | greetd login manager (tuigreet or cosmic-greeter) |
 | Night light | `othrys.desktop.nightLight` | Color temperature shifting (gammastep) |
 | UWSM | `othrys.desktop.uwsm` | Systemd session management for Wayland |
+| Wallpaper | `othrys.desktop.wallpaper` | Draws `othrys.theme.wallpaper` with wpaperd, on by default where a compositor runs and a wallpaper is declared |
 
 ## Ashell
 
@@ -246,4 +247,39 @@ othrys.desktop.nightLight = {
 
 ```nix
 {{#include ../../../modules/desktop/night-light.nix:night-light-options}}
+```
+
+## Wallpaper
+
+`othrys.theme.wallpaper` says what the wallpaper is, and this module draws it.
+It runs [wpaperd](https://github.com/danyspin97/wpaperd) as a user service of
+the graphical session and renders the daemon's configuration from the theme.
+The same daemon serves Hyprland and niri, so a host draws the same wallpaper
+under either. The forms `source` takes, rotation and per-monitor settings are
+described in the [theming guide](../guides/theming.md#wallpapers).
+
+`othrys.desktop.wallpaper.enable` is on by default when three things hold. The
+host is graphical, an othrys compositor module is enabled, and a wallpaper is
+declared, either in `othrys.theme.wallpaper.source` or for a monitor in
+`othrys.theme.wallpaper.outputs`. A host with no wallpaper therefore runs no
+daemon. Turning the option on by hand with no wallpaper declared fails an
+assertion, since the daemon would have nothing to draw.
+
+The unit is wanted by `graphical-session.target` and stops with it. A host that
+draws its wallpaper with another program turns the option off, and a host that
+used to enable `services.wpaperd` for the primary user itself drops that
+setting, since both would write the same configuration file.
+
+```nix
+othrys.desktop.wallpaper.enable = false;
+```
+
+On a host with the Stylix export, Stylix would start hyprpaper under Hyprland
+and write a wpaperd section of its own. The adapter switches those targets off
+while this module is on, so one program draws.
+
+### Options
+
+```nix
+{{#include ../../../modules/desktop/wallpaper.nix:wallpaper-options}}
 ```

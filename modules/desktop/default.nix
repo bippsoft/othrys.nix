@@ -22,6 +22,7 @@ in {
     ./login.nix
     ./night-light.nix
     ./uwsm.nix
+    ./wallpaper.nix
   ];
 
   # The single "this host runs a graphical session" signal. Every othrys

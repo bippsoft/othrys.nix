@@ -70,6 +70,51 @@
     };
 
   channel = offset: hex: lib.fromHexString (builtins.substring offset 2 hex);
+
+  # A wallpaper is given in one of two ways, and the type keeps them apart.
+  # A Nix path, a package and a string that already points into the store are
+  # images, known when the configuration is evaluated. Any other string names
+  # a directory the wallpaper daemon reads while the session runs, which no
+  # evaluation can look inside.
+  storePrefix = "${builtins.storeDir}/";
+  readAtRunTime = value: builtins.isString value && !lib.hasPrefix storePrefix value;
+
+  imageType =
+    lib.types.addCheck lib.types.path (value: !readAtRunTime value)
+    // {
+      description = "image, as a Nix path or a path in the Nix store";
+    };
+  runTimeDirectoryType =
+    lib.types.addCheck (lib.types.strMatching "(/|~/).+") readAtRunTime
+    // {
+      description = "directory read at run time, as a string starting with / or ~/";
+    };
+  sourceType = lib.types.oneOf [
+    imageType
+    (lib.types.nonEmptyListOf imageType)
+    runTimeDirectoryType
+  ];
+
+  # A whole number of seconds, or a duration the daemon parses itself, which
+  # is a number followed by a unit and may repeat, as in "1h 30m".
+  intervalType = lib.types.either lib.types.ints.positive (
+    lib.types.strMatching "[0-9]+[a-zA-Z]+( ?[0-9]+[a-zA-Z]+)*"
+    // {
+      description = "duration such as \"30s\", \"10m\" or \"1h 30m\"";
+    }
+  );
+  orderType = lib.types.enum ["random" "ascending" "descending"];
+  fillType = lib.types.enum ["center" "fit" "fit-border-color" "stretch" "tile"];
+
+  # The four settings one monitor can replace. Each is null by default, and
+  # a null one takes the value set for every monitor.
+  outputOption = name: type: example: summary:
+    lib.mkOption {
+      type = lib.types.nullOr type;
+      default = null;
+      inherit example;
+      description = "${summary} Null uses `othrys.theme.wallpaper.${name}`.";
+    };
 in {
   options.othrys.theme = {
     schemes = lib.mkOption {
@@ -150,7 +195,7 @@ in {
         The scheme in use, as a name in `othrys.theme.schemes`.
 
         `"wallpaper"` derives the palette from
-        `othrys.theme.wallpaper.source` when the system is built. othrys
+        `othrys.theme.wallpaper.primary` when the system is built. othrys
         holds no generator of its own, so this value needs a module that
         provides one, as described in the theming guide.
 
@@ -249,15 +294,124 @@ in {
       description = "Window opacity by kind of surface. Null leaves opacity to each application.";
     };
 
-    wallpaper.source = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
-      default = null;
-      example = lib.literalExpression "./wallpaper.png";
-      description = ''
-        The desktop wallpaper, as a single image. No image ships with this
-        library, so a host provides its own. Null sets no wallpaper, and the
-        palette still comes from `scheme` and `polarity`.
-      '';
+    wallpaper = {
+      source = lib.mkOption {
+        type = lib.types.nullOr sourceType;
+        default = null;
+        example = lib.literalExpression ''
+          # one image, copied into the store
+          ./wallpaper.png
+
+          # several images, copied into the store
+          [./wallpapers/dawn.png ./wallpapers/dusk.png]
+
+          # a directory read while the session runs
+          "~/Pictures/Wallpapers"
+        '';
+        description = ''
+          The desktop wallpaper, in one of four forms.
+
+          - Null sets no wallpaper, and the palette still comes from `scheme`
+            and `polarity`.
+          - A Nix path such as `./wallpaper.png`, or a package that builds an
+            image, is one image. It is copied into the store.
+          - A list of such images, as in
+            `[./wallpapers/dawn.png ./wallpapers/dusk.png]`, is a set the
+            daemon picks from. Each is copied into the store.
+          - A string such as `"~/Pictures/Wallpapers"` or
+            `"/srv/wallpapers"` is a directory the daemon reads while the
+            session runs, so its images change without a rebuild. Nothing is
+            copied, and no image of it is known when the system is built.
+
+          No image ships with this library, so a host provides its own.
+          `othrys.desktop.wallpaper` draws whichever form is set.
+        '';
+      };
+
+      interval = lib.mkOption {
+        type = lib.types.nullOr intervalType;
+        default = null;
+        example = "10m";
+        description = ''
+          How long one image stays before the next replaces it, as a number of
+          seconds or as a duration such as `"30s"`, `"10m"` or `"1h 30m"`.
+          Null keeps the image the session started with. It has an effect
+          only when `source` is a list or a directory.
+        '';
+      };
+
+      order = lib.mkOption {
+        type = orderType;
+        default = "random";
+        example = "ascending";
+        description = ''
+          The order images are taken in when `source` is a list or a
+          directory. `ascending` and `descending` go through the file names
+          in order, and a list keeps the order it is written in under
+          `ascending`.
+        '';
+      };
+
+      fill = lib.mkOption {
+        type = fillType;
+        default = "center";
+        example = "fit";
+        description = ''
+          How an image that does not match the screen is drawn. `center`
+          covers the whole screen and crops what does not fit. `fit` shows
+          the whole image and leaves black borders, and `fit-border-color`
+          draws those borders in the colour of the image's edge. `stretch`
+          covers the screen by changing the aspect ratio, and `tile` repeats
+          the image.
+        '';
+      };
+
+      primary = lib.mkOption {
+        type = lib.types.nullOr lib.types.path;
+        default =
+          if builtins.isList cfg.wallpaper.source
+          then builtins.head cfg.wallpaper.source
+          else if readAtRunTime cfg.wallpaper.source
+          then null
+          else cfg.wallpaper.source;
+        defaultText = lib.literalMD "`source` when it is one image, its first element when it is a list, and null otherwise";
+        example = lib.literalExpression "./wallpapers/dawn.png";
+        description = ''
+          The one image used wherever a single image is needed.
+          `scheme = "wallpaper"` derives the palette from it, and the Stylix
+          export hands it to Stylix. A directory read at run time holds no
+          image that is known when the system is built, so a host with such a
+          `source` sets this option when something needs an image.
+        '';
+      };
+
+      outputs = lib.mkOption {
+        type = lib.types.attrsOf (lib.types.submodule {
+          options = {
+            source = outputOption "source" sourceType (lib.literalExpression "./wallpapers/portrait.png") "The wallpaper of this monitor, in any form the option for every monitor takes.";
+            interval = outputOption "interval" intervalType "10m" "How long one image stays on this monitor.";
+            order = outputOption "order" orderType "ascending" "The order images are taken in on this monitor.";
+            fill = outputOption "fill" fillType "fit" "How an image is fitted to this monitor.";
+          };
+        });
+        default = {};
+        example = lib.literalExpression ''
+          {
+            "DP-1".source = ./wallpapers/portrait.png;
+            "HDMI-A-1" = {
+              source = "~/Pictures/Wallpapers";
+              interval = "30m";
+            };
+          }
+        '';
+        description = ''
+          Wallpaper settings for single monitors, keyed by the name the
+          compositor gives the output, such as `"DP-1"`. Each entry holds the
+          same `source`, `interval`, `order` and `fill`, and a value left null
+          takes the one set for every monitor. A monitor with no entry uses
+          the settings above.
+        '';
+      };
     };
   };
 

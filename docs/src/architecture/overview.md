@@ -42,7 +42,8 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   ├── idle.nix           # Staged idle policy
   │   ├── keyring.nix        # Secret Service provider
   │   ├── night-light.nix    # Color temperature shifting
-  │   └── uwsm.nix           # Session management
+  │   ├── uwsm.nix           # Session management
+  │   └── wallpaper.nix      # Wallpaper daemon
   ├── hardware/              # Hardware
   │   ├── audio.nix          # PipeWire audio
   │   ├── webcam.nix         # Webcam support

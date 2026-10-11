@@ -9,10 +9,10 @@
 # Colour flows one way for a named scheme and the other way for a generated
 # one. A named scheme is read from othrys.theme.schemes and handed to Stylix.
 # With `othrys.theme.scheme = "wallpaper"` Stylix generates the palette from
-# the wallpaper and this module copies it into othrys.theme.palette. The
-# scheme handed to Stylix is therefore read from the scheme table and never
-# from othrys.theme.palette, which would make the generated case depend on
-# itself.
+# othrys.theme.wallpaper.primary and this module copies it into
+# othrys.theme.palette. The scheme handed to Stylix is therefore read from
+# the scheme table and never from othrys.theme.palette, which would make the
+# generated case depend on itself.
 {
   config,
   lib,
@@ -36,7 +36,7 @@
   # what the host sees.
   configured =
     if fromWallpaper
-    then theme.wallpaper.source != null
+    then theme.wallpaper.primary != null
     else schemePalette != null;
 
   # The sixteen base16 colours Stylix computed, with the eight base24 ones
@@ -101,8 +101,14 @@ in {
     (lib.mkIf cfg.enable {
       assertions = [
         {
-          assertion = !fromWallpaper || theme.wallpaper.source != null;
+          assertion = !fromWallpaper || theme.wallpaper.source != null || theme.wallpaper.primary != null;
           message = "othrys.theme.scheme = \"wallpaper\" derives the palette from the wallpaper, and othrys.theme.wallpaper.source is not set.";
+        }
+        # A directory read at run time holds no image that is known here, so
+        # the generator has nothing to read until the host names one.
+        {
+          assertion = !fromWallpaper || theme.wallpaper.source == null || theme.wallpaper.primary != null;
+          message = "othrys.theme.scheme = \"wallpaper\" derives the palette from one image when the system is built, and othrys.theme.wallpaper.source is a directory read at run time. Set othrys.theme.wallpaper.primary to the image the palette comes from.";
         }
         {
           assertion = fromWallpaper || theme.scheme != null;
@@ -130,8 +136,9 @@ in {
           base16Scheme = lib.mkIf (!fromWallpaper) schemePalette;
           inherit (theme) polarity;
 
-          # Wallpaper
-          image = theme.wallpaper.source;
+          # The one image Stylix is given, for the generator and for the
+          # targets that show an image. Null leaves those targets without one.
+          image = theme.wallpaper.primary;
 
           # Opacity settings
           opacity = {
@@ -231,6 +238,19 @@ in {
               else "Papirus-Dark"
             );
             package = lib.mkDefault pkgs.papirus-icon-theme;
+          };
+        })
+
+        # othrys.desktop.wallpaper draws the wallpaper with wpaperd and
+        # renders its configuration from othrys.theme.wallpaper. Stylix would
+        # start hyprpaper beside it on Hyprland and write a wpaperd section of
+        # its own from the single image, so its three wallpaper targets are
+        # switched off while that module is on.
+        (lib.optionalAttrs config.othrys.desktop.wallpaper.enable {
+          stylix.targets = {
+            hyprland.hyprpaper.enable = false;
+            hyprpaper.enable = false;
+            wpaperd.enable = false;
           };
         })
 

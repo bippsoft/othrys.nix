@@ -114,7 +114,7 @@ needs the colour with a leading `#` reads `colors.withHashtag.<name>`, and one
 that needs the red, green and blue channels as integers reads
 `colors.rgb.<name>`.
 
-## Fonts, Opacity and the Wallpaper
+## Fonts and Opacity
 
 ```nix
 othrys.theme = {
@@ -127,14 +127,129 @@ othrys.theme = {
     package = pkgs.nerd-fonts.jetbrains-mono;
   };
   opacity.terminal = 0.95;
-  wallpaper.source = ./wallpaper.png;
 };
 ```
 
 Each font is a family name and, optionally, the package that provides it, which
-othrys adds to `fonts.packages`. The bar reads `fonts.sansSerif`. All three
-values are null by default. No wallpaper ships with this library, so a host
-provides its own image.
+othrys adds to `fonts.packages`. The bar reads `fonts.sansSerif`. Both fonts and
+the opacity are null by default.
+
+## Wallpapers
+
+`othrys.theme.wallpaper` holds the wallpaper, and `othrys.desktop.wallpaper`
+draws it with [wpaperd](https://github.com/danyspin97/wpaperd) under Hyprland
+and niri alike. The daemon starts by itself on a host that runs an othrys
+compositor and declares a wallpaper, as the
+[desktop page](../modules/desktop.md#wallpaper) describes. No image ships with
+this library, so a host provides its own.
+
+### The Forms of a Source
+
+`source` is null by default, which sets no wallpaper. The three other forms
+differ in where the images live.
+
+A Nix path is one image. It is copied into the store, so the wallpaper is part
+of the system and changes with a rebuild. A package that builds an image is
+accepted in the same place.
+
+```nix
+othrys.theme.wallpaper.source = ./wallpaper.png;
+```
+
+A list of images is a set the daemon picks from. Each image is copied into the
+store, and othrys builds a directory of links to them for the daemon to read.
+
+```nix
+othrys.theme.wallpaper.source = [
+  ./wallpapers/dawn.png
+  ./wallpapers/noon.png
+  ./wallpapers/dusk.png
+];
+```
+
+A string is a directory the daemon reads while the session runs. It starts with
+`/` or with `~/`, which the daemon expands to the home directory. Nothing is
+copied, so an image added to the directory is picked up without a rebuild.
+
+```nix
+othrys.theme.wallpaper.source = "~/Pictures/Wallpapers";
+```
+
+Any other value is refused when the option is read. That includes a relative
+string, an empty list and a list that holds a run-time string.
+
+### Rotation
+
+`interval` is the time one image stays on screen, as a number of seconds or as
+a duration such as `"30s"`, `"10m"` or `"1h 30m"`. Null, the default, keeps the
+image the session started with. `order` is `random` by default, and `ascending`
+or `descending` go through the file names in order. A list is linked under
+names that carry each image's position, so `ascending` shows a list in the
+order it is written.
+
+```nix
+othrys.theme.wallpaper = {
+  source = "~/Pictures/Wallpapers";
+  interval = "10m";
+  order = "ascending";
+};
+```
+
+Both options have an effect only when `source` is a list or a directory. With a
+single image they are left out of the daemon's configuration. The daemon does
+the rotating, and othrys adds no timer of its own.
+
+`fill` decides how an image that does not match the screen is drawn. `center`,
+the default, covers the screen and crops what does not fit. `fit` shows the
+whole image with black borders, `fit-border-color` takes the border colour from
+the image's edge, `stretch` changes the aspect ratio, and `tile` repeats the
+image.
+
+### Per-Monitor Overrides
+
+`outputs` is keyed by the name the compositor gives a monitor, which
+`hyprctl monitors` or `niri msg outputs` prints. Each entry holds the same
+`source`, `interval`, `order` and `fill`. A value left out takes the one set for
+every monitor, and a monitor with no entry uses the top-level settings as they
+are.
+
+```nix
+othrys.theme.wallpaper = {
+  source = "~/Pictures/Wallpapers";
+  interval = "10m";
+
+  outputs = {
+    # the same directory and interval, shown whole on a portrait monitor
+    "DP-2".fill = "fit";
+    # one fixed image, which does not rotate
+    "HDMI-A-1".source = ./wallpapers/dusk.png;
+  };
+};
+```
+
+A host can also declare a wallpaper for single monitors only and leave the
+top-level `source` null. The monitors with no entry then show no wallpaper.
+
+### The Primary Image
+
+Some consumers need exactly one image that is known when the system is built.
+`primary` is that image. It is `source` when `source` is one image and the
+first element when `source` is a list, so a host with either form sets nothing
+further.
+
+A directory read at run time has no image that is known at evaluation, and
+`primary` is null for it. A host that needs one names it.
+
+```nix
+othrys.theme.wallpaper = {
+  source = "~/Pictures/Wallpapers";
+  primary = ./wallpapers/dawn.png;
+};
+```
+
+`primary` does not change what is drawn. It is read by
+[colour from the wallpaper](#colour-from-the-wallpaper) and by the Stylix
+export.
 
 ## The Stylix Export
 
@@ -161,7 +276,7 @@ With `othrys.system.stylix.enable` set, the adapter does four things.
 
 - **It configures Stylix from the theme.** `stylix.base16Scheme` is the chosen
   scheme at the chosen polarity, `stylix.polarity` follows
-  `othrys.theme.polarity`, and `stylix.image` is `othrys.theme.wallpaper.source`.
+  `othrys.theme.polarity`, and `stylix.image` is `othrys.theme.wallpaper.primary`.
 - **It sets the taste values Stylix needs.** Fonts, font sizes, a cursor,
   opacities and an icon theme are each written with `mkDefault`, so a host
   replaces one with a plain assignment to the Stylix option.
@@ -169,7 +284,15 @@ With `othrys.system.stylix.enable` set, the adapter does four things.
   default to the values Stylix ends up with, so the bar is drawn in the font
   Stylix gives every other application.
 - **It carries the Stylix targets othrys modules need.** The Floorp target is
-  switched on for the profile the Floorp module creates.
+  switched on for the profile the Floorp module creates. While
+  `othrys.desktop.wallpaper` is on, Stylix's `hyprland.hyprpaper`, `hyprpaper`
+  and `wpaperd` targets are switched off, since othrys draws the wallpaper
+  itself and two programs would draw over each other.
+
+Stylix takes one image, so it is handed `primary` and never the list or the
+directory. The targets that show an image, such as the lock screen, show that
+one. With a run-time directory and no `primary`, `stylix.image` is null and
+those targets show none, while the desktop wallpaper is drawn as declared.
 
 Stylix then themes what othrys leaves alone, which includes the console,
 Plymouth, GTK, the terminals and the cursor. `othrys.system.stylix.gui.enable`
@@ -198,11 +321,13 @@ adapter, and each prints a warning naming its replacement.
 ## Colour from the Wallpaper
 
 `othrys.theme.scheme = "wallpaper"` derives the palette from
-`othrys.theme.wallpaper.source`, with `polarity` deciding between a dark and a
+`othrys.theme.wallpaper.primary`, with `polarity` deciding between a dark and a
 light result. Stylix holds the generator, so this value needs the Stylix export
 with `othrys.system.stylix.enable` set. Without it the host fails an assertion
 that names `nixosModules.stylix`, and without a wallpaper it fails one that
-names `othrys.theme.wallpaper.source`.
+names `othrys.theme.wallpaper.source`. A `source` that is a directory read at
+run time gives the generator no image, so such a host fails an assertion that
+names `othrys.theme.wallpaper.primary` until it sets that option.
 
 ```nix
 othrys.theme = {
@@ -215,8 +340,9 @@ othrys.system.stylix.enable = true;
 
 The palette is generated when the system is built and copied into
 `othrys.theme.palette`, so the othrys modules and Stylix draw the same colours.
-A new wallpaper takes effect at the next rebuild. othrys does not change colours
-while the session runs.
+A new primary image takes effect at the next rebuild. othrys does not change
+colours while the session runs, so a rotating wallpaper keeps the palette of
+its primary image.
 
 ## Handing Colour to a Run-Time Tool
 
