@@ -1,3 +1,42 @@
+## v0.12.0 (2026-10-11)
+
+### BREAKING CHANGE
+
+- per-user persistence entries are written only when
+othrys.system.users.enable is on. ~/.config/hypr and ~/.config/ashell
+are no longer persisted. The wifi module persists
+/etc/NetworkManager/system-connections and /var/lib/NetworkManager
+instead of all of /etc/NetworkManager, so files kept elsewhere under
+the persisted /etc/NetworkManager are no longer mounted. zsh history
+moves from ~/.zsh_history to ~/.local/share/zsh/history. Copy the old
+file there once before the first login on the new generation. The
+token directories named above and /var/lib/bluetooth are declared at
+mode 0700, applied to the persisted directory at the next boot.
+- Edit, Bash(find:*), Bash(nix eval:*) and
+Bash(nix fmt:*) are no longer pre-approved by default, so Claude Code
+prompts for them. A host that relied on them adds the entries to
+othrys.apps.ai.claude-code.permissions.extraAllow. The format hook is
+gone, and a host that wants formatting after edits registers its own.
+- othrys.services.containerization.k3s.token is removed
+in favour of tokenFile. openFirewall defaults to false, so a
+multi-node cluster sets it. An agent or a joining server without
+tokenFile fails to evaluate, as does a server beside
+othrys.services.traefik that keeps the bundled Traefik.
+- othrys.apps.ai.mcp.context7.token is removed, and a
+host that set it fails to evaluate with the reason.
+
+### Fix
+
+- **services**: reach each local listener at its bound address, name the node job, and make notify fail without its token
+- **grafana**: refuse the stock credential when exposed, and set the public URL, the cookie flag and sign-up
+- **services**: persist the state of eight services under impermanence
+- **persistence**: guard every per-user entry on the users module, close the token directories, and persist what was lost
+- **claude-code**: pre-approve no bare tool, drop the dead format hook, and render the context from the host
+- **users**: read the password from a secret that exists, and ship a template that can log in
+- **k3s**: take the cluster token from a file only, keep the ports closed by default, and refuse the Traefik clash
+- **mcp**: keep the context7 token out of the store, name the plugin Home Manager generates, and let the user read the github secret
+- **floorp**: replace the personal name in the bundled sidebar profile
+
 ## v0.11.0 (2026-10-10)
 
 ### BREAKING CHANGE
