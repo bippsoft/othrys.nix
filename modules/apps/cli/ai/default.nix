@@ -5,6 +5,7 @@
     ./shared.nix # Skills and context every assistant receives
     ./mcp # MCP server definitions
     ./claude-code.nix
+    ./opencode.nix
     ./ollama.nix
   ];
 }

@@ -7,6 +7,7 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 | Module | Option | Description |
 |--------|--------|-------------|
 | Claude Code | `othrys.apps.ai.claude-code` | Anthropic CLI assistant |
+| OpenCode | `othrys.apps.ai.opencode` | Open source terminal assistant for any provider |
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server (CUDA/ROCm/Vulkan/CPU) |
 | MCP NixOS | `othrys.apps.ai.mcp.nixos` | NixOS MCP server |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
@@ -67,6 +68,47 @@ lines, which follow that text. `context.text` is the rendered result.
 
 `othrys.apps.ai.mcp.context` is a removed option, and its text is
 `othrys.apps.ai.context.text`.
+
+## OpenCode
+
+`othrys.apps.ai.opencode` wraps Home Manager's `programs.opencode`. It
+receives the shared skills, the shared context as its global `AGENTS.md`, and
+every server under `programs.mcp.servers`.
+
+OpenCode's own defaults allow every edit and every command without a prompt.
+The module writes a permission map that prompts for both, lets the read-only
+git commands through and denies `rm -rf` and `sudo`. As with Claude Code, the
+map saves prompts and catches a careless mistake, and it is not a security
+boundary. `permissions.edit` and `permissions.extraBash` change it. The last
+matching pattern wins and the patterns are written in alphabetical order, so
+the catch-all `*` comes first and a named command overrides it.
+
+```nix
+othrys.apps.ai.opencode = {
+  enable = true;
+  permissions.extraBash."cargo test*" = "allow";
+  settings.model = "ollama/llama3.1";
+};
+```
+
+`settings` is merged over what the module writes to `opencode.json` and wins,
+and `tui` becomes `tui.json`. `skills`, `agents` and `commands` are for
+OpenCode alone, since the frontmatter of an agent or a command differs between
+the two tools.
+
+On a host that enables `othrys.apps.ai.ollama`, the module adds a provider for
+the local server with the models in `ollama.loadModels`.
+`opencode.ollama.enable = false` leaves it out.
+
+OpenCode also reads Claude Code's files. With both tools enabled, the shared
+skills reach it through `~/.claude/skills` and are written once, and the
+skills declared for Claude Code alone are visible to it as well.
+`claudeCompat = false` turns that off, and the shared skills are then written
+to OpenCode's own directory.
+
+Provider credentials are entered with `opencode auth login` and stay in
+`~/.local/share/opencode`, which is persisted at mode 0700 on a host with an
+ephemeral root. The module pre-approves no MCP tool for OpenCode.
 
 ## MCP Servers
 
