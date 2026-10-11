@@ -2,7 +2,8 @@
 # CORE. Which NVIDIA driver and which kernel modules a host ends up with, read
 # back from the evaluated host. A card the stable driver has dropped needs an
 # older branch and the proprietary modules, and nothing at evaluation can tell
-# which card a host has, so the option is the only thing to check.
+# which card a host has, so the option is the only thing to check. The initrd
+# module list is read back as well, since it decides the size of every initrd.
 {
   hostConfig,
   mkExpectations,
@@ -23,6 +24,21 @@
     package = config.boot.kernelPackages.nvidiaPackages.legacy_580;
   });
 
+  primeSettings = {
+    enable = true;
+    intelBusId = "PCI:0:2:0";
+    nvidiaBusId = "PCI:1:0:0";
+  };
+  prime = host (_: {prime = primeSettings;});
+  primeEarly = host (_: {
+    prime = primeSettings;
+    earlyLoad = true;
+  });
+
+  nvidiaModules = ["nvidia" "nvidia_modeset" "nvidia_uvm" "nvidia_drm"];
+  hasAll = wanted: have: builtins.all (m: builtins.elem m have) wanted;
+  hasNone = unwanted: have: !builtins.any (m: builtins.elem m have) unwanted;
+
   branch = cfg: builtins.head (builtins.splitVersion cfg.hardware.nvidia.package.version);
   noFailedAssertion = cfg: builtins.all (a: a.assertion) cfg.assertions;
 in
@@ -36,4 +52,11 @@ in
       pascal.hardware.nvidia.package.version == pascal.boot.kernelPackages.nvidiaPackages.legacy_580.version;
     "openModules = false reaches hardware.nvidia.open" = !pascal.hardware.nvidia.open;
     "the 580 host passes every assertion" = noFailedAssertion pascal;
+    "a desktop loads the four NVIDIA modules in the initrd" = plain.othrys.hardware.nvidia.earlyLoad && hasAll nvidiaModules plain.boot.initrd.kernelModules;
+    "a desktop keeps i915 out of the initrd" = !builtins.elem "i915" plain.boot.initrd.kernelModules;
+    "a PRIME host defaults to loading the driver late" = !prime.othrys.hardware.nvidia.earlyLoad;
+    "a PRIME host has i915 and no NVIDIA module in the initrd" = builtins.elem "i915" prime.boot.initrd.kernelModules && hasNone nvidiaModules prime.boot.initrd.kernelModules;
+    "a PRIME host loads the four NVIDIA modules from the root filesystem" = hasAll nvidiaModules prime.boot.kernelModules;
+    "a PRIME host with earlyLoad has all five modules in the initrd" = hasAll (nvidiaModules ++ ["i915"]) primeEarly.boot.initrd.kernelModules;
+    "both PRIME hosts pass every assertion" = noFailedAssertion prime && noFailedAssertion primeEarly;
   }
