@@ -25,6 +25,7 @@
   rejectedWith,
   bootBase,
   functioningHost,
+  secretsModules,
 }: let
   nix = {
     othrys.system.nix = {
@@ -136,6 +137,7 @@
   };
 
   bothIdentities = headless {
+    imports = [secretsModules];
     othrys.system.secrets = {
       enable = true;
       ageIdentityStubs = "AGE-PLUGIN-YUBIKEY-1EXAMPLE";
@@ -197,11 +199,11 @@
   };
 
   # The secrets module on an impermanence host that neither persists the ssh
-  # host key nor runs sshd. disko.enableConfig = false keeps disko from
-  # emitting filesystems that collide with the fixture's own, so the two
-  # volumes impermanence marks as needed for boot are named.
+  # host key nor runs sshd. No disk layout is imported, so the wipe is given
+  # its device by hand and the two volumes impermanence marks as needed for
+  # boot are named.
   secretsWithoutHostKey = headless {
-    disko.enableConfig = false;
+    imports = [secretsModules];
     fileSystems = {
       "/nix" = {
         device = "/dev/disk/by-label/nix";
@@ -213,11 +215,10 @@
       };
     };
     othrys.system = {
-      disko = {
+      impermanence = {
         enable = true;
-        device = "/dev/disk/by-id/example";
+        device = "/dev/disk/by-partlabel/root";
       };
-      impermanence.enable = true;
       secrets.enable = true;
     };
   };

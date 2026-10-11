@@ -10,7 +10,8 @@
   inputs,
 }: let
   # Evaluate just the impermanence module with lightweight stubs for the
-  # NixOS/othrys options it touches, so no nixpkgs or disko modules needed.
+  # NixOS/othrys options it touches, so no nixpkgs module is needed. No disk
+  # layout is either, since the device is named by hand below.
   # Parameterized over users.enable so both the managed-user and headless
   # variants of the generated script are exercised.
   mkWipeEval = usersOn:
@@ -55,10 +56,6 @@
               type = lib.types.attrs;
               default = {};
             };
-            othrys.system.disko.luks.name = lib.mkOption {
-              type = lib.types.str;
-              default = "cryptroot";
-            };
             othrys.system.user.name = lib.mkOption {
               type = lib.types.str;
             };
@@ -68,7 +65,10 @@
             };
           };
           config = {
-            othrys.system.impermanence.enable = true;
+            othrys.system.impermanence = {
+              enable = true;
+              device = "/dev/mapper/cryptroot";
+            };
             othrys.system.user.name = "testuser";
             users.users.testuser.home = "/home/testuser";
             othrys.system.users.enable = usersOn;

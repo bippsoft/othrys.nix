@@ -10,10 +10,12 @@
 # own sit in expectedFailUnnamed.
 # Apps/desktop enables run on a workstation base (user + stylix +
 # hyprland), and everything else runs headless. Every host of the matrix
-# imports the Stylix module and the othrys adapter, so the walk finds
-# othrys.system.stylix.enable on the same option tree each host is built
-# from. Hosts with no Stylix module are read by the fixtures in ./default.nix
-# and ./theme-eval.nix. Uncatchable errors (type errors like a null slipping
+# imports the three exports `default` leaves out, each beside the upstream
+# module it writes into, so the walk finds othrys.system.stylix.enable,
+# othrys.system.disko.enable and othrys.system.secrets.enable on the same
+# option tree each host is built from. Hosts with none of the three are read
+# by the fixtures in ./default.nix, ./theme-eval.nix and
+# ./exports-optional-eval.nix. Uncatchable errors (type errors like a null slipping
 # into string interpolation) abort the whole check, the loudest possible
 # failure, by design.
 {
@@ -22,6 +24,8 @@
   system,
   upstreamModules,
   stylixModules,
+  diskoModules,
+  secretsModules,
   bootCore,
   bootBase,
   functioningHost,
@@ -32,7 +36,7 @@
     inputs.nixpkgs.lib.nixosSystem {
       inherit system;
       specialArgs = {inherit inputs;};
-      modules = upstreamModules ++ [stylixModules] ++ mods;
+      modules = upstreamModules ++ [stylixModules diskoModules secretsModules] ++ mods;
     };
 
   # Enumerate every othrys.*.enable option path from a minimal eval. An
@@ -135,6 +139,8 @@
     "othrys.services.kea.enable" = "othrys.services.kea: dhcp4.interfaces must list at least one interface";
     "othrys.services.notify.enable" = "othrys.services.notify: set url";
     "othrys.system.autoUpgrade.enable" = "othrys.system.autoUpgrade: set exactly one upgrade source";
+    # The disko layout is imported and off, so nothing names the device.
+    "othrys.system.impermanence.enable" = "othrys.system.impermanence: set device";
     "othrys.system.nix.cachix.enable" = "othrys.system.nix.cachix: set name and publicKey";
     "othrys.system.users.enable" = "othrys.system.users: set passwordFile or initialHashedPassword";
   };
@@ -149,10 +155,6 @@
     "othrys.services.router.enable" # wan.interface has no default
     "othrys.system.bootloader.enable" # conflicts with the matrix base's GRUB fixture
     "othrys.system.disko.enable" # device has no default
-    # impermanence asserts on disko by name, but with no disko layout the
-    # host's assertion list does not evaluate as a whole, so the message
-    # cannot be read here. impermanence-eval reads the module on a real layout.
-    "othrys.system.impermanence.enable"
   ];
 
   results = map (path: let

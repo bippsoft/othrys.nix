@@ -8,16 +8,14 @@
     ...
   }: let
     # The othrys tree plus the upstream modules a real consumer imports (these
-    # declare the disko/home-manager/sops/impermanence option namespaces
-    # othrys modules write into). Stylix is not among them, so every fixture
-    # built from this list alone shows that `default` evaluates on a host
-    # that imports no Stylix module.
+    # declare the home-manager and impermanence option namespaces othrys
+    # modules write into). Stylix, disko and sops-nix are not among them, so
+    # every fixture built from this list alone shows that `default` evaluates
+    # on a host that imports none of the three.
     upstreamModules = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
-      inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
-      inputs.sops-nix.nixosModules.sops
     ];
 
     # The Stylix module and the othrys adapter, which a consumer imports
@@ -27,6 +25,26 @@
       imports = [
         inputs.stylix.nixosModules.stylix
         inputs.self.nixosModules.stylix
+      ];
+    };
+
+    # The disko module and the othrys disk layout, which a consumer imports
+    # together or not at all. A fixture that sets othrys.system.disko lists
+    # this module among its own.
+    diskoModules = {
+      imports = [
+        inputs.disko.nixosModules.disko
+        inputs.self.nixosModules.disko
+      ];
+    };
+
+    # The sops-nix module and the othrys secrets plumbing, on the same terms.
+    # A fixture that sets othrys.system.secrets lists this module among its
+    # own.
+    secretsModules = {
+      imports = [
+        inputs.sops-nix.nixosModules.sops
+        inputs.self.nixosModules.secrets
       ];
     };
 
@@ -55,7 +73,11 @@
     # enables. Used by eval-host-server (named, no managed account) and
     # eval-host-anonymous (user.name unset) so per-user state can never leak
     # onto hosts without a managed user (see modules/system/nix.nix).
+    #
+    # It turns the secrets plumbing on, so it carries the sops-nix module and
+    # the secrets export itself.
     serverModules = {
+      imports = [secretsModules];
       othrys.services.ssh = {
         enable = true;
         server.enable = true;
@@ -155,6 +177,9 @@
     # set. Both are per-user writes, so they are rendered on the managed host
     # of eval-persistence, which forces its toplevel.
     appDesktopModules = {
+      # The sops-nix module and the secrets export, for the enable below.
+      imports = [secretsModules];
+
       # Prerequisites the modules below assert on, rather than things under
       # test. Several apps refuse to evaluate without a Steam install or a
       # JDK. The secrets module is on beside them, so the impermanence hosts
@@ -522,11 +547,12 @@
     hostConfig = hostModules: (hostEval hostModules).config;
 
     # The default template, instantiated with its othrys input pointed at this
-    # flake and only the inputs a consumer would have.
+    # flake and only the inputs a consumer would have. disko and sops-nix are
+    # not among them, since the template declares neither.
     templateHost =
       ((import ../../templates/default/flake.nix).outputs {
         othrys = inputs.self;
-        inherit (inputs) nixpkgs home-manager disko sops-nix impermanence;
+        inherit (inputs) nixpkgs home-manager impermanence;
       }).nixosConfigurations.myhost;
 
     # Files under modules/ that are not modules. Each is a plain function or
@@ -884,7 +910,13 @@
           "a host that does not hibernate is accepted" = !rejectedWith needle hardenedHost;
         };
 
-      eval-impermanence = import ./impermanence-eval.nix {inherit hostConfig mkExpectations bootBase;};
+      eval-impermanence = import ./impermanence-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase diskoModules;};
+
+      # A host with no disko, sops-nix or Stylix module, and a host that
+      # imports each of the two exports (see ./exports-optional-eval.nix).
+      eval-optional-exports = import ./exports-optional-eval.nix {
+        inherit hostEval mkExpectations rejectedWith bootBase functioningHost diskoModules secretsModules;
+      };
 
       # What the app and desktop modules persist, read back on an impermanence
       # host without a managed account and on one with (see ./persistence-eval.nix).
@@ -924,7 +956,7 @@
 
       # Every conflict and dependency assertion that takes two modules or
       # two options to fire (see ./pairs.nix).
-      eval-pairs = import ./pairs.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost;};
+      eval-pairs = import ./pairs.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost secretsModules;};
 
       # Three clauses of the consumer contract, read back from evaluation
       # (see ./contract-eval.nix).
@@ -1120,7 +1152,7 @@
       };
 
       # What the hardware, mount and disk modules write (see ./hardware-eval.nix).
-      eval-hardware = import ./hardware-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
+      eval-hardware = import ./hardware-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost diskoModules inputs;};
 
       # What the smaller service modules pass upstream and refuse (see ./services-eval.nix).
       eval-services = import ./services-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost inputs;};
@@ -1152,7 +1184,7 @@
 
       # EXTENDED. Enable-with-defaults matrix (see ./enable-matrix.nix).
       enable-matrix = import ./enable-matrix.nix {
-        inherit pkgs inputs system upstreamModules stylixModules bootCore bootBase functioningHost;
+        inherit pkgs inputs system upstreamModules stylixModules diskoModules secretsModules bootCore bootBase functioningHost;
       };
 
       # EXTENDED. Runtime VM tests, one file each.

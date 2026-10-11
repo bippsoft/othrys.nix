@@ -20,9 +20,7 @@ pkgs.testers.runNixOSTest {
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
-      inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
-      inputs.sops-nix.nixosModules.sops
     ];
 
     # No root image: the first empty disk is /dev/vda and becomes the btrfs
@@ -50,14 +48,9 @@ pkgs.testers.runNixOSTest {
     # sysroot.mount and nothing else orders them against each other.
     boot.initrd.systemd.services.root-wipe.after = ["systemd-makefs@dev-vda.service"];
 
-    # impermanence asserts on the disko layout. enableConfig = false keeps
-    # disko from emitting the LUKS and filesystem config a VM cannot satisfy.
-    disko.enableConfig = false;
+    # No disk layout is imported. The wipe is pointed at the btrfs root by
+    # hand, which is all the module needs to know about the disk.
     othrys.system = {
-      disko = {
-        enable = true;
-        device = "/dev/vdc";
-      };
       impermanence = {
         enable = true;
         device = "/dev/vda";

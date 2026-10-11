@@ -84,11 +84,10 @@
     }
   ];
 
-  # An impermanence host, in the shape eval-persistence uses. disko's own
-  # filesystems are left out, so the two volumes impermanence needs for boot
-  # are named.
+  # An impermanence host, in the shape eval-persistence uses. No disk layout
+  # is imported, so the wipe is given its device by hand and the two volumes
+  # impermanence needs for boot are named.
   impermanence = {
-    disko.enableConfig = false;
     fileSystems = {
       "/nix" = {
         device = "/dev/disk/by-label/nix";
@@ -100,11 +99,10 @@
       };
     };
     othrys.system = {
-      disko = {
+      impermanence = {
         enable = true;
-        device = "/dev/disk/by-id/example";
+        device = "/dev/disk/by-partlabel/root";
       };
-      impermanence.enable = true;
       persistence.enable = true;
       shell.zsh.enable = true;
     };

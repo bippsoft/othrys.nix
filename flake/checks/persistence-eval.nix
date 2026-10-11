@@ -17,10 +17,8 @@
   appDesktopModules,
 }: let
   impermanence = {
-    # impermanence asserts on the disko layout. enableConfig = false keeps
-    # disko from emitting filesystems that collide with the fixture's own,
-    # so the two volumes impermanence marks as needed for boot are named.
-    disko.enableConfig = false;
+    # No disk layout is imported, so the wipe is given its device by hand and
+    # the two volumes impermanence marks as needed for boot are named.
     fileSystems = {
       "/nix" = {
         device = "/dev/disk/by-label/nix";
@@ -33,11 +31,10 @@
     };
     othrys = {
       system = {
-        disko = {
+        impermanence = {
           enable = true;
-          device = "/dev/disk/by-id/example";
+          device = "/dev/disk/by-partlabel/root";
         };
-        impermanence.enable = true;
         persistence.enable = true;
         shell.zsh.enable = true;
       };

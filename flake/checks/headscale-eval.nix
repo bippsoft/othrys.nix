@@ -99,7 +99,6 @@
     };
   };
   persisted = host {
-    disko.enableConfig = false;
     fileSystems = {
       "/nix" = {
         device = "/dev/disk/by-label/nix";
@@ -111,11 +110,10 @@
       };
     };
     othrys.system = {
-      disko = {
+      impermanence = {
         enable = true;
-        device = "/dev/disk/by-id/example";
+        device = "/dev/disk/by-partlabel/root";
       };
-      impermanence.enable = true;
     };
   };
   stateEntry = builtins.head (builtins.filter (d: (d.directory or "") == "/var/lib/headscale") persisted.environment.persistence."/persist".directories);

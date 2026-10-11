@@ -9,6 +9,7 @@
   rejectedWith,
   bootBase,
   functioningHost,
+  diskoModules,
   inputs,
 }: let
   inherit (inputs.nixpkgs) lib;
@@ -20,9 +21,11 @@
     };
   };
 
-  # disko asserts nothing here, and enableConfig = false keeps it from emitting
-  # filesystems that collide with the fixture's own root.
+  # The disk layout with the disko module it writes into. disko asserts
+  # nothing here, and enableConfig = false keeps it from emitting filesystems
+  # that collide with the fixture's own root.
   disko = settings: {
+    imports = [diskoModules];
     disko.enableConfig = false;
     othrys.system.disko = {enable = true;} // settings;
   };

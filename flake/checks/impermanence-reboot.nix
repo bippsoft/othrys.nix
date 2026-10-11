@@ -20,9 +20,7 @@ pkgs.testers.runNixOSTest {
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
-      inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
-      inputs.sops-nix.nixosModules.sops
     ];
 
     # A null disk image makes the root a tmpfs, which is the wipe's effect
@@ -36,18 +34,16 @@ pkgs.testers.runNixOSTest {
       neededForBoot = true;
     };
 
-    # impermanence asserts on the disko layout. enableConfig = false keeps
-    # disko from emitting the LUKS and filesystem config a VM cannot satisfy,
-    # and the wipe unit is switched off because it waits for that LUKS device.
-    # The tmpfs root stands in for it.
-    disko.enableConfig = false;
+    # No disk layout is imported. impermanence asks for the device it wipes,
+    # and this VM has no btrfs root to give it, so the option names a device
+    # that does not exist and the wipe unit, which would wait for it, is
+    # switched off. The tmpfs root stands in for the wipe.
     boot.initrd.systemd.services.root-wipe.enable = lib.mkForce false;
     othrys.system = {
-      disko = {
+      impermanence = {
         enable = true;
-        device = "/dev/vdb";
+        device = "/dev/disk/by-partlabel/root";
       };
-      impermanence.enable = true;
       persistence.enable = true;
     };
 

@@ -12,9 +12,7 @@
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
-      inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
-      inputs.sops-nix.nixosModules.sops
     ];
   };
 in
