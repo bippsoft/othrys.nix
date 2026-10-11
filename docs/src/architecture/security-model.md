@@ -30,6 +30,20 @@ Where a service only accepts a secret inside its own configuration file, the
 module renders that file under `/run` at start from the runtime path. The ntfy
 bridge token in `alerting.nix` is handled this way.
 
+Where a program only reads a credential from its environment, the module
+installs a wrapper that reads the runtime path into the variable for that one
+process and then becomes the program. `cachix-push` loads the cache token this
+way, and `gh` loads `othrys.apps.gh.tokenFile` the same way on a headless
+host. The variable is never set in a shell, so nothing else started from that
+shell inherits it.
+
+No module keeps a credential of its own. `modules/system/secrets.nix` is the
+only file that writes into the `sops` namespace, where it sets the decryption
+keys, and every secret is declared by the consuming flake. On a desktop the
+`gh` login lives in the Secret Service keyring, which
+`othrys.desktop.keyring` provides, and Claude Code keeps its own login under
+`~/.claude`.
+
 ## Trust roots
 
 A host built from these modules trusts the following, and nothing in this

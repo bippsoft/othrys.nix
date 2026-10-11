@@ -9,7 +9,7 @@
   inherit (import ./plugin-name.nix) pluginName;
 in {
   imports = [
-    (lib.mkRemovedOptionModule ["othrys" "apps" "ai" "mcp" "context7" "token"] "The token was written into the MCP config in the world-readable Nix store. Context7 works without one; a host that needs one runs the server through a launcher that reads the key from a secrets-provider file, as the github server does.")
+    (lib.mkRemovedOptionModule ["othrys" "apps" "ai" "mcp" "context7" "token"] "The token was written into the MCP config in the world-readable Nix store. Context7 works without one; a host that needs one runs the server through a launcher that reads the key from a secrets-provider file.")
   ];
 
   options.othrys.apps.ai.mcp.context7 = {

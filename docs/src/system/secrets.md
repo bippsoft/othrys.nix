@@ -42,6 +42,10 @@ to use whenever the identity is itself secret.
 
 Secrets are declared in host configs (not in modules) using `othrys.system.secrets` for infrastructure and `sops.secrets.*` for individual secret declarations. See [Host Configuration](../architecture/host-configuration.md) for a real example.
 
+No othrys module declares a sops secret. `modules/system/secrets.nix` writes
+the decryption settings under `sops.age`, and it is the only file in the
+module tree that writes into the `sops` namespace.
+
 ## When a secret is installed
 
 sops-nix installs secrets in two rounds. Secrets declared with

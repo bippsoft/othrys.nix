@@ -139,7 +139,8 @@ in {
                 "Bash(git log:*)"
                 "Bash(mkdir:*)"
                 # Each MCP server module contributes its own read-only tool
-                # permissions to this list (see mcp/*.nix), and they merge in here.
+                # permissions to this list (see mcp/*.nix), and the gh module
+                # adds its read-only commands (see ../gh.nix). They merge in here.
               ]
               ++ cfg.permissions.extraAllow;
 

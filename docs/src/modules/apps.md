@@ -13,7 +13,7 @@ No desktop environment required, so these are usable on servers and headless sys
 | Nixvim | `othrys.apps.nixvim` | Neovim configured via Nix (sub-modules for plugins/languages) |
 | Languages | `othrys.apps.languages.<name>` | Per-language toolchains shared by the PATH and both editors |
 | Development | `othrys.apps.development` | Development tools bundle, direnv with its allow database persisted |
-| GitHub CLI | `othrys.apps.gh` | GitHub CLI with persistence |
+| GitHub CLI | `othrys.apps.gh` | `gh` with its settings, the git credential helper, a token file for a headless host and read-only commands pre-approved for Claude Code |
 | Yazi | `othrys.apps.yazi` | Terminal file manager |
 | Comma | `othrys.apps.comma` | Run uninstalled programs with nix-index, whose `command-not-found` handler names the package for a missing command |
 
@@ -43,6 +43,79 @@ Require a desktop environment.
 
 The modules under `modules/apps/gui/gaming/` are listed on the
 [Gaming](./gaming.md) page.
+
+### GitHub CLI
+
+`othrys.apps.gh` installs `gh` and writes its `config.yml`. `gitProtocol`,
+`editor` and `aliases` cover the common keys, and `settings` takes any other
+key and is merged over them, so a key set there wins. `editor` follows
+`othrys.system.defaultEditor`. `extensions` takes a list of packages.
+
+```nix
+othrys.apps.gh = {
+  enable = true;
+  aliases.co = "pr checkout";
+  settings.pager = "less -FRX";
+};
+```
+
+The module does not log in. On a desktop, run `gh auth login` once. It runs
+GitHub's OAuth device flow, which shows a code to enter in a browser, and it
+stores the resulting token in the Secret Service keyring when one is running.
+[`othrys.desktop.keyring`](./desktop.md#keyring) provides that keyring on a
+graphical host. Without one `gh` falls back to a plain file,
+`~/.config/gh/hosts.yml`. Under impermanence `~/.config/gh` is persisted at
+mode 0700 for the primary user, which keeps the account name in both cases and
+the token in the second.
+
+With `credentialHelper.enable`, which is on by default, git asks `gh` for
+credentials on the URLs in `credentialHelper.hosts`. A clone, fetch or push
+over HTTPS then uses the `gh` login, and no second credential is stored for
+git. A remote reached over SSH is not affected.
+
+A headless host has no browser for the device flow and no keyring to hold the
+result. `tokenFile` names a runtime path that a secrets provider writes, and
+the file has to be readable by the primary user.
+
+```nix
+othrys.apps.gh = {
+  enable = true;
+  gitProtocol = "https";
+  tokenFile = "/run/secrets/gh-token";
+};
+```
+
+`gh` reads a token only from the `GH_TOKEN` environment variable, so with
+`tokenFile` set the `gh` on the PATH is a wrapper around the real program. The
+wrapper reads the file, sets `GH_TOKEN` in its own process and replaces that
+process with `gh`. It guarantees three things:
+
+- **The Nix store** holds the path of the file and never its content, since
+  the option refuses a path literal and a store path.
+- **The shell** never has the variable, so no other program started from it
+  inherits the token.
+- **No process argument** carries the token, so it does not appear in the
+  process list.
+
+The token is in the environment of the running `gh` and of the programs `gh`
+starts, such as git, the editor and an extension. The completions and the man
+pages are the ones `gh` ships. The git credential helper runs the wrapper as
+well, so git over HTTPS works on such a host without a login. A `GH_TOKEN` that
+is already set is kept. When the file is missing or unreadable the wrapper says
+so on stderr and runs `gh` without it, so `gh auth status` reports the login
+the host really has.
+
+When `othrys.apps.ai.claude-code` is enabled as well, the module adds the
+read-only `gh` commands to the Claude Code allow-list, and an agent reads
+GitHub without a prompt. The entries are `gh issue view`, `gh issue list`,
+`gh pr view`, `gh pr list`, `gh pr diff`, `gh pr checks`, `gh run view`,
+`gh run list`, `gh repo view`, `gh release view`, `gh release list` and
+`gh search`, each in the `Bash(gh pr view:*)` form. A command that creates,
+edits, merges, closes or comments stays prompted, and so do `gh auth` and
+`gh api`, since `gh api` sends any request. `claudeCode.allowReadOnly = false`
+leaves the entries out. The lists are a convenience and not a boundary, as
+[AI Assistants](./ai.md#what-the-claude-code-permission-lists-are-for)
+explains.
 
 ### Kitty
 

@@ -35,15 +35,12 @@
     (builtins.readFile ./nixos-context.md);
 
   # Check if any MCP server sub-module is enabled
-  anyMcpEnabled =
-    cfg.github.enable
-    || cfg.nixos.enable
-    || cfg.context7.enable;
+  anyMcpEnabled = cfg.nixos.enable || cfg.context7.enable;
 in {
   imports = [
-    ./github.nix
     ./nixos.nix
     ./context7.nix
+    (lib.mkRemovedOptionModule ["othrys" "apps" "ai" "mcp" "github"] "The GitHub MCP server kept a personal access token in the host's secrets. The gh CLI does the same work with the user's own login, so enable othrys.apps.gh and run `gh auth login`. With Claude Code on, othrys.apps.gh pre-approves the read-only gh commands.")
   ];
 
   options.othrys.apps.ai.mcp = {

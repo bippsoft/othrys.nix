@@ -73,6 +73,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-languages` | The binaries nixvim and VSCodium take from the language registry |
 | `eval-floorp`, `eval-rustdesk` | The Floorp and Discord settings, and what RustDesk persists and launches |
 | `eval-claude-code` | The settings, pre-approved tools and context the AI modules hand Claude Code |
+| `eval-gh` | The `gh` settings and credential helper, the wrapper a token file installs, and the read-only commands pre-approved for Claude Code |
 | `impermanence-test` | A VM test of the wipe script and the persistence invariant |
 
 **Core on ARM** (`core-aarch64` job) runs on the same events on an

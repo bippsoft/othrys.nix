@@ -8,7 +8,6 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 |--------|--------|-------------|
 | Claude Code | `othrys.apps.ai.claude-code` | Anthropic CLI assistant |
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server (CUDA/ROCm/Vulkan/CPU) |
-| MCP GitHub | `othrys.apps.ai.mcp.github` | GitHub MCP server |
 | MCP NixOS | `othrys.apps.ai.mcp.nixos` | NixOS MCP server |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
@@ -52,14 +51,19 @@ the home directory on every other host.
 
 Model Context Protocol servers provide AI assistants with live tool access:
 
-- **GitHub**: Repository operations, PR/issue management
 - **NixOS**: Package search, option lookup, flake input queries
 - **Context7**: Up-to-date library documentation and code examples
 
-The GitHub server runs locally over stdio rather than against GitHub's hosted
-endpoint, because `programs.mcp` accepts a file-backed environment variable
-only for local servers. Home Manager turns that file reference into a wrapper
-that reads the sops path at launch, so the personal access token lives in the
-server process and nowhere else. It is no longer exported as `GITHUB_PAT` at
-shell init, where every child of every interactive shell inherited it. Tooling
-that relied on that variable needs its own source for the token.
+Neither server takes a credential.
+
+## GitHub
+
+There is no GitHub MCP server. An agent reaches GitHub through the `gh` CLI,
+which acts with the user's own login, so no separate long-lived token is kept
+for the agent. [`othrys.apps.gh`](./apps.md#github-cli) configures it, and on a
+host that also enables Claude Code it adds the read-only `gh` commands to the
+allow-list. Reading an issue, a pull request, a workflow run or a release then
+runs without a prompt, while every command that writes to GitHub is prompted.
+
+`othrys.apps.ai.mcp.github` is a removed option, and a host that still sets it
+fails at evaluation with a message naming `othrys.apps.gh`.
