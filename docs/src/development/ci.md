@@ -27,7 +27,7 @@ tier reports early while the whole suite still gates what lands:
   enabled with defaults), and the runtime VM tests (`restic-test`,
   `headscale-test`, `auto-upgrade-test`, `crowdsec-test`, `router-test`, `router-ips-test`,
   `integration-test`, `listeners-test`, `impermanence-reboot-test`,
-  `impermanence-wipe-test`, `wallpaper-test`).
+  `impermanence-wipe-test`, `wallpaper-test`, `keyring-test`).
 - **Extended verdict** (`extended-ok` job) turns the matrix into one status
   that branch protection can require. It passes only when every matrix leg
   succeeded, so a failed, cancelled or skipped leg fails it.
@@ -68,6 +68,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-k3s`, `eval-containers` | What k3s opens and requires, and what the container modules run and prune |
 | `eval-hardware`, `eval-nvidia` | What the hardware, mount and disk modules write, and which NVIDIA driver a host gets |
 | `eval-desktop`, `eval-lock`, `eval-login` | What the desktop modules and terminals write, the session lock, and what greetd is handed |
+| `eval-keyring` | The Secret Service provider each setting of `othrys.desktop.keyring` selects, the keyring written without a password, and the combinations the module refuses |
 | `eval-theme` | The palette, fonts and schemes of `othrys.theme` on hosts with no Stylix module, and what the Stylix adapter hands over and takes back |
 | `eval-wallpaper` | The wallpaper daemon's configuration for each form of `othrys.theme.wallpaper.source`, the hosts that get no daemon, and the image the Stylix adapter is handed |
 | `eval-languages` | The binaries nixvim and VSCodium take from the language registry |
@@ -102,6 +103,7 @@ pass.
 | `listeners-test` | The listening sockets and the firewall accept rules of a booted server, compared with a list written in the test |
 | `impermanence-reboot-test`, `impermanence-wipe-test` | Host identity across a reboot with an empty root, and the wipe unit booted from a btrfs root |
 | `wallpaper-test` | The wallpaper daemon's unit, its rendered configuration and the directory built from a list of images, on a booted machine |
+| `keyring-test` | A secret stored and read back through the Secret Service on two booted machines, one with a gnome-keyring store that has no password and one with `pass` and a software OpenPGP key |
 
 Unchanged derivations are pulled from the cache and not rebuilt.
 `nix flake check` locally runs every check regardless of tier. That includes

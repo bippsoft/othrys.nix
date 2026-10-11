@@ -12,7 +12,7 @@ Colours and fonts come from `othrys.theme`, see [Theming](../guides/theming.md).
 | Hyprland | `othrys.desktop.compositors.hyprland` | Wayland compositor (dynamic tiling) |
 | Niri | `othrys.desktop.compositors.niri` | Wayland compositor (scrollable tiling) |
 | Idle | `othrys.desktop.idle` | Staged idle management (dim, lock, screen off, suspend) |
-| Keyring | `othrys.desktop.keyring` | Secret Service provider (gnome-keyring), on by default on a graphical host |
+| Keyring | `othrys.desktop.keyring` | Secret Service provider (gnome-keyring or `pass`), on by default on a graphical host |
 | Login | `othrys.desktop.login` | greetd login manager (tuigreet or cosmic-greeter) |
 | Night light | `othrys.desktop.nightLight` | Color temperature shifting (gammastep) |
 | UWSM | `othrys.desktop.uwsm` | Systemd session management for Wayland |
@@ -197,25 +197,97 @@ way out is a VT switch.
 Browsers, mail clients and tray applications store credentials in the Secret
 Service, and a session without a provider leaves each of them to fall back to a
 plain file or to ask again on every start. `othrys.desktop.keyring.enable` runs
-gnome-keyring as that provider. Its default is `othrys.desktop.graphical`, so a
-Hyprland host, a niri host and a host with an unmanaged desktop all get one,
-while a headless host does not.
-
-With `othrys.desktop.login` the greeter passes the login password to the
-keyring, which is unlocked when the session starts. This holds while the
-keyring password and the login password are the same. An autologin session has
-no password to pass, so the keyring asks for its own the first time an
-application reads a secret. Under impermanence `~/.local/share/keyrings` is
-persisted at mode 0700 for the primary user.
+one provider, which `othrys.desktop.keyring.provider` selects. Its default is
+`othrys.desktop.graphical`, so a Hyprland host, a niri host and a host with an
+unmanaged desktop all get one, while a headless host does not.
 
 A host that runs another provider, such as KeePassXC or KWallet, turns the
 option off, since two providers compete for the same D-Bus name. niri-flake
-enables gnome-keyring on every niri host by itself, and the option overrides
-that when it is off.
+enables gnome-keyring on every niri host by itself, and the module overrides
+that whenever gnome-keyring is not the provider it was asked for.
 
 ```nix
 othrys.desktop.keyring.enable = false;
 ```
+
+### gnome-keyring
+
+The default provider encrypts its store with a password. With
+`othrys.desktop.login` the greeter passes the login password to the keyring,
+which is unlocked when the session starts. This holds while the keyring
+password and the login password are the same. Under impermanence
+`~/.local/share/keyrings` is persisted at mode 0700 for the primary user.
+
+A login that passes no password leaves the store locked, and the keyring then
+asks for its own the first time an application reads a secret. An autologin
+session is one such login. A login with a hardware key alone is another, since
+a U2F touch yields a signature and no secret, and a signature cannot unlock
+anything. The two settings below are the ways out.
+
+### A store without a password
+
+`othrys.desktop.keyring.passwordless` creates the gnome-keyring store with no
+password, so nothing ever asks. gnome-keyring has no setting for this. The
+module writes the keyring file before the daemon first runs, at Home Manager
+activation, and only when neither `login.keyring` nor `Default_keyring.keyring`
+exists. A keyring that already exists is never replaced, so a host that had one
+with a password keeps it until its owner removes the file.
+
+```nix
+othrys.desktop.keyring.passwordless = true;
+```
+
+The store is then plain files under `~/.local/share/keyrings`. File permissions
+keep other accounts out, and disk encryption keeps out whoever holds the
+powered-off machine. Any program running as the user reads every secret, and so
+does anyone who reaches the mounted disk, which includes a backup of the home
+directory. The greeter is no longer told to unlock the keyring, since there is
+nothing to unlock.
+
+The module refuses the option on a host that declares no LUKS device in
+`boot.initrd.luks.devices`, which `othrys.system.disko` fills in and a host
+that set LUKS up by hand fills in as well. A host that accepts plain secrets on
+a plain disk sets `othrys.desktop.keyring.allowUnencryptedDisk`.
+
+### pass
+
+`provider = "pass"` runs `pass-secret-service` for the primary user. It serves
+the same D-Bus API from a `pass` password store, where each secret is a file
+encrypted to the OpenPGP key named in `othrys.desktop.keyring.pass.gpgKey`.
+gnome-keyring is turned off, on a niri host as well.
+
+```nix
+othrys.desktop.keyring = {
+  provider = "pass";
+  pass.gpgKey = "<fingerprint>";
+};
+```
+
+With the key on a hardware token, reading a secret needs the token, its PIN
+once for each gpg-agent session, and a touch on each read when the token's
+touch policy for decryption is set to always. A copy of the disk or of a backup
+holds ciphertext only. A program running as the user can still ask the service
+for a secret while the token is present and the PIN is cached, and the touch
+policy is what stands between that program and the secret. The label of an
+entry and the attributes applications search by are stored beside it
+unencrypted, so the store shows which services have a secret.
+
+The store lives in `~/.local/share/password-store` unless
+`othrys.desktop.keyring.pass.directory` says otherwise, and it is persisted at
+mode 0700 under impermanence. A new store is initialised by writing its
+`.gpg-id` file, and a store that already has one is left as it is. The module
+does not import the public key or configure gpg-agent.
+`othrys.services.security.yubikey` provides the agent and a pinentry. Home
+Manager has to manage the primary user, and the module refuses the provider
+without it and without a key.
+
+### Which to pick
+
+| Login | Setting | What unlocks the secrets |
+|-------|---------|--------------------------|
+| A password, typed at the greeter | The defaults | The login password, passed on by the greeter |
+| A hardware key alone, on an encrypted disk | `passwordless = true` | Nothing, since the store has no password and the disk encryption protects it at rest |
+| A hardware key alone, with secrets bound to the token | `provider = "pass"` | The OpenPGP key on the token, with its PIN and its touch policy |
 
 ### Options
 
