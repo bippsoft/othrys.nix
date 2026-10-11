@@ -9,6 +9,9 @@ The **Build** workflow splits the flake's checks into two tiers. Both run on
 every pull request, every push to `main` and every manual dispatch, so the core
 tier reports early while the whole suite still gates what lands:
 
+- **Commit signatures** (`signatures` job) verifies every commit of a push
+  to `main`, and of a pull request from a branch of this repository, against
+  the keys tracked under `keys/`. It is skipped for a pull request from a fork.
 - **Core** (`core` job) runs on every PR/push/dispatch and builds its checks
   in one `nix build`. They are the lint hooks, the secret scan, the docs
   build, the host evaluations and read-backs in the table below, and

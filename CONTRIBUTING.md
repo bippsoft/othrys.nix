@@ -315,7 +315,14 @@ the two hook sets named in `flake/checks/default.nix`. `comment-hygiene`,
 ## Signing
 
 Maintainers sign their commits and tags. Release tags are signed annotated tags
-cut by `just release`, and `git tag -v <tag>` verifies one.
+cut by `just release`, and `git tag -v <tag>` verifies one. The public keys are
+tracked under `keys/`, and the fingerprint is in [SECURITY.md](SECURITY.md).
+
+The `signatures` job of the build workflow verifies every commit of a push to
+`main`, and every commit of a pull request opened from a branch of this
+repository, against those keys. A commit with no signature, or one signed by
+a key that is not in `keys/`, fails the job. A maintainer is added by a
+commit that adds their key, signed by a key already listed.
 
 A rebase merge on GitHub rewrites the commits and discards their signatures.
 A pull request is therefore opened for review and checks, and once the required
@@ -323,7 +330,9 @@ checks pass on its head commit a maintainer fast-forwards `main` to that commit
 locally and pushes it. GitHub marks the pull request as merged when its head
 reaches `main`.
 
-Outside contributions do not need to be signed.
+An outside contribution does not need to be signed by its author, and the job
+is skipped for a pull request from a fork. The maintainer who lands it signs
+the commits, since a commit on `main` that no listed key signed fails the job.
 
 ## Systemd Units
 

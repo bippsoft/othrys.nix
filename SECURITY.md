@@ -64,6 +64,28 @@ Release tags from `v0.4.0` onward are signed annotated tags, and
 `git tag -v <tag>` verifies them. Tags from `v0.1.0` through `v0.3.1` were
 published unsigned and stay as they are.
 
+The maintainer key is in the repository as `keys/maintainer.asc`. Its
+fingerprint is
+
+```text
+6484 E76F 0D85 D217 463A  D145 CEC8 EDDD 3028 A8FE
+```
+
+Compare that fingerprint with a copy from a second source before trusting
+it, since a repository that was tampered with can carry a replaced key
+beside a replaced tag. Then import the key and verify a tag.
+
+```bash
+gpg --show-keys --with-fingerprint keys/maintainer.asc
+gpg --import keys/maintainer.asc
+git tag -v v0.14.0
+```
+
+Every commit pushed to `main` is verified against the keys in `keys/` by the
+`signatures` job of the build workflow. The same key is the trust root to
+give `othrys.system.autoUpgrade.verify.publicKeys` on a host that follows
+this repository's releases.
+
 ## Safe Harbor
 
 Research carried out in good faith under this policy is welcome. The maintainers

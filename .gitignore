@@ -27,4 +27,6 @@ docs/book/
 *.key
 *-key.txt
 *.asc
+# The public keys commits and tags are verified against are tracked.
+!/keys/*.asc
 .age-key
