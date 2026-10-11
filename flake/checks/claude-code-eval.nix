@@ -10,6 +10,7 @@
   hostConfig,
   impermanenceModules,
   mkExpectations,
+  rejectedWith,
   functioningHost,
   bootBase,
   inputs,
@@ -49,12 +50,12 @@
     }
   ];
   dataLine = h: let
-    lines = builtins.filter (l: inputs.nixpkgs.lib.hasPrefix "- **Store data**" l) (inputs.nixpkgs.lib.splitString "\n" h.othrys.apps.ai.mcp.context);
+    lines = builtins.filter (l: inputs.nixpkgs.lib.hasPrefix "- **Store data**" l) (inputs.nixpkgs.lib.splitString "\n" h.othrys.apps.ai.context.text);
   in
     if lines == []
     then ""
     else builtins.head lines;
-  mentionsWipe = h: inputs.nixpkgs.lib.hasInfix "wiped on every boot" h.othrys.apps.ai.mcp.context;
+  mentionsWipe = h: inputs.nixpkgs.lib.hasInfix "wiped on every boot" h.othrys.apps.ai.context.text;
   host = hostConfig [
     functioningHost
     {
@@ -68,6 +69,32 @@
       };
     }
   ];
+  # Skills are declared once for every assistant and once for Claude Code
+  # alone. Both have to reach its configuration, and the entry for the tool
+  # replaces a shared one of the same name.
+  skillText = name: body: "---\nname: ${name}\ndescription: ${body}\n---\n${body}\n";
+  withSkills = extra:
+    hostConfig [
+      functioningHost
+      {
+        othrys.system.nix.allowUnfree = true;
+        othrys.apps.ai = {
+          claude-code.enable = true;
+          skills = {
+            shared-skill = skillText "shared-skill" "shared";
+            both = skillText "both" "from the shared set";
+          };
+          claude-code.skills = {
+            claude-only = skillText "claude-only" "one tool";
+            both = skillText "both" "from the tool";
+          };
+        };
+      }
+      extra
+    ];
+  skillsHost = withSkills {};
+  claudeSkills = skillsHost.home-manager.users.${skillsHost.othrys.system.user.name}.programs.claude-code.skills;
+  contextOf = extra: (withSkills {othrys.apps.ai.context = extra;}).othrys.apps.ai.context.text;
   user = host.othrys.system.user.name;
   hm = host.home-manager.users.${user};
   settings = hm.programs.claude-code.settings;
@@ -105,5 +132,15 @@ in
     "the context names the root wipe on an impermanence host" = mentionsWipe impermanenceHost;
     "the context does not name the root wipe on a host with a persistent root" = !mentionsWipe host;
     "the context confines data to the home directory on an impermanence host" = inputs.nixpkgs.lib.hasPrefix "- **Store data**: Only in `$HOME`" (dataLine impermanenceHost) && inputs.nixpkgs.lib.hasInfix "gone after a reboot" (dataLine impermanenceHost);
+    "a shared skill and a skill for the tool both reach Claude Code" = claudeSkills ? shared-skill && claudeSkills ? claude-only;
+    "a skill for the tool replaces a shared one of the same name" = inputs.nixpkgs.lib.hasInfix "from the tool" claudeSkills.both;
+    "a shared skill whose name the format refuses is rejected" = rejectedWith "cannot name a skill" (withSkills {othrys.apps.ai.skills.Bad_Name = "x";});
+    "the host's own lines follow the NixOS text" = inputs.nixpkgs.lib.hasSuffix "\nHouse rules" (contextOf {extra = "House rules";}) && inputs.nixpkgs.lib.hasInfix "/nix/store" (contextOf {extra = "House rules";});
+    "the NixOS text can be left out" =
+      contextOf {
+        nixos.enable = false;
+        extra = "House rules";
+      }
+      == "House rules";
     "the context only suggests the home directory on a host with a persistent root" = inputs.nixpkgs.lib.hasPrefix "- **Store data**: In `$HOME`" (dataLine host);
   }
