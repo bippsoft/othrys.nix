@@ -1,3 +1,77 @@
+## v0.14.0 (2026-10-11)
+
+### BREAKING CHANGE
+
+- wpaperd replaces hyprpaper as the wallpaper engine on
+Hyprland, and othrys.desktop.wallpaper starts it on any graphical host
+that enables a compositor and sets othrys.theme.wallpaper.source, niri
+included. A consumer that enabled services.wpaperd for the primary
+user drops that, since othrys renders its configuration, and one that
+draws the wallpaper with another program sets
+othrys.desktop.wallpaper.enable = false. With the Stylix export,
+stylix.image follows othrys.theme.wallpaper.primary, and
+othrys.theme.scheme = "wallpaper" with a run-time directory needs
+primary set.
+- Stylix is no longer part of nixosModules.default. A
+host that uses it imports nixosModules.stylix together with the Stylix
+module, and a host that does not can drop the Stylix import and its
+follows line. Setting othrys.system.stylix.* without that export fails
+to evaluate. othrys.system.stylix.scheme, polarity and wallpaper are
+renamed to othrys.theme.scheme, othrys.theme.polarity and
+othrys.theme.wallpaper.source, and the old names warn. The assets
+directory is gone, and a scheme is Nix data under
+othrys.theme.schemes.
+- a host with othrys.hardware.nvidia.prime.enable no
+longer has the NVIDIA kernel modules in its initrd and loads them from
+the root filesystem. othrys.hardware.nvidia.earlyLoad = true keeps
+them in the initrd.
+- the othrys.desktop.noctalia options and the noctalia
+flake input are removed with no replacement. A host that sets one of
+the options fails to evaluate until it is deleted, and a consuming
+flake that follows the input drops that line. autoLogin now requires
+othrys.desktop.idle. Every graphical host runs gnome-keyring unless
+othrys.desktop.keyring.enable is false.
+- othrys.services.mounts.disks mounts every filesystem
+with nosuid and nodev, and a disk holding setuid binaries or device
+nodes sets allowSuid or allowDev. dmask and fmask accept three or four
+octal digits. othrys.services.mounts.cifs no longer defaults uid and
+gid to 1000 and 100, and a host without a managed account sets both.
+A k3s server starts with --write-kubeconfig-mode=0600 and
+--secrets-encryption, and a cluster created without secrets encryption
+sets hardenedFlags = false first. othrys.services.restic refuses a
+repository URL that carries a credential, which moves to
+repositoryFile. othrys.services.scrutiny refuses credentials in
+collector.endpoint. othrys.services.traefik refuses dashboard.insecure
+beside Scrutiny, Headscale or CrowdSec on port 8080.
+- Steam's remotePlay.openFirewall and
+localNetworkGameTransfers.openFirewall default to false.
+othrys.desktop.ashell.weatherLocation takes a city name or a latitude
+and longitude and refuses the old TOML string. With u2fRequirePassword
+on, every normal user needs a u2fMappings entry or a place in
+u2fExemptUsers. A compositor host without the idle module runs
+hypridle and locks before sleep. Violentmonkey is removed from Floorp
+profiles unless a host adds it back. comma and nix-index leave the
+system path where Home Manager manages the user.
+- the global flake registry is no longer fetched, so an
+indirect name other than nixpkgs resolves only when the host declares
+it or sets othrys.system.nix.globalRegistry. nix.channel.enable is
+false on a host that pins nixpkgs. Podman with dockerCompat beside
+othrys Docker fails to evaluate in rootless mode as well.
+
+### Feat
+
+- **theme**: declare wallpapers in othrys.theme, and draw them with wpaperd on both compositors
+- **theme**: add othrys.theme, and make Stylix an optional export
+- **nvidia**: load the driver after the initrd on a PRIME host
+- **desktop**: remove the noctalia shell module, and add a keyring option
+
+### Fix
+
+- **services**: mount disks nosuid, keep credentials out of restic and scrutiny URLs, and send the stale-upgrade notice
+- **desktop**: lock before sleep on every compositor host, close Steam's ports, and tighten the sandboxed units
+- **nix**: stop fetching the global registry, trim encrypted swap, and evaluate nested enables under their parents
+- **router**: make the WAN reverse-path filter strict in effect
+
 ## v0.13.0 (2026-10-11)
 
 ### BREAKING CHANGE
