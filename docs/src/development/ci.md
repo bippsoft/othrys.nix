@@ -27,7 +27,8 @@ tier reports early while the whole suite still gates what lands:
   enabled with defaults), and the runtime VM tests (`restic-test`,
   `headscale-test`, `auto-upgrade-test`, `crowdsec-test`, `router-test`, `router-ips-test`,
   `integration-test`, `listeners-test`, `impermanence-reboot-test`,
-  `impermanence-wipe-test`, `wallpaper-test`, `keyring-test`).
+  `impermanence-wipe-test`, `wallpaper-test`, `keyring-test`,
+  `yubikey-onboard-dry-run`).
 - **Extended verdict** (`extended-ok` job) turns the matrix into one status
   that branch protection can require. It passes only when every matrix leg
   succeeded, so a failed, cancelled or skipped leg fails it.
@@ -78,6 +79,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-claude-code` | The settings, pre-approved tools, skills and context the AI modules hand Claude Code |
 | `eval-opencode` | The permission map, skills, context, MCP servers and Ollama provider the AI modules hand OpenCode |
 | `eval-gh` | The `gh` settings and credential helper, the wrapper a token file installs, and the read-only commands pre-approved for Claude Code |
+| `yubikey-onboard-builds` | The onboarding script's package, whose build runs shellcheck and `bash -n` over the script |
 | `impermanence-test` | A VM test of the wipe script and the persistence invariant |
 
 **Core on ARM** (`core-aarch64` job) runs on the same events on an
@@ -107,6 +109,7 @@ pass.
 | `impermanence-reboot-test`, `impermanence-wipe-test` | Host identity across a reboot with an empty root, and the wipe unit booted from a btrfs root |
 | `wallpaper-test` | The wallpaper daemon's unit, its rendered configuration and the directory built from a list of images, on a booted machine |
 | `keyring-test` | A secret stored and read back through the Secret Service on two booted machines, one with a gnome-keyring store that has no password and one with `pass` and a software OpenPGP key |
+| `yubikey-onboard-dry-run` | The packaged onboarding script's dry run as an unprivileged user, which must take the `unshare -Urm` path, exit 0, write nothing, and name a summary directory outside the working directory |
 
 Unchanged derivations are pulled from the cache and not rebuilt.
 `nix flake check` locally runs every check regardless of tier. That includes

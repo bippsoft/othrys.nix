@@ -41,7 +41,9 @@ if [[ -z ${YUBIKEY_ONBOARD_NS:-} ]]; then
   if $reexec && command -v unshare >/dev/null 2>&1 &&
     unshare -Urm --propagation slave true 2>/dev/null; then
     export YUBIKEY_ONBOARD_NS=1
-    exec unshare -Urm --propagation slave "$0" "$@"
+    # Through the running bash, since the file is not executable when the
+    # script is started as `bash scripts/yubikey-onboard.sh`.
+    exec unshare -Urm --propagation slave "$BASH" "$0" "$@"
   fi
 fi
 
@@ -79,6 +81,8 @@ OPT_NO_AGE_BACKUP=false
 OPT_NO_AGE_PASSPHRASE=false
 OPT_KEEP_PLAINTEXT=false
 OPT_AGE_RECIPIENTS=()
+OPT_AGE_IDENTITY=""
+OPT_ALLOW_DEFAULT_PINS=false
 
 # State, populated during execution
 SECURE_TMPDIR=""
@@ -90,6 +94,33 @@ SSH_PUBKEY=""
 BACKUP_DIR=""
 KEY_ALGO="ed25519"
 
+# The plaintext exports that exist during the run. They sit in the backup
+# directory on a first run and inside the ramfs when an encrypted backup was
+# imported, and the encrypted backup phase reads them from wherever they are.
+MASTER_PLAINTEXT=""
+SUBKEYS_PLAINTEXT=""
+# A plaintext file --from-backup read that a re-export has since replaced.
+IMPORTED_PLAINTEXT=""
+
+# The subkey chosen for each card slot, and what the card reports back.
+SUBKEY_FPR_SIGN="" # gitleaks:allow (an empty variable that later holds a public fingerprint)
+SUBKEY_FPR_ENCR=""
+SUBKEY_FPR_AUTH=""
+CARD_FPR_SIGN=""
+CARD_FPR_ENCR=""
+CARD_FPR_AUTH=""
+
+# The token in the reader. A token that reports no serial number is recorded
+# under NO_SERIAL, so no message is ever built from an empty string.
+NO_SERIAL="unreported"
+CURRENT_SERIAL=""
+CURRENT_FIRMWARE=""
+
+# Credentials left at whatever value they had when the run started, and
+# plaintext exports the run could not remove. Both are reported at the end.
+UNCHANGED_CREDENTIALS=()
+PLAINTEXT_LEFT=()
+
 # Per-YubiKey state (indexed by key number)
 YUBIKEY_SERIALS=()
 U2F_CREDENTIALS=()
@@ -97,131 +128,6 @@ AGE_IDENTITIES=()
 AGE_RECIPIENTS=()
 AGE_FULL_OUTPUTS=()
 NUM_KEYS=0
-
-usage() {
-  cat <<EOF
-Usage: $(basename "$0") [OPTIONS]
-
-Provision one or more YubiKeys with PGP keys, U2F credentials, and age identity.
-
-Modes:
-  (default)            Generate new PGP keys and provision YubiKey(s)
-  --from-backup <path> Import an existing master key backup and provision YubiKey(s)
-                       (for key rotation or replacement YubiKeys)
-  --verify             Check the currently inserted YubiKey's health and config
-
-Key identity (skip interactive prompts):
-  --name <name>        Real name for the PGP key
-  --email <email>      Email address for the PGP key
-  --expiry <duration>  Subkey expiry period (default: $DEFAULT_EXPIRY)
-
-Both are prompted for when the flag is absent, and neither may be empty. They
-become a permanent PGP identity, so there is no default.
-
-Provisioning options:
-  --backup-dir <path>  Master key backup directory (required for provisioning)
-  --force-volatile     Allow a backup directory the host may not persist
-  --no-passphrase      Leave the master key unprotected (escape hatch)
-  --algo <algorithm>   Force key algorithm: ed25519 or rsa4096 (auto-detected by default)
-  --key-count <n>      Number of YubiKeys to provision (skips the "provision another?" prompt)
-  --dry-run            Walk through all phases without destructive operations
-
-Encrypted backup (on by default, runs after the YubiKeys are provisioned):
-  --age-recipient <r>  Extra age recipient, repeatable
-  --no-age-passphrase  Skip the passphrase-encrypted copy
-  --keep-plaintext     Keep master-secret.key after the encrypted copies verify
-  --no-age-backup      Do not produce encrypted copies at all
-
-Two files are written, since age refuses a passphrase and recipients together.
-master-secret.key.age opens with a provisioned YubiKey, master-secret.key.pass.age
-with the passphrase. The plaintext is removed only after a copy has been
-decrypted and compared in the same run.
-
-General:
-  -h, --help           Show this help message
-EOF
-  exit 0
-}
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-  --dry-run)
-    DRY_RUN=true
-    shift
-    ;;
-  --verify)
-    VERIFY_MODE=true
-    shift
-    ;;
-  --from-backup)
-    OPT_FROM_BACKUP="$2"
-    shift 2
-    ;;
-  --backup-dir)
-    OPT_BACKUP_DIR="$2"
-    shift 2
-    ;;
-  --force-volatile)
-    OPT_FORCE_VOLATILE=true
-    shift
-    ;;
-  --no-passphrase)
-    OPT_NO_PASSPHRASE=true
-    shift
-    ;;
-  --age-recipient)
-    OPT_AGE_RECIPIENTS+=("$2")
-    shift 2
-    ;;
-  --no-age-passphrase)
-    OPT_NO_AGE_PASSPHRASE=true
-    shift
-    ;;
-  --keep-plaintext)
-    OPT_KEEP_PLAINTEXT=true
-    shift
-    ;;
-  --no-age-backup)
-    OPT_NO_AGE_BACKUP=true
-    shift
-    ;;
-  --name)
-    OPT_NAME="$2"
-    shift 2
-    ;;
-  --email)
-    OPT_EMAIL="$2"
-    shift 2
-    ;;
-  --expiry)
-    OPT_EXPIRY="$2"
-    shift 2
-    ;;
-  --algo)
-    OPT_ALGO="$2"
-    if [[ $OPT_ALGO != "ed25519" && $OPT_ALGO != "rsa4096" ]]; then
-      error "Invalid algorithm: $OPT_ALGO (must be ed25519 or rsa4096)"
-      exit 1
-    fi
-    shift 2
-    ;;
-  --key-count)
-    OPT_KEY_COUNT="$2"
-    if ! [[ $OPT_KEY_COUNT =~ ^[1-9][0-9]*$ ]]; then
-      error "Invalid key count: $OPT_KEY_COUNT (must be a positive integer)"
-      exit 1
-    fi
-    shift 2
-    ;;
-  -h | --help)
-    usage
-    ;;
-  *)
-    error "Unknown option: $1"
-    usage
-    ;;
-  esac
-done
 
 info() { echo -e "${BLUE}[INFO]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
@@ -256,12 +162,41 @@ prompt_yn() {
   done
 }
 
+# Prompted values and option values end up in a PGP user ID, in a command
+# stream fed to gpg, and in paths. A newline in any of them would be read as
+# the start of the next command, and other control characters change what the
+# terminal shows, so both are refused where the value enters the script.
+is_clean_text() {
+  [[ $1 != *[[:cntrl:]]* ]]
+}
+
+# An option that takes a value and is given last would otherwise trip `set -u`
+# on $2 and end the script with an unbound variable message.
+require_value() {
+  if [[ $# -lt 2 ]]; then
+    error "Option $1 needs a value."
+    exit 1
+  fi
+  if ! is_clean_text "$2"; then
+    error "The value given to $1 contains a newline or a control character."
+    exit 1
+  fi
+}
+
 prompt_value() {
   local question="$1"
   local default="$2"
   local result
-  read -rp "$(echo -e "${BOLD}$question${NC} [${default}]: ")" result
-  echo "${result:-$default}"
+  while true; do
+    result=""
+    read -rp "$(echo -e "${BOLD}$question${NC} [${default}]: ")" result || true
+    result="${result:-$default}"
+    if is_clean_text "$result"; then
+      echo "$result"
+      return 0
+    fi
+    echo "Control characters are not accepted. Enter the value again." >&2
+  done
 }
 
 # For values with no meaningful default, where accepting an empty answer writes
@@ -271,7 +206,16 @@ prompt_required() {
   local question="$1"
   local result
   while true; do
-    read -rp "$(echo -e "${BOLD}$question${NC}: ")" result
+    result=""
+    # At end of input there is nobody left to ask, and looping would never end.
+    if ! read -rp "$(echo -e "${BOLD}$question${NC}: ")" result && [[ -z $result ]]; then
+      echo "No input is available for a value that has no default." >&2
+      return 1
+    fi
+    if ! is_clean_text "$result"; then
+      echo "Control characters are not accepted. Enter the value again." >&2
+      continue
+    fi
     if [[ -n ${result//[[:space:]]/} ]]; then
       echo "$result"
       return 0
@@ -280,11 +224,200 @@ prompt_required() {
   done
 }
 
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Provision one or more YubiKeys with PGP keys, U2F credentials, and age identity.
+
+Modes:
+  (default)            Generate new PGP keys and provision YubiKey(s)
+  --from-backup <path> Import an existing master key backup and provision YubiKey(s)
+                       (for key rotation or replacement YubiKeys). The path is a
+                       backup directory, master-secret.key.age,
+                       master-secret.key.pass.age, or a plaintext master-secret.key
+  --verify             Check the currently inserted YubiKey's health and config
+
+Key identity (skip interactive prompts):
+  --name <name>        Real name for the PGP key
+  --email <email>      Email address for the PGP key
+  --expiry <duration>  Subkey expiry period (default: $DEFAULT_EXPIRY)
+
+Both are prompted for when the flag is absent, and neither may be empty. They
+become a permanent PGP identity, so there is no default.
+
+Provisioning options:
+  --backup-dir <path>  Master key backup directory (required for provisioning)
+  --force-volatile     Allow a backup directory the host may not persist
+  --no-passphrase      Leave the master key unprotected (escape hatch)
+  --algo <algorithm>   Force key algorithm: ed25519 or rsa4096 (auto-detected by default)
+  --key-count <n>      Number of YubiKeys to provision (skips the "provision another?" prompt)
+  --allow-default-pins Finish even when a PIN, PUK or management key was not changed
+  --age-identity <file>
+                       age identity file that opens master-secret.key.age, for
+                       --from-backup (default: the YubiKey in the reader)
+  --dry-run            Walk through all phases. Touches no YubiKey and no keyring,
+                       and writes no file
+
+Encrypted backup (on by default, runs after the YubiKeys are provisioned):
+  --age-recipient <r>  Extra age recipient, repeatable
+  --no-age-passphrase  Skip the passphrase-encrypted copy
+  --keep-plaintext     Keep the plaintext exports after the encrypted copies verify
+  --no-age-backup      Do not produce encrypted copies at all
+
+Two files are written for each export, since age refuses a passphrase and
+recipients together. master-secret.key.age opens with a provisioned YubiKey,
+master-secret.key.pass.age with the passphrase, and subkeys-secret.key gets the
+same pair. A plaintext export is removed only after a copy of it has been
+decrypted and compared in the same run.
+
+The summary is saved in the backup directory, and never in the working
+directory.
+
+General:
+  -h, --help           Show this help message
+EOF
+  exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --dry-run)
+    DRY_RUN=true
+    shift
+    ;;
+  --verify)
+    VERIFY_MODE=true
+    shift
+    ;;
+  --from-backup)
+    require_value "$@"
+    OPT_FROM_BACKUP="$2"
+    shift 2
+    ;;
+  --backup-dir)
+    require_value "$@"
+    OPT_BACKUP_DIR="$2"
+    shift 2
+    ;;
+  --force-volatile)
+    OPT_FORCE_VOLATILE=true
+    shift
+    ;;
+  --no-passphrase)
+    OPT_NO_PASSPHRASE=true
+    shift
+    ;;
+  --age-recipient)
+    require_value "$@"
+    OPT_AGE_RECIPIENTS+=("$2")
+    shift 2
+    ;;
+  --age-identity)
+    require_value "$@"
+    OPT_AGE_IDENTITY="$2"
+    shift 2
+    ;;
+  --allow-default-pins)
+    OPT_ALLOW_DEFAULT_PINS=true
+    shift
+    ;;
+  --no-age-passphrase)
+    OPT_NO_AGE_PASSPHRASE=true
+    shift
+    ;;
+  --keep-plaintext)
+    OPT_KEEP_PLAINTEXT=true
+    shift
+    ;;
+  --no-age-backup)
+    OPT_NO_AGE_BACKUP=true
+    shift
+    ;;
+  --name)
+    require_value "$@"
+    OPT_NAME="$2"
+    shift 2
+    ;;
+  --email)
+    require_value "$@"
+    OPT_EMAIL="$2"
+    shift 2
+    ;;
+  --expiry)
+    require_value "$@"
+    OPT_EXPIRY="$2"
+    shift 2
+    ;;
+  --algo)
+    require_value "$@"
+    OPT_ALGO="$2"
+    if [[ $OPT_ALGO != "ed25519" && $OPT_ALGO != "rsa4096" ]]; then
+      error "Invalid algorithm: $OPT_ALGO (must be ed25519 or rsa4096)"
+      exit 1
+    fi
+    shift 2
+    ;;
+  --key-count)
+    require_value "$@"
+    OPT_KEY_COUNT="$2"
+    if ! [[ $OPT_KEY_COUNT =~ ^[1-9][0-9]*$ ]]; then
+      error "Invalid key count: $OPT_KEY_COUNT (must be a positive integer)"
+      exit 1
+    fi
+    shift 2
+    ;;
+  -h | --help)
+    usage
+    ;;
+  *)
+    error "Unknown option: $1"
+    error "Run with --help for the option list."
+    exit 1
+    ;;
+  esac
+done
+
 check_yubikey() {
+  # A dry run talks to no device, so there is nothing to detect.
+  if $DRY_RUN; then
+    return 0
+  fi
   if ! ykman info &>/dev/null; then
     error "No YubiKey detected. Please insert your YubiKey and try again."
     return 1
   fi
+}
+
+# One field of `ykman info`, or nothing when the token does not print it. The
+# Security Key series and tokens with the serial hidden print no serial line,
+# and under pipefail a grep that matched nothing ended the script without a
+# message.
+yubikey_info_field() {
+  ykman info 2>/dev/null |
+    awk -v field="$1" 'index($0, field) == 1 {print $NF; exit}' || true
+}
+
+# Read the serial and firmware of the token in the reader. A dry run reads
+# nothing and assumes a current firmware, so its output carries no real serial.
+read_yubikey() {
+  if $DRY_RUN; then
+    CURRENT_SERIAL="dry-run"
+    CURRENT_FIRMWARE="$MIN_ECC_FIRMWARE"
+    return 0
+  fi
+  CURRENT_SERIAL=$(yubikey_info_field "Serial number")
+  CURRENT_FIRMWARE=$(yubikey_info_field "Firmware version")
+  if [[ -z $CURRENT_SERIAL ]]; then
+    CURRENT_SERIAL="$NO_SERIAL"
+  fi
+}
+
+# ykman reaches the token through pcscd, and scdaemon keeps the card open once
+# gpg has used it. Stopping scdaemon hands the card back before a ykman call.
+# gpg starts it again on its next card operation.
+release_card() {
+  gpgconf --kill scdaemon 2>/dev/null || true
 }
 
 # Compare firmware versions: returns 0 if $1 >= $2
@@ -332,12 +465,41 @@ pinentry-program $(command -v pinentry-curses || command -v pinentry-tty || comm
 default-cache-ttl 60
 max-cache-ttl 120
 AGENTCONF
+
+  # The same setting yubikey.nix writes. ykman needs pcscd, and scdaemon's own
+  # CCID driver cannot share the reader with it.
+  cat >"$GNUPGHOME/scdaemon.conf" <<'SCDCONF'
+disable-ccid
+SCDCONF
+}
+
+# Create the temporary GNUPGHOME on ramfs (or tmpfs if unavailable) and start
+# an agent for it. A dry run creates the directory, so the mount is exercised,
+# and starts no agent since nothing will talk to one.
+setup_gnupghome() {
+  setup_secure_tmpdir
+  TEMP_GNUPGHOME=$(mktemp -d "$SECURE_TMPDIR/gnupg_XXXXXXXXXX")
+  chmod 700 "$TEMP_GNUPGHOME"
+  export GNUPGHOME="$TEMP_GNUPGHOME"
+
+  if [[ -n $RAMFS_MOUNT ]]; then
+    info "Temporary GNUPGHOME is on ramfs, which is never written to disk or swap."
+  fi
+
+  write_gnupg_config
+
+  if ! $DRY_RUN; then
+    gpgconf --kill gpg-agent 2>/dev/null || true
+    gpg-agent --daemon 2>/dev/null || true
+  fi
 }
 
 cleanup() {
   if [[ -n $TEMP_GNUPGHOME && -d $TEMP_GNUPGHOME ]]; then
-    # Kill any gpg-agent running for the temp home
-    GNUPGHOME="$TEMP_GNUPGHOME" gpgconf --kill gpg-agent 2>/dev/null || true
+    # Kill any gpg-agent running for the temp home. A dry run started none.
+    if ! $DRY_RUN; then
+      GNUPGHOME="$TEMP_GNUPGHOME" gpgconf --kill gpg-agent 2>/dev/null || true
+    fi
     rm -rf "$TEMP_GNUPGHOME"
     if [[ -n $RAMFS_MOUNT ]]; then
       info "Cleaned up temporary GNUPGHOME (ramfs, never written to disk or swap)."
@@ -349,9 +511,11 @@ cleanup() {
       info "Cleaned up temporary GNUPGHOME (tmpfs; pages may have reached swap)."
     fi
   fi
-  # The namespace takes the ramfs mount with it when this process exits, so
-  # only the empty mountpoint needs removing.
+  # The namespace takes the ramfs mount with it when this process exits. It is
+  # unmounted here all the same, since a mountpoint that is still in use cannot
+  # be removed and would be left behind as an empty directory.
   if [[ -n $RAMFS_MOUNT && -d $RAMFS_MOUNT ]]; then
+    umount "$RAMFS_MOUNT" 2>/dev/null || true
     rmdir "$RAMFS_MOUNT" 2>/dev/null || true
   fi
 }
@@ -386,7 +550,7 @@ phase_preflight() {
   header "Phase 0: Preflight Checks"
 
   # Check required tools
-  local tools=("gpg" "ykman" "pamu2fcfg" "age-plugin-yubikey" "ssh-to-age")
+  local tools=("gpg" "ykman" "pamu2fcfg" "age" "age-plugin-yubikey" "ssh-to-age")
   local missing=()
   for tool in "${tools[@]}"; do
     if ! command -v "$tool" &>/dev/null; then
@@ -404,19 +568,26 @@ phase_preflight() {
 
   # Detect initial YubiKey (for firmware/algorithm check)
   check_yubikey
-  local serial firmware
-  serial=$(ykman info 2>/dev/null | grep "Serial number" | awk '{print $NF}')
-  firmware=$(ykman info 2>/dev/null | grep "Firmware version" | awk '{print $NF}')
+  read_yubikey
+  local firmware="$CURRENT_FIRMWARE"
 
-  info "YubiKey detected:"
-  echo "  Serial:   $serial"
-  echo "  Firmware: $firmware"
+  if $DRY_RUN; then
+    dry_run_skip "ykman info (assuming firmware $firmware)"
+  else
+    info "YubiKey detected:"
+    echo "  Serial:   $CURRENT_SERIAL"
+    echo "  Firmware: ${firmware:-unreported}"
+  fi
 
   # Determine key algorithm
-  if [[ -n $OPT_ALGO ]]; then
+  if [[ -z $firmware && -z $OPT_ALGO ]]; then
+    error "This token reports no firmware version, so the key algorithm cannot be chosen."
+    error "Pass --algo ed25519 or --algo rsa4096 to choose one."
+    exit 1
+  elif [[ -n $OPT_ALGO ]]; then
     KEY_ALGO="$OPT_ALGO"
     info "Algorithm forced via --algo: $KEY_ALGO"
-    if [[ $KEY_ALGO == "ed25519" ]] && ! version_gte "$firmware" "$MIN_ECC_FIRMWARE"; then
+    if [[ $KEY_ALGO == "ed25519" && -n $firmware ]] && ! version_gte "$firmware" "$MIN_ECC_FIRMWARE"; then
       warn "Firmware $firmware may not support ed25519 (requires >= $MIN_ECC_FIRMWARE)."
       warn "Proceeding anyway as --algo was explicitly set."
     fi
@@ -437,16 +608,16 @@ detect_and_reset_yubikey() {
   local key_num="$1"
 
   check_yubikey
-  local serial
-  serial=$(ykman info 2>/dev/null | grep "Serial number" | awk '{print $NF}')
-  YUBIKEY_SERIALS+=("$serial")
+  read_yubikey
+  YUBIKEY_SERIALS+=("$CURRENT_SERIAL")
 
-  info "YubiKey #$((key_num + 1)) detected (serial: $serial)"
+  info "YubiKey #$((key_num + 1)) detected (serial: $CURRENT_SERIAL)"
 
   if prompt_yn "Factory reset the OpenPGP applet? (destroys existing PGP keys on card)"; then
     if $DRY_RUN; then
       dry_run_skip "ykman openpgp reset"
     else
+      release_card
       ykman openpgp reset
       success "OpenPGP applet reset."
     fi
@@ -456,6 +627,7 @@ detect_and_reset_yubikey() {
     if $DRY_RUN; then
       dry_run_skip "ykman fido reset"
     else
+      release_card
       ykman fido reset
       success "FIDO2 applet reset."
     fi
@@ -466,17 +638,23 @@ detect_and_reset_yubikey() {
 # This allows provisioning the same subkeys onto another YubiKey.
 restore_subkeys() {
   if $DRY_RUN; then
-    dry_run_skip "gpg --import $BACKUP_DIR/master-secret.key (restore subkeys for next YubiKey)"
+    dry_run_skip "gpg --import master-secret.key (restore subkeys for next YubiKey)"
     return
   fi
 
   info "Restoring subkeys from backup for next YubiKey..."
 
+  if [[ -z $MASTER_PLAINTEXT || ! -s $MASTER_PLAINTEXT ]]; then
+    error "The master key export is missing, so the subkeys cannot be restored."
+    error "Expected it at: ${MASTER_PLAINTEXT:-(not set)}"
+    exit 1
+  fi
+
   # Delete the stub keys first so GPG will accept the full import
   gpg --batch --yes --delete-secret-and-public-key "$KEY_FINGERPRINT" 2>/dev/null || true
 
   # Re-import the full secret key (master + subkeys)
-  gpg --batch --import "$BACKUP_DIR/master-secret.key" 2>/dev/null || {
+  gpg --batch --import "$MASTER_PLAINTEXT" 2>/dev/null || {
     error "Failed to restore subkeys from backup."
     exit 1
   }
@@ -488,8 +666,7 @@ restore_subkeys() {
 phase_generate_keys() {
   header "Phase 1: PGP Master Key Generation"
 
-  info "Master key will be generated in RAM-backed tmpfs (/dev/shm)."
-  info "It will never touch persistent storage."
+  info "Master key will be generated in a temporary GNUPGHOME held in memory."
   echo ""
 
   # Prompt for key details (skip if provided via CLI)
@@ -511,18 +688,7 @@ phase_generate_keys() {
   fi
   info "Key identity: $real_name <$email> (subkey expiry: $expiry)"
 
-  # Create the temporary GNUPGHOME on ramfs (or tmpfs if unavailable).
-  setup_secure_tmpdir
-  TEMP_GNUPGHOME=$(mktemp -d "$SECURE_TMPDIR/gnupg_XXXXXXXXXX")
-  chmod 700 "$TEMP_GNUPGHOME"
-  export GNUPGHOME="$TEMP_GNUPGHOME"
-
-  # Write hardened gpg.conf + gpg-agent.conf
-  write_gnupg_config
-
-  # Start a fresh agent for this GNUPGHOME
-  gpgconf --kill gpg-agent 2>/dev/null || true
-  gpg-agent --daemon 2>/dev/null || true
+  setup_gnupghome
 
   if $DRY_RUN; then
     dry_run_skip "gpg --quick-gen-key \"$real_name <$email>\" $KEY_ALGO cert never"
@@ -675,6 +841,111 @@ check_backup_target() {
   warn "--force-volatile given: continuing anyway."
 }
 
+# The fingerprints of the key in the keyring, primary and subkeys, one a line.
+keyring_fingerprints() {
+  gpg --list-keys --with-colons "$KEY_FINGERPRINT" 2>/dev/null |
+    awk -F: '$1 == "fpr" {print $10}' | sort -u || true
+}
+
+# The fingerprints gpg finds in an export file. Nothing is imported.
+file_fingerprints() {
+  gpg --batch --show-keys --with-colons "$1" 2>/dev/null |
+    awk -F: '$1 == "fpr" {print $10}' | sort -u || true
+}
+
+# True when every key in an export file is also in the keyring, which makes
+# the file a subset of what a fresh export of the keyring holds.
+export_is_covered() {
+  local in_file
+  in_file=$(file_fingerprints "$1")
+  [[ -n $in_file ]] &&
+    [[ -z $(comm -23 <(printf '%s\n' "$in_file") <(keyring_fingerprints)) ]]
+}
+
+# True for a path inside the temporary GNUPGHOME, which is memory and goes
+# when the script exits. Everything else is treated as the backup medium.
+in_gnupghome() {
+  [[ -n $TEMP_GNUPGHOME && $1 == "$TEMP_GNUPGHOME"/* ]]
+}
+
+# Remove a plaintext export. shred overwrites the blocks of a file in place,
+# which removes the data on the ramfs and on a filesystem that writes in place.
+# Flash media remap blocks and copy-on-write filesystems write new ones, so the
+# old contents can stay readable there and nothing run from here changes that.
+# The operator is told once.
+SHRED_WARNED=false
+remove_plaintext() {
+  local file="$1"
+  [[ -e $file ]] || return 0
+  shred -u "$file" 2>/dev/null || rm -f "$file"
+  if in_gnupghome "$file"; then
+    return 0
+  fi
+  if ! $SHRED_WARNED; then
+    SHRED_WARNED=true
+    warn "shred overwrites a file in place. Flash media and copy-on-write"
+    warn "filesystems such as btrfs keep the old blocks, so treat the medium"
+    warn "holding $(dirname "$file") as one that has carried the plaintext."
+  fi
+}
+
+# Export one part of the key to <target>.new, read the new file back, and only
+# then move it over <target>. A redirect straight onto the target truncates it
+# before gpg has produced anything, and on a rotation the target is the only
+# backup.
+#
+# Reading back means asking gpg to list the new file and comparing the
+# fingerprints in it with the keyring. An export that stopped early, or one a
+# cancelled passphrase prompt left empty, replaces nothing.
+export_verified() {
+  local kind="$1" target="$2"
+  local new="$target.new"
+  local block="-----BEGIN PGP PRIVATE KEY BLOCK-----" # gitleaks:allow (the armor header an export is compared with, not a key)
+  local -a export_args=(--export-secret-keys)
+  local want got first_line=""
+
+  case "$kind" in
+  subkeys) export_args=(--export-secret-subkeys) ;;
+  public)
+    export_args=(--export)
+    block="-----BEGIN PGP PUBLIC KEY BLOCK-----"
+    ;;
+  esac
+
+  rm -f "$new"
+  if ! gpg --armor "${export_args[@]}" "$KEY_FINGERPRINT" >"$new"; then
+    remove_plaintext "$new"
+    error "gpg could not export the $kind key. $target was not changed."
+    return 1
+  fi
+
+  want=$(keyring_fingerprints)
+  got=$(file_fingerprints "$new")
+  IFS= read -r first_line <"$new" || true
+  if [[ $first_line != "$block" || -z $want || $got != "$want" ]]; then
+    remove_plaintext "$new"
+    error "The $kind export did not read back as the key in the keyring."
+    error "$target was not changed."
+    return 1
+  fi
+
+  mv -f "$new" "$target"
+}
+
+# Stop the run and say what it leaves behind. Every hard stop after the backup
+# phase goes through here, so the operator always learns whether plaintext
+# exports are still on the backup medium.
+abort_run() {
+  error "$1"
+  if [[ -n $MASTER_PLAINTEXT && -e $MASTER_PLAINTEXT ]] && ! in_gnupghome "$MASTER_PLAINTEXT"; then
+    error "Nothing was removed. The exports in $BACKUP_DIR are still plaintext."
+    error "Encrypt them or remove them before the medium leaves your hands."
+  elif [[ -n $BACKUP_DIR ]]; then
+    error "Nothing was removed from $BACKUP_DIR."
+  fi
+  exit 1
+}
+
 phase_backup() {
   header "Phase 2: Master Key Backup"
 
@@ -697,6 +968,9 @@ phase_backup() {
 
   check_backup_target "$BACKUP_DIR"
 
+  MASTER_PLAINTEXT="$BACKUP_DIR/master-secret.key"
+  SUBKEYS_PLAINTEXT="$BACKUP_DIR/subkeys-secret.key"
+
   if $DRY_RUN; then
     dry_run_skip "mkdir -p $BACKUP_DIR"
     dry_run_skip "gpg --export-secret-keys -> $BACKUP_DIR/master-secret.key"
@@ -712,14 +986,11 @@ phase_backup() {
 
   info "Exporting keys to $BACKUP_DIR ..."
 
-  # Export master + subkeys
-  gpg --armor --export-secret-keys "$KEY_FINGERPRINT" >"$BACKUP_DIR/master-secret.key"
-
-  # Export subkeys only
-  gpg --armor --export-secret-subkeys "$KEY_FINGERPRINT" >"$BACKUP_DIR/subkeys-secret.key"
-
-  # Export public key
-  gpg --armor --export "$KEY_FINGERPRINT" >"$BACKUP_DIR/public.key"
+  # Master + subkeys, subkeys only, and the public key. Both secret exports
+  # are plaintext until the encrypted backup phase has run.
+  export_verified master "$MASTER_PLAINTEXT" || exit 1
+  export_verified subkeys "$SUBKEYS_PLAINTEXT" || exit 1
+  export_verified public "$BACKUP_DIR/public.key" || exit 1
 
   # Copy revocation cert
   local rev_cert="$GNUPGHOME/openpgp-revocs.d/$KEY_FINGERPRINT.rev"
@@ -744,6 +1015,141 @@ phase_backup() {
 # ANCHOR_END: backup
 
 # ANCHOR: keytocard
+# The newest usable subkey with one capability, read from a colon listing on
+# stdin. A rotated key carries its expired subkeys beside the new ones, so the
+# position in the listing says nothing about which subkey belongs in a slot.
+subkey_for_capability() {
+  awk -F: -v cap="$1" '
+    $1 == "sub" { want = ($2 !~ /^[rei]$/ && index($12, cap) > 0); created = $6 + 0; next }
+    $1 == "fpr" && want { if (created >= best) { best = created; fpr = $10 }; want = 0 }
+    END { print fpr }'
+}
+
+select_card_subkeys() {
+  local listing
+  listing=$(gpg --list-keys --with-colons "$KEY_FINGERPRINT" 2>/dev/null || true)
+  SUBKEY_FPR_SIGN=$(subkey_for_capability s <<<"$listing")
+  SUBKEY_FPR_ENCR=$(subkey_for_capability e <<<"$listing")
+  SUBKEY_FPR_AUTH=$(subkey_for_capability a <<<"$listing")
+  if [[ -z $SUBKEY_FPR_SIGN || -z $SUBKEY_FPR_ENCR || -z $SUBKEY_FPR_AUTH ]]; then
+    abort_run "The key lacks a usable signing, encryption or authentication subkey, so nothing was moved to the YubiKey."
+  fi
+}
+
+# The fingerprints in the three card slots, as the card reports them. An empty
+# slot reads as an empty string.
+read_card_slots() {
+  local line
+  line=$(gpg --card-status --with-colons 2>/dev/null |
+    awk -F: '$1 == "fpr" {print $2 ":" $3 ":" $4; exit}' || true)
+  IFS=: read -r CARD_FPR_SIGN CARD_FPR_ENCR CARD_FPR_AUTH <<<"${line:-::}" || true
+  CARD_FPR_SIGN="${CARD_FPR_SIGN^^}"
+  CARD_FPR_ENCR="${CARD_FPR_ENCR^^}"
+  CARD_FPR_AUTH="${CARD_FPR_AUTH^^}"
+  [[ $CARD_FPR_SIGN =~ ^0+$ ]] && CARD_FPR_SIGN=""
+  [[ $CARD_FPR_ENCR =~ ^0+$ ]] && CARD_FPR_ENCR=""
+  [[ $CARD_FPR_AUTH =~ ^0+$ ]] && CARD_FPR_AUTH=""
+  return 0
+}
+
+check_card_slot() {
+  local label="$1" on_card="$2" expected="${3^^}"
+  if [[ -z $on_card ]]; then
+    error "$label slot is empty."
+    return 1
+  fi
+  if [[ $on_card != "$expected" ]]; then
+    error "$label slot holds $on_card, expected $expected."
+    return 1
+  fi
+  success "$label slot holds $expected."
+}
+
+# True only when each slot holds the subkey chosen for it.
+verify_card_slots() {
+  local ok=true
+  read_card_slots
+  check_card_slot "Signature" "$CARD_FPR_SIGN" "$SUBKEY_FPR_SIGN" || ok=false
+  check_card_slot "Encryption" "$CARD_FPR_ENCR" "$SUBKEY_FPR_ENCR" || ok=false
+  check_card_slot "Authentication" "$CARD_FPR_AUTH" "$SUBKEY_FPR_AUTH" || ok=false
+  $ok
+}
+
+# Run one `gpg --edit-key` session and answer its questions by the keyword gpg
+# announces on its status channel. Feeding it lines in a fixed order goes wrong
+# as soon as gpg asks one question more or fewer than expected, since every
+# later answer then lands on the wrong question. Here a question with no known
+# answer ends the session, and gpg leaves the key as it was.
+#
+# The first two arguments are the card slot and the answer to "replace the key
+# in this slot". The rest are the commands for the edit prompt, in order.
+#
+# gpg runs in the foreground and keeps the terminal. gpg-agent asks for the key
+# passphrase and the admin PIN through pinentry there, so neither passes
+# through this script.
+edit_key_scripted() {
+  local slot="$1" replace="$2"
+  shift 2
+  local cmd_fifo="$GNUPGHOME/edit-commands" status_fifo="$GNUPGHOME/edit-status"
+  local responder rc=0
+
+  rm -f "$cmd_fifo" "$status_fifo"
+  mkfifo "$cmd_fifo" "$status_fifo"
+
+  (
+    trap '' PIPE
+    exec 3>"$cmd_fifo" 4<"$status_fifo"
+    answered=0
+    while IFS= read -r line <&4; do
+      case "$line" in
+      "[GNUPG:] GET_LINE keyedit.prompt")
+        if [[ $# -gt 0 ]]; then
+          reply="$1"
+          shift
+        else
+          reply="quit"
+        fi
+        ;;
+      "[GNUPG:] GET_LINE cardedit.genkeys.storekeytype") reply="$slot" ;;
+      "[GNUPG:] GET_BOOL cardedit.genkeys.replace_key") reply="$replace" ;;
+      "[GNUPG:] GET_BOOL keyedit.save.okay") reply="n" ;;
+      "[GNUPG:] GET_"*)
+        error "gpg asked a question this script has no answer for: ${line#\[GNUPG:\] }"
+        exit 3
+        ;;
+      *) continue ;;
+      esac
+      # gpg repeats a question whose answer it did not accept. One subkey takes
+      # five answers, so a dozen means the session is going in circles.
+      answered=$((answered + 1))
+      if ((answered > 12)); then
+        error "gpg kept repeating its questions, so the session was ended."
+        exit 3
+      fi
+      printf '%s\n' "$reply" >&3 || exit 3
+    done
+  ) &
+  responder=$!
+
+  gpg --command-fd 3 --status-fd 4 --edit-key "$KEY_FINGERPRINT" \
+    3<"$cmd_fifo" 4>"$status_fifo" || rc=$?
+  wait "$responder" || rc=$?
+  rm -f "$cmd_fifo" "$status_fifo"
+  return "$rc"
+}
+
+move_subkey_to_card() {
+  local label="$1" slot="$2" fpr="$3" on_card="$4" replace="$5"
+  if [[ $on_card == "${fpr^^}" ]]; then
+    info "$label slot already holds this subkey."
+    return 0
+  fi
+  info "Moving the $label subkey to slot $slot..."
+  if ! edit_key_scripted "$slot" "$replace" "key $fpr" "keytocard" "save"; then
+    warn "gpg did not finish moving the $label subkey."
+  fi
+}
+
 phase_keytocard() {
   header "Phase 3: Move Subkeys to YubiKey"
 
@@ -755,91 +1161,132 @@ phase_keytocard() {
 
   if $DRY_RUN; then
     dry_run_skip "gpg --edit-key $KEY_FINGERPRINT keytocard (3 subkeys)"
+    dry_run_skip "gpg --card-status (compare the three slots with the subkeys)"
     info "Would move Sign, Encrypt, and Authenticate subkeys to YubiKey."
     return
   fi
 
-  info "You need to run the following commands interactively."
-  info "Default PINs: user=123456, admin=12345678"
-  echo ""
-  echo -e "${BOLD}Run this command:${NC}"
-  echo ""
-  echo "  GNUPGHOME=$GNUPGHOME gpg --edit-key $KEY_FINGERPRINT"
-  echo ""
-  echo -e "${BOLD}Then execute these steps in the GPG prompt:${NC}"
-  echo ""
-  echo "  1. Select signature subkey and move to card:"
-  echo "     gpg> key 1"
-  echo "     gpg> keytocard"
-  echo "     Your selection? 1  (Signature key)"
-  echo "     gpg> key 1  (deselect)"
-  echo ""
-  echo "  2. Select encryption subkey and move to card:"
-  echo "     gpg> key 2"
-  echo "     gpg> keytocard"
-  echo "     Your selection? 2  (Encryption key)"
-  echo "     gpg> key 2  (deselect)"
-  echo ""
-  echo "  3. Select authentication subkey and move to card:"
-  echo "     gpg> key 3"
-  echo "     gpg> keytocard"
-  echo "     Your selection? 3  (Authentication key)"
-  echo ""
-  echo "  4. Save and quit:"
-  echo "     gpg> save"
+  select_card_subkeys
+
+  # gpg asks before it overwrites a slot, and the answer has to be decided
+  # before the session starts.
+  local replace="n"
+  read_card_slots
+  if [[ -n $CARD_FPR_SIGN$CARD_FPR_ENCR$CARD_FPR_AUTH ]]; then
+    warn "The OpenPGP applet already holds keys:"
+    echo "  Signature:      ${CARD_FPR_SIGN:-(empty)}"
+    echo "  Encryption:     ${CARD_FPR_ENCR:-(empty)}"
+    echo "  Authentication: ${CARD_FPR_AUTH:-(empty)}"
+    if ! prompt_yn "Replace them with the subkeys of $KEY_FINGERPRINT?"; then
+      abort_run "The slots were left as they are, so the YubiKey does not hold this key."
+    fi
+    replace="y"
+  fi
+
+  info "gpg asks for the master key passphrase and for the OpenPGP admin PIN."
+  info "The factory admin PIN is 12345678."
   echo ""
 
-  read -rp "$(echo -e "${BOLD}Press Enter when you have completed the above steps...${NC}")"
+  move_subkey_to_card "Signature" 1 "$SUBKEY_FPR_SIGN" "$CARD_FPR_SIGN" "$replace"
+  move_subkey_to_card "Encryption" 2 "$SUBKEY_FPR_ENCR" "$CARD_FPR_ENCR" "$replace"
+  move_subkey_to_card "Authentication" 3 "$SUBKEY_FPR_AUTH" "$CARD_FPR_AUTH" "$replace"
 
-  # Verify keys are on card
+  # The card is asked what it holds, and the answer is compared with the
+  # subkeys chosen above. An empty slot or another key stops the run here,
+  # before any PIN is changed and long before an export is removed.
+  echo ""
   info "Verifying keys are on the YubiKey..."
-  local card_status
-  card_status=$(GNUPGHOME="$GNUPGHOME" gpg --card-status 2>/dev/null || true)
-
-  if echo "$card_status" | grep -q "Signature key"; then
-    success "Signature key found on card."
-  else
-    warn "Signature key not detected on card."
-  fi
-
-  if echo "$card_status" | grep -q "Encryption key"; then
-    success "Encryption key found on card."
-  else
-    warn "Encryption key not detected on card."
-  fi
-
-  if echo "$card_status" | grep -q "Authentication key"; then
-    success "Authentication key found on card."
-  else
-    warn "Authentication key not detected on card."
-  fi
+  until verify_card_slots; do
+    echo ""
+    error "The YubiKey does not hold all three subkeys."
+    if ! prompt_yn "Open gpg --edit-key here to move the missing ones by hand?" "y"; then
+      abort_run "The subkeys are not on the YubiKey."
+    fi
+    echo ""
+    echo "  For each line, enter the key command, then keytocard, then the slot"
+    echo "  number, then the same key command again to deselect the subkey."
+    echo "  Leave out a slot the check above reported as holding its subkey."
+    echo ""
+    echo "    key $SUBKEY_FPR_SIGN    slot 1 (Signature key)"
+    echo "    key $SUBKEY_FPR_ENCR    slot 2 (Encryption key)"
+    echo "    key $SUBKEY_FPR_AUTH    slot 3 (Authentication key)"
+    echo ""
+    echo "  Finish with: save"
+    echo ""
+    gpg --edit-key "$KEY_FINGERPRINT" || true
+    echo ""
+    info "Verifying keys are on the YubiKey..."
+  done
+  success "All three subkeys are on the YubiKey."
 }
 # ANCHOR_END: keytocard
+
+# Offer to change one credential, and record whether the change ran. The script
+# cannot ask a token whether a PIN is still the factory one without spending a
+# retry, so it goes by what happened in this run. A credential that was not
+# changed here stops the run unless --allow-default-pins was given, which is
+# the flag for a token whose PINs were set on an earlier day.
+change_credential() {
+  local label="$1"
+  shift
+  local failures=0
+  while true; do
+    if prompt_yn "Change the $label?" "y"; then
+      release_card
+      if "$@"; then
+        success "$label changed."
+        return 0
+      fi
+      error "The $label was not changed."
+      failures=$((failures + 1))
+      # A third wrong entry of the current value blocks the credential.
+      if ((failures >= 2)); then
+        abort_run "Two attempts to change the $label failed. A third wrong entry can block it, so the run stops here."
+      fi
+      continue
+    fi
+    if $OPT_ALLOW_DEFAULT_PINS; then
+      warn "--allow-default-pins given: the $label stays as it was."
+      UNCHANGED_CREDENTIALS+=("YubiKey $CURRENT_SERIAL: $label")
+      return 0
+    fi
+    error "The $label was not changed in this run, and its factory value is public."
+    if ! prompt_yn "Go back and change it?" "y"; then
+      abort_run "Refusing to finish with a $label that was not changed. Pass --allow-default-pins if it was already set on this token."
+    fi
+  done
+}
 
 phase_pins() {
   header "Phase 4: YubiKey PIN Configuration"
 
   check_yubikey
 
-  info "Default PINs: user=123456, admin=12345678"
+  info "Factory values: OpenPGP user PIN 123456, admin PIN 12345678,"
+  info "PIV PIN 123456, PIV PUK 12345678."
   echo ""
 
   if $DRY_RUN; then
     dry_run_skip "ykman openpgp access change-pin"
     dry_run_skip "ykman openpgp access change-admin-pin"
+    dry_run_skip "ykman piv access change-pin"
+    dry_run_skip "ykman piv access change-puk"
+    dry_run_skip "ykman piv access change-management-key --generate --protect"
     info "Would prompt to change PINs and set cardholder name."
     return
   fi
 
-  if prompt_yn "Change the OpenPGP user PIN?"; then
-    ykman openpgp access change-pin
-    success "User PIN changed."
-  fi
+  change_credential "OpenPGP user PIN" ykman openpgp access change-pin
+  change_credential "OpenPGP admin PIN" ykman openpgp access change-admin-pin
 
-  if prompt_yn "Change the OpenPGP admin PIN?"; then
-    ykman openpgp access change-admin-pin
-    success "Admin PIN changed."
-  fi
+  # The PIV applet is changed here, before Phase 6 writes an age identity
+  # into it, so the identity is never guarded by the factory PIN. The
+  # management key is replaced by a random one stored on the token behind the
+  # PIN. age-plugin-yubikey accepts the factory key or a PIN-protected one and
+  # refuses any other.
+  change_credential "PIV PIN" ykman piv access change-pin
+  change_credential "PIV PUK" ykman piv access change-puk
+  change_credential "PIV management key" ykman piv access change-management-key --generate --protect
 
   if prompt_yn "Set cardholder name on the YubiKey?"; then
     local name
@@ -915,11 +1362,14 @@ phase_age() {
   info "Generating age identity (touch policy: always, PIN policy: once)..."
   echo ""
 
+  # Only stdout is captured, which is where the plugin writes the identity.
+  # Its PIN and touch prompts go to the terminal.
+  release_card
   full_output=$(age-plugin-yubikey --generate \
     --slot "$slot" \
     --name "sops-nix" \
     --pin-policy once \
-    --touch-policy always 2>&1) || {
+    --touch-policy always) || {
     error "age-plugin-yubikey generation failed."
     warn "You can retry manually: age-plugin-yubikey --generate"
     AGE_IDENTITIES+=("")
@@ -929,8 +1379,8 @@ phase_age() {
   }
 
   # Extract the identity line and recipient
-  identity=$(echo "$full_output" | grep "^AGE-PLUGIN-YUBIKEY-" || true)
-  recipient=$(echo "$full_output" | grep "^age1yubikey1q" || true)
+  identity=$(echo "$full_output" | grep "^AGE-PLUGIN-YUBIKEY-" | head -n 1 || true)
+  recipient=$(echo "$full_output" | grep -o "age1yubikey1[0-9a-z]*" | head -n 1 || true)
 
   if [[ -n $identity ]]; then
     success "age identity generated."
@@ -1030,8 +1480,7 @@ phase_import_pubkey() {
 }
 
 # ANCHOR: age-backup
-# Encrypt the plaintext master key backup, verify the result, and remove the
-# plaintext.
+# Encrypt the plaintext exports, verify the results, and remove the plaintext.
 #
 # This runs after every YubiKey is provisioned rather than inside phase_backup,
 # and the ordering is forced rather than chosen. The backup has to exist before
@@ -1040,113 +1489,212 @@ phase_import_pubkey() {
 # between each key. The age recipients do not exist until Phase 6 has run for a
 # token. Encrypting earlier is therefore impossible in both directions.
 #
-# Two files, because `age` refuses -p together with -r. The token copy is
-# encrypted to the age recipients this run provisioned plus anything given with
-# --age-recipient. The passphrase copy exists so that losing every token does not
-# lose the identity, which is the exact case the master key backup is for.
-phase_age_backup() {
-  local plaintext="$BACKUP_DIR/master-secret.key"
-  local enc="$plaintext.age"
-  local pass_enc="$plaintext.pass.age"
+# Two files for each export, because `age` refuses -p together with -r. The
+# token copy is encrypted to the age recipients this run provisioned plus
+# anything given with --age-recipient. The passphrase copy exists so that losing
+# every token does not lose the identity, which is the exact case the master key
+# backup is for.
+BACKUP_RECIPIENTS=()
+BACKUP_IDFILE=""
 
-  $OPT_NO_AGE_BACKUP && return 0
-  [[ -n $BACKUP_DIR && -f $plaintext ]] || return 0
+# One export through the whole sequence. $1 is the plaintext, which sits in the
+# backup directory on a first run and in the ramfs after an encrypted import.
+# $2 is the path in the backup directory the encrypted copies are named after.
+#
+# Each copy is written as <name>.new, decrypted, compared byte for byte with the
+# plaintext, and only then moved into place, so a copy from an earlier run is
+# never replaced by one that has not been opened.
+protect_export() {
+  local plaintext="$1" dest="$2"
+  local name enc="$2.age" pass_enc="$2.pass.age"
+  local check="$GNUPGHOME/verify.tmp"
+  local token_ok=false pass_ok=false on_medium=false
+  name=$(basename "$dest")
+  in_gnupghome "$plaintext" || on_medium=true
 
-  header "Encrypted Master Key Backup"
-
-  if $DRY_RUN; then
-    dry_run_skip "age -r <recipients> -o $enc $plaintext"
-    dry_run_skip "age -p -o $pass_enc $plaintext"
-    dry_run_skip "verify both by decrypting, then rm $plaintext"
-    return 0
-  fi
-
-  # Recipients: the tokens provisioned in this run, plus anything supplied.
-  local -a recipients=()
-  local r
-  for r in "${AGE_RECIPIENTS[@]}"; do
-    [[ -n $r ]] && recipients+=("$r")
-  done
-  for r in "${OPT_AGE_RECIPIENTS[@]+"${OPT_AGE_RECIPIENTS[@]}"}"; do
-    [[ -n $r ]] && recipients+=("$r")
-  done
-
-  local token_ok=false pass_ok=false
-
-  if [[ ${#recipients[@]} -gt 0 ]]; then
+  if [[ ${#BACKUP_RECIPIENTS[@]} -gt 0 ]]; then
     local -a args=()
-    for r in "${recipients[@]}"; do args+=(-r "$r"); done
-    info "Encrypting to ${#recipients[@]} age recipient(s)..."
-    if age "${args[@]}" -o "$enc" "$plaintext"; then
+    local r
+    for r in "${BACKUP_RECIPIENTS[@]}"; do args+=(-r "$r"); done
+    info "Encrypting $name to ${#BACKUP_RECIPIENTS[@]} age recipient(s)..."
+    if age "${args[@]}" -o "$enc.new" "$plaintext"; then
       # Decrypting a YubiKey recipient needs the token in the reader, its PIN
       # and a touch, so this proves the file opens with hardware rather than
       # only that age wrote something. It can only test the token currently
       # inserted, which after a multi-key run is the last one provisioned.
       info "Verifying $enc (this needs the inserted YubiKey's PIN and a touch)..."
-      # A real file rather than process substitution, since age reads the
-      # identity file directly and /dev/fd paths are not seekable. It lives in
-      # the ramfs GNUPGHOME and goes with it.
-      local idfile="$GNUPGHOME/age-identities"
-      printf '%s\n' "${AGE_IDENTITIES[@]}" >"$idfile"
-      if age -d -i "$idfile" -o "$GNUPGHOME/verify.age" "$enc" &&
-        cmp -s "$plaintext" "$GNUPGHOME/verify.age"; then
+      if [[ -s $BACKUP_IDFILE ]] &&
+        age -d -i "$BACKUP_IDFILE" -o "$check" "$enc.new" &&
+        cmp -s "$plaintext" "$check"; then
+        mv -f "$enc.new" "$enc"
         token_ok=true
         success "Token-encrypted backup verified: $enc"
+      elif [[ -e $enc ]]; then
+        warn "Could not verify the new token-encrypted copy of $name."
+        warn "$enc from an earlier run was kept. The new copy is $enc.new."
       else
+        mv -f "$enc.new" "$enc"
         warn "Could not verify $enc against the inserted token."
         warn "The file was written, but nothing here has proved it opens."
       fi
-      rm -f "$idfile" "$GNUPGHOME/verify.age"
+      rm -f "$check"
     else
-      error "Encrypting to age recipients failed."
-      rm -f "$enc"
+      error "Encrypting $name to age recipients failed."
+      rm -f "$enc.new"
     fi
   else
-    warn "No age recipients captured, so no token-encrypted copy was made."
+    warn "No age recipients captured, so no token-encrypted copy of $name was made."
   fi
 
   if ! $OPT_NO_AGE_PASSPHRASE; then
     echo ""
-    info "Now a passphrase-encrypted copy, so losing every YubiKey does not"
-    info "lose the identity. Use a passphrase you can recover without this host."
-    if age -p -o "$pass_enc" "$plaintext"; then
+    info "Now a passphrase-encrypted copy of $name, so losing every YubiKey does"
+    info "not lose the identity. Use a passphrase you can recover without this host."
+    if age -p -o "$pass_enc.new" "$plaintext"; then
       info "Verifying $pass_enc (re-enter the same passphrase)..."
-      if age -d -o "$GNUPGHOME/verify.pass" "$pass_enc" &&
-        cmp -s "$plaintext" "$GNUPGHOME/verify.pass"; then
+      if age -d -o "$check" "$pass_enc.new" &&
+        cmp -s "$plaintext" "$check"; then
+        mv -f "$pass_enc.new" "$pass_enc"
         pass_ok=true
         success "Passphrase-encrypted backup verified: $pass_enc"
       else
-        error "Could not verify $pass_enc."
-        rm -f "$pass_enc"
+        error "Could not verify the passphrase-encrypted copy of $name."
+        rm -f "$pass_enc.new"
       fi
-      rm -f "$GNUPGHOME/verify.pass"
+      rm -f "$check"
     else
       error "Passphrase encryption failed or was cancelled."
-      rm -f "$pass_enc"
+      rm -f "$pass_enc.new"
     fi
   fi
 
   # The plaintext goes only against a copy that has been decrypted and compared
-  # byte for byte in this run. Removing the only copy of a master key on the
-  # strength of a write that returned zero is the one mistake this must not
-  # make, so an unverified encrypt keeps the plaintext and says why.
-  if $OPT_KEEP_PLAINTEXT; then
-    warn "--keep-plaintext given: $plaintext left in place."
-    warn "It is an unencrypted master key. Store it accordingly."
+  # byte for byte in this run. Removing the only copy of a key on the strength
+  # of a write that returned zero is the one mistake this must not make, so an
+  # unverified encrypt keeps the plaintext and says why.
+  if $pass_ok || $token_ok; then
+    if $OPT_KEEP_PLAINTEXT && $on_medium; then
+      warn "--keep-plaintext given: $plaintext left in place."
+      warn "It is unencrypted key material. Store it accordingly."
+      return 0
+    fi
+    remove_plaintext "$plaintext"
+    success "Plaintext $name removed; encrypted copies remain."
+    # A plaintext file of the same name that an earlier run left behind. It
+    # goes only when every key in it is in the export just encrypted.
+    if [[ $dest != "$plaintext" && -e $dest ]]; then
+      if ! $OPT_KEEP_PLAINTEXT && export_is_covered "$dest"; then
+        remove_plaintext "$dest"
+        info "Removed $dest from an earlier run. The new encrypted copy holds every key in it."
+      else
+        PLAINTEXT_LEFT+=("$dest")
+      fi
+    fi
+    if ! $pass_ok; then
+      warn "Only the token-encrypted copy of $name verified. Losing every YubiKey"
+      warn "now means losing it. Consider re-running with a passphrase copy."
+    fi
     return 0
   fi
 
-  if $pass_ok || $token_ok; then
-    shred -u "$plaintext" 2>/dev/null || rm -f "$plaintext"
-    success "Plaintext master key removed; encrypted copies remain."
-    if ! $pass_ok; then
-      warn "Only the token-encrypted copy verified. Losing every YubiKey now"
-      warn "means losing the identity. Consider re-running with a passphrase copy."
-    fi
-  else
+  if $on_medium; then
     warn "No encrypted copy verified, so $plaintext was left in place."
     warn "Do not delete it until you have a copy you have opened."
+    PLAINTEXT_LEFT+=("$plaintext")
+    return 0
   fi
+
+  # The plaintext is in the ramfs and goes when the script exits. Without a
+  # verified copy, anything generated in this run would exist nowhere else.
+  error "No encrypted copy of $name verified, and the plaintext is held in memory only."
+  if prompt_yn "Write it to $dest unencrypted so it is not lost?" "y"; then
+    if cp "$plaintext" "$dest.new" && cmp -s "$plaintext" "$dest.new"; then
+      mv -f "$dest.new" "$dest"
+      PLAINTEXT_LEFT+=("$dest")
+    else
+      rm -f "$dest.new"
+      error "Could not write $dest."
+    fi
+  else
+    warn "$name was not saved. The backup in $BACKUP_DIR is as it was before this run."
+  fi
+  return 0
+}
+
+phase_age_backup() {
+  [[ -n $BACKUP_DIR && -n $MASTER_PLAINTEXT ]] || return 0
+
+  local master_dest="$BACKUP_DIR/master-secret.key"
+  local subkeys_dest="$BACKUP_DIR/subkeys-secret.key"
+
+  if $OPT_NO_AGE_BACKUP; then
+    if in_gnupghome "$MASTER_PLAINTEXT"; then
+      warn "--no-age-backup given: the backup in $BACKUP_DIR was not updated."
+      warn "Subkeys generated in this run exist only on the YubiKeys."
+    fi
+    return 0
+  fi
+
+  if $DRY_RUN; then
+    header "Encrypted Key Backup"
+    dry_run_skip "age -r <recipients> -o $master_dest.age.new, verify, mv to $master_dest.age"
+    dry_run_skip "age -p -o $master_dest.pass.age.new, verify, mv to $master_dest.pass.age"
+    dry_run_skip "the same two copies of $subkeys_dest"
+    dry_run_skip "shred the plaintext exports once a copy of each has verified"
+    return 0
+  fi
+
+  [[ -f $MASTER_PLAINTEXT ]] || return 0
+
+  header "Encrypted Key Backup"
+
+  # Recipients: the tokens provisioned in this run, plus anything supplied.
+  local r
+  BACKUP_RECIPIENTS=()
+  for r in "${AGE_RECIPIENTS[@]}"; do
+    [[ -n $r ]] && BACKUP_RECIPIENTS+=("$r")
+  done
+  for r in "${OPT_AGE_RECIPIENTS[@]+"${OPT_AGE_RECIPIENTS[@]}"}"; do
+    [[ -n $r ]] && BACKUP_RECIPIENTS+=("$r")
+  done
+
+  # A real file rather than process substitution, since age reads the identity
+  # file directly and /dev/fd paths are not seekable. It lives in the ramfs
+  # GNUPGHOME and goes with it.
+  BACKUP_IDFILE="$GNUPGHOME/age-identities"
+  : >"$BACKUP_IDFILE"
+  for r in "${AGE_IDENTITIES[@]}"; do
+    [[ -n $r ]] && printf '%s\n' "$r" >>"$BACKUP_IDFILE"
+  done
+
+  if [[ -e $master_dest.age && ${#BACKUP_RECIPIENTS[@]} -gt 0 ]]; then
+    warn "$master_dest.age exists and is replaced once the new copy verifies."
+    warn "The new copy opens with the YubiKeys provisioned in this run and with"
+    warn "any --age-recipient. Recipients of the old copy are not carried over."
+  fi
+  if ! $OPT_NO_AGE_PASSPHRASE; then
+    info "age asks for the passphrase twice to encrypt each export and once to"
+    info "verify it. Use the same passphrase for both exports."
+  fi
+
+  protect_export "$MASTER_PLAINTEXT" "$master_dest"
+  if [[ -n $SUBKEYS_PLAINTEXT && -f $SUBKEYS_PLAINTEXT ]]; then
+    echo ""
+    protect_export "$SUBKEYS_PLAINTEXT" "$subkeys_dest"
+  fi
+
+  # The plaintext file a rotation started from, when it was not the file the
+  # new export replaced. It goes on the same terms as any older plaintext.
+  if [[ -n $IMPORTED_PLAINTEXT && -e $IMPORTED_PLAINTEXT ]] && ! $OPT_KEEP_PLAINTEXT; then
+    if [[ ! -e $MASTER_PLAINTEXT ]] && export_is_covered "$IMPORTED_PLAINTEXT"; then
+      remove_plaintext "$IMPORTED_PLAINTEXT"
+      info "Removed $IMPORTED_PLAINTEXT. The new encrypted copy holds every key in it."
+    else
+      PLAINTEXT_LEFT+=("$IMPORTED_PLAINTEXT")
+    fi
+  fi
+
+  rm -f "$BACKUP_IDFILE"
 }
 # ANCHOR_END: age-backup
 
@@ -1247,13 +1795,32 @@ phase_summary() {
   # Beside the backup rather than in /tmp. It carries the keygrip, the age
   # recipients and the U2F credential lines, all of which the operator needs
   # later to fill in host configuration, and none of which survives a reboot in
-  # a temp directory. Falls back to the working directory when there is no
-  # backup directory, as in --from-backup runs that never set one.
-  local summary_file summary_dir
+  # a temp directory. It never goes to the working directory, which may be a
+  # public checkout. When the backup directory is gone, as when the medium was
+  # unmounted during the run, it goes to a private directory the script creates.
+  local summary_file summary_dir fallback_base="${XDG_RUNTIME_DIR:-}"
+  if [[ -z $fallback_base || ! -d $fallback_base || ! -w $fallback_base ]]; then
+    fallback_base="/tmp"
+  fi
+
+  # A dry run writes nothing, and says where a real run would write.
+  if $DRY_RUN; then
+    dry_run_skip "writing the summary file"
+    if [[ -n $BACKUP_DIR ]]; then
+      info "Summary would be saved under: $BACKUP_DIR"
+    else
+      info "Summary would be saved under: $fallback_base/yubikey-onboard-XXXXXXXX"
+    fi
+    return 0
+  fi
+
   if [[ -n $BACKUP_DIR && -d $BACKUP_DIR ]]; then
     summary_dir="$BACKUP_DIR"
   else
-    summary_dir="$PWD"
+    summary_dir=$(mktemp -d "$fallback_base/yubikey-onboard-XXXXXXXX")
+    chmod 700 "$summary_dir"
+    warn "The backup directory is not available, so the summary goes to a"
+    warn "private directory that does not survive a reboot. Copy it from there."
   fi
   summary_file="$summary_dir/yubikey-onboard-summary-$(date +%Y%m%d-%H%M%S).txt"
   {
@@ -1275,6 +1842,65 @@ phase_summary() {
 }
 
 # ANCHOR: from-backup
+# What a backup file is. age opens a file with a text header whose second line
+# names the first recipient stanza, and `scrypt` there means a passphrase.
+backup_form() {
+  local file="$1" first="" second=""
+  {
+    IFS= read -r first || true
+    IFS= read -r second || true
+  } <"$file" 2>/dev/null
+  if [[ $first == "age-encryption.org/v1" || $file == *.age ]]; then
+    if [[ $second == "-> scrypt "* || $file == *.pass.age ]]; then
+      echo "age-passphrase"
+    else
+      echo "age-recipient"
+    fi
+  else
+    echo "plaintext"
+  fi
+}
+
+# Decrypt an encrypted backup to a file inside the ramfs GNUPGHOME. The
+# passphrase copy needs nothing but the passphrase. The token copy needs an
+# identity, which is a file named with --age-identity or at the prompt, or the
+# YubiKey in the reader through age-plugin-yubikey.
+decrypt_backup() {
+  local source="$1" form="$2" dest="$3"
+  local idfile="$OPT_AGE_IDENTITY" rc=0
+
+  if [[ $form == "age-passphrase" ]]; then
+    info "Decrypting $source. age asks for the backup passphrase."
+    age -d -o "$dest" "$source"
+    return
+  fi
+
+  if [[ -z $idfile ]]; then
+    idfile=$(prompt_value "age identity file that opens it (empty to use the YubiKey in the reader)" "")
+  fi
+  if [[ -n $idfile ]]; then
+    if [[ ! -f $idfile ]]; then
+      error "No such identity file: $idfile"
+      return 1
+    fi
+    age -d -i "$idfile" -o "$dest" "$source"
+    return
+  fi
+
+  idfile="$GNUPGHOME/age-identities"
+  release_card
+  age-plugin-yubikey --identity >"$idfile" 2>/dev/null || true
+  if ! grep -q "^AGE-PLUGIN-YUBIKEY-" "$idfile"; then
+    rm -f "$idfile"
+    error "The YubiKey in the reader holds no age identity."
+    return 1
+  fi
+  info "Decrypting $source (this needs the inserted YubiKey's PIN and a touch)..."
+  age -d -i "$idfile" -o "$dest" "$source" || rc=$?
+  rm -f "$idfile"
+  return "$rc"
+}
+
 phase_import_from_backup() {
   header "Importing Master Key from Backup"
 
@@ -1286,41 +1912,77 @@ phase_import_from_backup() {
     exit 1
   fi
 
-  # If a directory was given, look for the master key file inside it
+  # If a directory was given, look for the master key file inside it. A
+  # plaintext export comes first because it needs nothing to open. A default
+  # run leaves only the two encrypted copies.
   local key_file="$backup_path"
   if [[ -d $backup_path ]]; then
     if [[ -f "$backup_path/master-secret.key" ]]; then
       key_file="$backup_path/master-secret.key"
+    elif [[ -f "$backup_path/master-secret.key.pass.age" && -f "$backup_path/master-secret.key.age" ]]; then
+      if prompt_yn "Open the passphrase copy? Answer no to open the YubiKey copy." "y"; then
+        key_file="$backup_path/master-secret.key.pass.age"
+      else
+        key_file="$backup_path/master-secret.key.age"
+      fi
+    elif [[ -f "$backup_path/master-secret.key.pass.age" ]]; then
+      key_file="$backup_path/master-secret.key.pass.age"
+    elif [[ -f "$backup_path/master-secret.key.age" ]]; then
+      key_file="$backup_path/master-secret.key.age"
     else
-      error "No master-secret.key found in $backup_path"
+      error "No master-secret.key, master-secret.key.age or master-secret.key.pass.age in $backup_path"
       error "Expected a file produced by a previous onboarding run."
       exit 1
     fi
-    # Use the directory as backup dir for subkey restoration during multi-key provisioning
+    # The directory takes the updated backup and the summary.
     BACKUP_DIR="$backup_path"
   else
     BACKUP_DIR="$(dirname "$backup_path")"
   fi
 
+  local form
+  form=$(backup_form "$key_file")
+
   info "Importing master key from: $key_file"
 
-  # Create the temporary GNUPGHOME on ramfs (or tmpfs if unavailable).
-  setup_secure_tmpdir
-  TEMP_GNUPGHOME=$(mktemp -d "$SECURE_TMPDIR/gnupg_XXXXXXXXXX")
-  chmod 700 "$TEMP_GNUPGHOME"
-  export GNUPGHOME="$TEMP_GNUPGHOME"
+  setup_gnupghome
 
-  # Write hardened gpg.conf + gpg-agent.conf
-  write_gnupg_config
-
-  gpgconf --kill gpg-agent 2>/dev/null || true
-  gpg-agent --daemon 2>/dev/null || true
+  # An encrypted backup is decrypted into the ramfs, and every plaintext export
+  # of this run stays there. A plaintext backup is already on the medium, so its
+  # exports stay beside it until the encrypted backup phase removes them.
+  local source="$key_file"
+  if [[ $form == "plaintext" ]]; then
+    MASTER_PLAINTEXT="$BACKUP_DIR/master-secret.key"
+    SUBKEYS_PLAINTEXT="$BACKUP_DIR/subkeys-secret.key"
+  else
+    MASTER_PLAINTEXT="$GNUPGHOME/master-secret.key"
+    SUBKEYS_PLAINTEXT="$GNUPGHOME/subkeys-secret.key"
+    key_file="$MASTER_PLAINTEXT"
+  fi
 
   if $DRY_RUN; then
+    if [[ $form != "plaintext" ]]; then
+      dry_run_skip "age -d $source (into the ramfs)"
+    fi
     dry_run_skip "gpg --import $key_file"
     KEY_FINGERPRINT="DRY_RUN_FINGERPRINT_0000000000000000"
     info "Would import master key and list existing subkeys."
     return
+  fi
+
+  if [[ $form == "plaintext" ]]; then
+    warn "$source is not encrypted. It stays on the medium until the encrypted"
+    warn "backup phase at the end of this run."
+  else
+    if ! decrypt_backup "$source" "$form" "$key_file" || [[ ! -s $key_file ]]; then
+      error "Could not decrypt $source. Nothing was changed."
+      exit 1
+    fi
+    success "Backup decrypted into the temporary GNUPGHOME."
+    if [[ $form == "age-recipient" ]]; then
+      info "If the YubiKey to provision is not the one in the reader, insert it now."
+      read -rp "$(echo -e "${BOLD}Press Enter to continue...${NC}")" || true
+    fi
   fi
 
   # Import the master key
@@ -1343,7 +2005,7 @@ phase_import_from_backup() {
   gpg --list-keys --with-keygrip "$KEY_FINGERPRINT"
 
   # Check if subkeys exist and offer to generate new ones
-  local subkey_count
+  local subkey_count regenerated=false
   subkey_count=$(gpg --list-keys --with-colons "$KEY_FINGERPRINT" 2>/dev/null |
     grep -c "^sub:" || true)
 
@@ -1368,6 +2030,7 @@ phase_import_from_backup() {
         gpg --batch --passphrase '' --quick-add-key "$KEY_FINGERPRINT" rsa4096 auth "$expiry"
       fi
       success "New subkeys generated."
+      regenerated=true
       echo ""
       gpg --list-keys --with-keygrip "$KEY_FINGERPRINT"
     else
@@ -1392,14 +2055,34 @@ phase_import_from_backup() {
       gpg --batch --passphrase '' --quick-add-key "$KEY_FINGERPRINT" rsa4096 auth "$expiry"
     fi
     success "Subkeys generated."
+    regenerated=true
     echo ""
     gpg --list-keys --with-keygrip "$KEY_FINGERPRINT"
   else
     info "Found $subkey_count subkey(s). Proceeding with existing subkeys."
   fi
 
-  # Re-export the (potentially updated) master key for multi-key subkey restoration
-  gpg --armor --export-secret-keys "$KEY_FINGERPRINT" >"$BACKUP_DIR/master-secret.key"
+  if $regenerated; then
+    # The key has changed, so the exports follow it. Each is written beside its
+    # target as <target>.new and moved into place after it has been read back,
+    # so a failed export leaves the existing backup as it was.
+    export_verified master "$MASTER_PLAINTEXT" || abort_run "The updated master key could not be exported."
+    export_verified subkeys "$SUBKEYS_PLAINTEXT" || abort_run "The updated subkeys could not be exported."
+    export_verified public "$BACKUP_DIR/public.key" || abort_run "The updated public key could not be exported."
+    if [[ $form == "plaintext" && $source != "$MASTER_PLAINTEXT" ]]; then
+      IMPORTED_PLAINTEXT="$source"
+    fi
+  else
+    # Nothing changed, so the imported file is the export and is not rewritten.
+    MASTER_PLAINTEXT="$key_file"
+    # A plaintext subkeys export from an earlier run is taken through the
+    # encrypted backup phase too, provided it belongs to this key.
+    if [[ -f "$BACKUP_DIR/subkeys-secret.key" ]] && export_is_covered "$BACKUP_DIR/subkeys-secret.key"; then
+      SUBKEYS_PLAINTEXT="$BACKUP_DIR/subkeys-secret.key"
+    else
+      SUBKEYS_PLAINTEXT=""
+    fi
+  fi
 }
 # ANCHOR_END: from-backup
 
@@ -1427,9 +2110,9 @@ mode_verify() {
   fi
 
   local serial firmware
-  serial=$(ykman info 2>/dev/null | grep "Serial number" | awk '{print $NF}')
-  firmware=$(ykman info 2>/dev/null | grep "Firmware version" | awk '{print $NF}')
-  success "YubiKey detected (serial: $serial, firmware: $firmware)"
+  serial=$(yubikey_info_field "Serial number")
+  firmware=$(yubikey_info_field "Firmware version")
+  success "YubiKey detected (serial: ${serial:-$NO_SERIAL}, firmware: ${firmware:-unreported})"
 
   # OpenPGP card status
   echo ""
@@ -1502,9 +2185,15 @@ mode_verify() {
   echo ""
   info "Config cross-reference:"
   local config_files=(hosts/*/default.nix)
-  for cfg in "${config_files[@]}"; do
+  # An empty pattern matches every line, so a token without a serial would be
+  # reported as found in every file.
+  if [[ -z $serial ]]; then
+    warn "  This token reports no serial number, so there is nothing to look up."
+    config_files=()
+  fi
+  for cfg in "${config_files[@]+"${config_files[@]}"}"; do
     if [[ -f $cfg ]]; then
-      if grep -q "$serial" "$cfg" 2>/dev/null; then
+      if grep -qF -- "$serial" "$cfg" 2>/dev/null; then
         success "  Serial $serial found in $cfg"
       else
         warn "  Serial $serial NOT found in $cfg"
@@ -1563,6 +2252,13 @@ main() {
     exit 0
   fi
 
+  # gpg-agent starts pinentry on the terminal named here. Without it, a gpg
+  # that is fed its commands on another descriptor has no terminal to name.
+  if [[ -t 0 ]]; then
+    GPG_TTY=$(tty)
+    export GPG_TTY
+  fi
+
   # One-time phases: preflight always runs
   phase_preflight
 
@@ -1617,6 +2313,30 @@ main() {
   phase_import_pubkey
   phase_age_backup
   phase_summary
+
+  local item
+  if [[ ${#UNCHANGED_CREDENTIALS[@]} -gt 0 ]]; then
+    warn "Not changed in this run, as --allow-default-pins permits:"
+    for item in "${UNCHANGED_CREDENTIALS[@]}"; do
+      warn "  $item"
+    done
+  fi
+
+  # Provisioning is done at this point, but a run that leaves key material
+  # unencrypted on the backup medium does not end as a success.
+  if [[ ${#PLAINTEXT_LEFT[@]} -gt 0 ]]; then
+    error "$NUM_KEYS YubiKey(s) provisioned, but these exports are still plaintext:"
+    for item in "${PLAINTEXT_LEFT[@]}"; do
+      error "  $item"
+    done
+    error "Encrypt them or remove them. Each holds secret key material."
+    exit 1
+  fi
+
+  if $DRY_RUN; then
+    success "Dry run complete. Nothing was provisioned and nothing was written."
+    return 0
+  fi
 
   success "All done! $NUM_KEYS YubiKey(s) provisioned."
   success "Remember to clean up backup files from insecure locations."

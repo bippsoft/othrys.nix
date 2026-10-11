@@ -1242,6 +1242,18 @@
       wallpaper-test = import ./wallpaper.nix {inherit pkgs inputs;};
       keyring-test = import ./keyring.nix {inherit pkgs inputs;};
 
+      # EXTENDED. The onboarding script's dry run in a VM (see ./yubikey-onboard.nix).
+      yubikey-onboard-dry-run = import ./yubikey-onboard.nix {
+        inherit pkgs;
+        package = config.packages.yubikey-onboard;
+      };
+
+      # CORE. The onboarding script's package builds. writeShellApplication
+      # runs shellcheck and `bash -n` over the script at build time, and
+      # `nix flake check` evaluates a package without building it, so this
+      # check is the only place either runs.
+      yubikey-onboard-builds = config.packages.yubikey-onboard;
+
       # CORE. Pre-commit hooks check (treefmt formats, statix and deadnix lint,
       # comment-hygiene enforces the CONTRIBUTING.md comment conventions).
       pre-commit-check = inputs.git-hooks.lib.${system}.run {

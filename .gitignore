@@ -25,8 +25,15 @@ docs/book/
 # and these patterns are here so a stray file cannot be committed by accident
 # rather than because anything is expected to match them.
 *.key
+*.key.new
+*.key.age
+*.key.pass.age
 *-key.txt
-*.asc
-# The public keys commits and tags are verified against are tracked.
-!/keys/*.asc
 .age-key
+yubikey-onboard-summary-*.txt
+
+# Armored exports are ignored everywhere but keys/, which is where a public
+# key is published so that signatures can be verified. gitleaks still refuses
+# a private key block there.
+*.asc
+!/keys/*.asc
