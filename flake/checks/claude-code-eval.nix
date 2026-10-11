@@ -2,11 +2,10 @@
 # CORE. What the AI modules hand Claude Code, read back from the rendered
 # Home Manager settings of an evaluated host. The pre-approved MCP tool
 # names once carried a plugin name Home Manager does not use, so none of
-# them matched and every call prompted, and the github server's secret was
-# owned by root while the wrapper that reads it runs as the user. The
-# allow-list once carried a bare `Edit`, which approved every edit while the
-# docs said edits are prompted, and a format hook that read a variable
-# Claude Code never sets. None of it fails evaluation.
+# them matched and every call prompted. The allow-list once carried a bare
+# `Edit`, which approved every edit while the docs said edits are prompted,
+# and a format hook that read a variable Claude Code never sets. None of it
+# fails evaluation.
 {
   hostConfig,
   mkExpectations,
@@ -60,17 +59,11 @@
     functioningHost
     {
       othrys.system.nix.allowUnfree = true;
-      othrys.system.secrets.enable = true;
-      # Not a real sops file. The check reads ownership and tool names, not
-      # a decryption.
-      othrys.apps.ai.mcp.github.secret.sopsFile = ./claude-code-eval.nix;
-      sops.validateSopsFiles = false;
       othrys.apps.ai = {
         claude-code.enable = true;
         mcp = {
           nixos.enable = true;
           context7.enable = true;
-          github.enable = true;
         };
       };
     }
@@ -105,7 +98,6 @@ in
     "every pre-approved MCP tool names the generated plugin and a declared server" = mcpEntries != [] && builtins.all entryOk mcpEntries;
     "no pre-approved tool carries the old plugin name" = !builtins.any (e: builtins.match ".*claude-code-home-manager.*" e != null) allow;
     "the context7 server carries no token header" = !(hm.programs.mcp.servers.context7.headers ? CONTEXT7_API_KEY);
-    "the github secret is owned by the primary user" = host.sops.secrets.${host.othrys.apps.ai.mcp.github.secret.path}.owner == user;
     "every pre-approved rule names a tool and a specifier" = allow != [] && builtins.all scoped allow;
     "find, nix eval, nix fmt and just are not pre-approved" = !builtins.any prefix allow;
     "edits stay prompted" = settings.permissions.defaultMode == "default";

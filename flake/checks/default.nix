@@ -156,8 +156,9 @@
     # of eval-persistence, which forces its toplevel.
     appDesktopModules = {
       # Prerequisites the modules below assert on, rather than things under
-      # test. Several apps refuse to evaluate without a Steam install, a JDK
-      # or a secrets provider.
+      # test. Several apps refuse to evaluate without a Steam install or a
+      # JDK. The secrets module is on beside them, so the impermanence hosts
+      # of eval-persistence evaluate the whole set next to it.
       othrys.system.secrets.enable = true;
       othrys.system.nix.allowUnfree = true;
       othrys.desktop.graphical = true;
@@ -170,18 +171,10 @@
         };
       };
       othrys.apps.languages.java.enable = true;
-      # The GitHub MCP module defaults its sops file to secretFiles.common, which
-      # only exists when a consumer declares a secrets input. The fixture has
-      # none, so it names a file instead of the default.
-      othrys.apps.ai.mcp.github.secret.sopsFile = pkgs.writeText "fixture-secrets.yaml" "";
-      # The placeholder above is not a real sops file, and this fixture tests the
-      # per-user guard rather than decryption.
-      sops.validateSopsFiles = false;
 
       othrys.apps = {
         ai.claude-code.enable = true;
         ai.mcp.context7.enable = true;
-        ai.mcp.github.enable = true;
         ai.mcp.nixos.enable = true;
         ai.ollama.enable = true;
         comma.enable = true;
@@ -1098,6 +1091,11 @@
       eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
       eval-exposure = import ./exposure-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost;};
       eval-claude-code = import ./claude-code-eval.nix {inherit hostConfig mkExpectations functioningHost bootBase inputs;};
+      # What the gh module renders, wraps and pre-approves (see ./gh-eval.nix).
+      eval-gh = import ./gh-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit hostConfig mkExpectations functioningHost bootBase;
+      };
       eval-k3s = import ./k3s-eval.nix {inherit hostConfig hostEval mkExpectations rejectedWith bootBase;};
       eval-pam = import ./pam-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-containers = import ./containers-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};

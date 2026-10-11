@@ -116,7 +116,6 @@
   # only on that assertion, so a module that starts failing for another
   # reason is reported, and so is one that starts evaluating.
   expectedFail = {
-    "othrys.apps.ai.mcp.github.enable" = "othrys.apps.ai.mcp.github requires othrys.system.secrets.enable";
     "othrys.apps.gaming.r2modman.enable" = "othrys.apps.gaming.r2modman requires othrys.apps.gaming.steam.enable";
     "othrys.apps.idea.enable" = "othrys.apps.idea: requires othrys.apps.languages.java.enable";
     "othrys.desktop.nightLight.enable" = "othrys.desktop.nightLight needs a location";
