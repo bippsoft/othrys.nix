@@ -160,7 +160,7 @@ in {
 
     # User config for manual sops editing (YubiKey, etc.). Only when an identity
     # is actually configured, since the homeManaged guard is applied once by
-    # othrys.system.users and the condition here is the module's own.
+    # nixosModules.home and the condition here is the module's own.
     #
     # The file form points SOPS_AGE_KEY_FILE straight at the provider path, so
     # no identity file is generated and no copy of it exists in the store.

@@ -24,7 +24,7 @@ A module declares options under `options.othrys.{category}.{name}`, guards confi
 
 Each `modules/{category}/default.nix` imports all modules in that category, and `nixosModules.default` aggregates every category. A consuming flake that imports `nixosModules.default` pulls in every module, but nothing activates until `othrys.{category}.{name}.enable = true` is set in the consumer's configuration.
 
-Three files are left out of their category, since each writes into an option namespace that only an upstream flake's module declares. `modules/theme/stylix.nix`, `modules/system/disko.nix` and `modules/system/secrets.nix` are exported as `nixosModules.stylix`, `nixosModules.disko` and `nixosModules.secrets`, and a host imports each together with the upstream module it configures. See [Host Configuration](./host-configuration.md).
+Five files are left out of their category, since each writes into an option namespace that only an upstream flake's module declares. `modules/system/home.nix`, `modules/theme/stylix.nix`, `modules/system/disko.nix`, `modules/system/secrets.nix` and `modules/system/impermanence.nix` are exported as `nixosModules.home`, `nixosModules.stylix`, `nixosModules.disko`, `nixosModules.secrets` and `nixosModules.impermanence`, and a host imports each together with the upstream module it configures. `nixosModules.full` aggregates `default`, the five and their upstream modules. See [Host Configuration](./host-configuration.md).
 
 ## Home Manager Integration
 
@@ -39,12 +39,31 @@ othrys.internal.homeConfig."apps.gh" = {
 };
 ```
 
-`modules/system/users.nix` merges every entry into `home-manager.users.<name>`
-behind `othrys.system.users.homeManaged`. The guard sits at the attrset level
-in that one place, so a headless host never materializes a Home Manager user.
-A leaf-level `mkIf` in each module would still create the user. On a host
-without a managed user the same module warns once and names every module whose
-entry was skipped.
+`modules/system/users.nix` declares the registry, and `modules/system/home.nix`
+merges every entry into `home-manager.users.<name>` behind
+`othrys.system.users.homeManaged`.
+
+```nix
+{{#include ../../../modules/system/home.nix:home-splice}}
+```
+
+The guard sits at the attrset level in that one place, so a headless host never
+materializes a Home Manager user. A leaf-level `mkIf` in each module would
+still create the user.
+
+`home.nix` is exported as `nixosModules.home` and is not part of
+`nixosModules.default`, so the tree evaluates on a host that imports no Home
+Manager module. `homeManaged` is true when the account exists,
+`othrys.system.users.homeManager.enable` is on and the export is imported. On
+any other host `users.nix` warns once and names every module whose entry was
+skipped. A host with the account and `homeManager.enable` left on fails an
+assertion that names the export, since most modules that configure the user
+write nothing else.
+
+A module does not read `config.home-manager` either, for the same reason it
+does not write it. A value one Home Manager module needs from another is read
+inside the user's configuration, as `modules/apps/gui/vscode/default.nix` does
+for the neovim that nixvim builds.
 
 A module with a condition of its own wraps the whole entry in a top-level
 `lib.mkIf`, as `modules/services/docs.nix` does. A false condition drops the
@@ -59,7 +78,7 @@ othrys.internal.homeConfig."services.docs" = lib.mkIf cfg.desktopEntry {
 Account-level writes, such as group memberships in
 `users.users.${username}.extraGroups`, stay in the module and are guarded on
 `othrys.system.users.enable` at the attrset level. `CONTRIBUTING.md` carries
-the full reasoning, and the `contract-guards` hook rejects a module that writes
+the full reasoning, and the `contract-guards` hook rejects a module that names
 `home-manager.users` or `environment.persistence`.
 
 ## Impermanence Pattern

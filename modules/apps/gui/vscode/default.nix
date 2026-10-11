@@ -6,10 +6,23 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   cfg = config.othrys.apps.vscode;
 
-  nixvimPackage = config.home-manager.users.${username}.programs.nixvim.build.package;
+  # The neovim the editor embeds is the one nixvim builds, which is a value
+  # of the Home Manager evaluation, programs.nixvim.build.package. It is read
+  # there, by a Home Manager module the registry entry below imports, and
+  # never through config.home-manager of the system. That option namespace
+  # exists only on a host that imports the Home Manager module, which
+  # nixosModules.default does not require, and a read of it from here would
+  # fail on every host without one. The `config` this function takes is the
+  # user's Home Manager configuration.
+  #
+  # mkDefault keeps the path below othrys.apps.vscode.userSettings, so a host
+  # that names another executable there still wins.
+  neovimPath = {config, ...}: {
+    programs.vscodium.profiles.default.userSettings."vscode-neovim.neovimExecutablePaths.linux" =
+      lib.mkDefault "${config.programs.nixvim.build.package}/bin/nvim";
+  };
 in {
   options.othrys.apps.vscode = {
     enable = lib.mkEnableOption "VSCodium editor";
@@ -55,10 +68,10 @@ in {
     };
   };
 
-  # The assertion lives in its own mkIf because with neovim integration on the body
-  # dereferences nixvim's HM package, so it must stay unevaluated when nixvim
-  # is off or the raw "attribute 'nixvim' missing" error preempts the
-  # assertion message during assertion collection.
+  # The assertion lives in its own mkIf because with neovim integration on the
+  # body imports a Home Manager module that dereferences nixvim's package, so
+  # it must stay unevaluated when nixvim is off or the raw "attribute 'nixvim'
+  # missing" error preempts the assertion message during assertion collection.
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
       assertions = [
@@ -77,10 +90,12 @@ in {
       };
 
       othrys.internal.homeConfig."apps.vscode" = {
-        imports = [
-          # Language-specific extensions
-          ./languages
-        ];
+        imports =
+          [
+            # Language-specific extensions
+            ./languages
+          ]
+          ++ lib.optional cfg.neovimIntegration.enable neovimPath;
 
         programs.vscodium = {
           enable = true;
@@ -112,10 +127,9 @@ in {
 
                 "telemetry.telemetryLevel" = "off";
               }
-              # Neovim-core wiring only when the integration is on (the
-              # nixvimPackage dereference stays lazy otherwise).
+              # Neovim-core wiring only when the integration is on. The
+              # executable path is set by neovimPath above.
               // lib.optionalAttrs cfg.neovimIntegration.enable {
-                "vscode-neovim.neovimExecutablePaths.linux" = "${nixvimPackage}/bin/nvim";
                 "extensions.experimental.affinity" = {
                   "asvetliakov.vscode-neovim" = 1;
                 };

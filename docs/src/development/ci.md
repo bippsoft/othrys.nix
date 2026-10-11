@@ -39,10 +39,10 @@ tier reports early while the whole suite still gates what lands:
 | `docs` | The MdBook build, with the generated options reference injected |
 | `docs-includes` | Every include, anchor, relative link and heading fragment under `docs/src` resolves |
 | `eval-host-min` | A minimal functioning host evaluates |
-| `eval-host-headless`, `eval-host-server`, `eval-host-anonymous`, `eval-host-server-account` | The four server-contract host shapes |
+| `eval-host-headless`, `eval-host-server`, `eval-host-anonymous`, `eval-host-server-account` | The four server-contract host shapes, each with no Home Manager module imported |
 | `eval-host-app-no-hm`, `eval-host-app-no-hm-full` | A slice of the app and desktop modules, and all of them, each on a host with an account that Home Manager does not manage |
 | `eval-pairs` | Every conflict or requirement between two modules or two options, each matched by a fragment of its assertion message |
-| `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/users.nix` writes `home-manager.users`, only `modules/system/impermanence.nix` writes `environment.persistence`, and the fixtures and the template pass `inputs` alone or nothing |
+| `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/home.nix` writes `home-manager.users`, only `modules/system/impermanence.nix` writes `environment.persistence`, and the fixtures and the template pass `inputs` alone or nothing |
 | `eval-inputs` | A host handed no `specialArgs` enables ashell, Hyprland, nixvim and comma, gets each from this flake's lock, and gets the package it sets through a `package` option |
 | `ci-coverage` | Every check is named by a job in `build.yml`, and every name there is a check |
 | `eval-bootloader` | Every bootloader type with `secureBoot` off and on |
@@ -54,7 +54,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-shell` | The login shell, the editor variables and the aliases |
 | `eval-types` | The values the option types refuse, and the git identity and bridge or vlan reference assertions |
 | `eval-exports` | The export list in `flake/modules.nix`, held to the module tree |
-| `eval-optional-exports` | A host with no disko, sops-nix, Stylix or impermanence module, impermanence on a device named by hand, the rejection of impermanence without its export, and what the `disko`, `secrets` and `impermanence` exports write beside their upstream modules |
+| `eval-optional-exports` | A host with `default` and no upstream module at all, a managed account rejected without `nixosModules.home`, an account Home Manager does not manage accepted without it, a host built from `nixosModules.full`, impermanence on a device named by hand, the rejection of impermanence without its export, and what the `disko`, `secrets` and `impermanence` exports write beside their upstream modules |
 | `eval-template` | The `nix flake init` template, instantiated with only the inputs a consumer has |
 | `eval-dev-shells` | The hooks each dev shell installs |
 | `eval-auto-upgrade` | The evaluation-time rules of the auto-upgrade verify gate |

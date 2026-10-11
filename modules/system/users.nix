@@ -19,17 +19,26 @@ in {
         // {default = true;};
     };
 
-    # Derived and read-only, the single flag every module's home-manager guard
-    # reads. Account creation (enable) and environment management
-    # (homeManager.enable) are separate concerns, since a server may want a login
-    # account (e.g. for an admin, or a user a webapp runs under) without
-    # home-manager owning its dotfiles.
+    # Derived and read-only, the single flag every module reads to learn
+    # whether Home Manager manages the primary user. Account creation (enable)
+    # and environment management (homeManager.enable) are separate concerns,
+    # since a server may want a login account (e.g. for an admin, or a user a
+    # webapp runs under) without home-manager owning its dotfiles.
+    #
+    # The third term is the export. The registry below is applied by
+    # nixosModules.home (./home.nix) and by nothing else, so on a host that
+    # leaves the export out no Home Manager configuration reaches the user,
+    # and every module has to behave as it does for an unmanaged one.
     homeManaged = lib.mkOption {
       type = lib.types.bool;
       readOnly = true;
-      default = cfg.enable && cfg.homeManager.enable;
-      defaultText = lib.literalExpression "othrys.system.users.enable && othrys.system.users.homeManager.enable";
-      description = "Whether home-manager manages the primary user (derived; do not set).";
+      default = cfg.enable && cfg.homeManager.enable && config.othrys.internal.homeExport;
+      defaultText = lib.literalExpression "othrys.system.users.enable && othrys.system.users.homeManager.enable, on a host that imports nixosModules.home";
+      description = ''
+        Whether home-manager manages the primary user (derived; do not set).
+        True when the account exists, `homeManager.enable` is on and the host
+        imports `nixosModules.home` beside the Home Manager module.
+      '';
     };
 
     defaultShell = lib.mkOption {
@@ -105,16 +114,19 @@ in {
   };
 
   # Every othrys module that configures the primary user's environment writes
-  # here, keyed by its own option path, and this module is the only one that
-  # writes home-manager.users.
+  # here, keyed by its own option path. This file declares the registry and
+  # writes into no option of the home-manager flake. nixosModules.home
+  # (./home.nix) is the one file that hands the registry to
+  # home-manager.users, and a host imports it together with the Home Manager
+  # module or imports neither.
   #
   # The consumer contract requires those writes to sit behind homeManaged at
   # the attrset level, since a leaf-level guard still materializes the
   # home-manager user and trips NixOS's account assertions on a host with no
   # primary user. Routing every module through one option means no module can
   # spell that guard wrongly, and it lets flake/checks/ enforce the rule as a
-  # prohibition (nothing but this file writes home-manager.users) rather than a
-  # correlation (a module that writes it must also mention homeManaged). A
+  # prohibition (nothing but the export writes home-manager.users) rather than
+  # a correlation (a module that writes it must also mention homeManaged). A
   # prohibition cannot be satisfied by accident.
   #
   # A module with a second condition wraps its own value in lib.mkIf. The key
@@ -139,23 +151,26 @@ in {
     default = {};
     internal = true;
     example = lib.literalExpression ''{ "apps.ghostty" = { programs.ghostty.enable = true; }; }'';
-    description = "Per-module home-manager configuration for the primary user, keyed by option path, spliced by othrys.system.users.";
+    description = "Per-module home-manager configuration for the primary user, keyed by option path, handed to Home Manager by nixosModules.home.";
+  };
+
+  # Set by nixosModules.home (./home.nix) and by nothing else. It is what
+  # homeManaged and the assertion below read to learn whether the registry
+  # reaches Home Manager on this host. The option carries a default and is
+  # therefore not read-only, since the module system counts the default of a
+  # read-only option as its one definition.
+  options.othrys.internal.homeExport = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    internal = true;
+    description = "Whether nixosModules.home is imported (set by that export, do not set).";
   };
 
   config = lib.mkMerge [
     {
-      # Both of these sit outside the enable guard. The write is already gated
-      # on homeManaged, which implies enable, and the warning reports the case
-      # where enable is off, so gating it on enable could never fire.
-      home-manager.users = lib.mkIf cfg.homeManaged {
-        ${username} = lib.mkMerge (
-          # Essential user CLI tools, kept here rather than in
-          # environment.systemPackages so they follow the user.
-          [{home.packages = with pkgs; [tree jq just];}]
-          ++ lib.attrValues config.othrys.internal.homeConfig
-        );
-      };
-
+      # The warning sits outside the enable guard, since it reports the
+      # case where enable is off and gating it on enable could never fire.
+      #
       # Most modules that configure the user write nothing else, so on a host
       # without a managed user `enable = true` silently does nothing at all.
       # One warning naming every such module, since thirty-two near-identical
@@ -167,7 +182,9 @@ in {
 
         Where a module writes nothing but user configuration, enabling it on this
         host has no effect at all. Set othrys.system.users.enable and
-        othrys.system.users.homeManager.enable to apply them.
+        othrys.system.users.homeManager.enable to apply them, and import
+        othrys.nixosModules.home together with the nixosModules.home-manager of
+        the home-manager flake, which is the module that applies them.
       '';
     }
 
@@ -177,6 +194,14 @@ in {
         {
           assertion = cfg.passwordFile != null || cfg.initialHashedPassword != null;
           message = "othrys.system.users: set passwordFile or initialHashedPassword, or the '${username}' account is created with no password.";
+        }
+        # The registry is read by the export alone. Without it the account
+        # is created and every module that configures the user, which for
+        # most of them is all they do, is skipped. A host that wants the
+        # account and no Home Manager says so with homeManager.enable.
+        {
+          assertion = !cfg.homeManager.enable || config.othrys.internal.homeExport;
+          message = "othrys.system.users: enable and homeManager.enable are set and nixosModules.home is not imported, so no module's Home Manager configuration would reach the '${username}' account. Import othrys.nixosModules.home together with the nixosModules.home-manager of the home-manager flake, or set othrys.system.users.homeManager.enable = false for an account Home Manager does not manage.";
         }
       ];
 
@@ -211,7 +236,7 @@ in {
       users.mutableUsers = cfg.mutableUsers;
 
       # Essential system and recovery packages, kept minimal since user CLI
-      # tools go to home-manager.
+      # tools go to Home Manager (see ./home.nix).
       environment.systemPackages = with pkgs; [
         curl
         wget

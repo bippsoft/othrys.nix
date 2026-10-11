@@ -13,6 +13,7 @@ under **System Infrastructure**, and the rest are summarized here.
 |--------|--------|-------------|
 | User identity | `othrys.system.user.name` | Primary user account name, **required**, replaces the legacy `username` specialArg |
 | Users | `othrys.system.users` | User account creation, shell, password wiring |
+| Home Manager adapter | `othrys.system.users.homeManager` | Hands every module's user configuration to Home Manager. Exported as `nixosModules.home` and not part of `default`, see [Host Configuration](../architecture/host-configuration.md) |
 | Locale | `othrys.system.locale` | Timezone, locale, console font/keymap (defaults are identity-neutral: `UTC`) |
 | Auto-upgrade | `othrys.system.autoUpgrade` | Unattended nixos-rebuild from the fleet flake |
 | Nix | `othrys.system.nix` | Nix settings, GC/`nh`, substituters, optional Cachix |

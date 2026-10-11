@@ -256,7 +256,8 @@ export.
 `nixosModules.stylix` is the adapter between `othrys.theme` and Stylix.
 `nixosModules.default` does not import it, so a host that wants Stylix imports
 the adapter and the Stylix module together, and a host that does not imports
-neither.
+neither. `nixosModules.full` holds both, so a host built from it only sets the
+option.
 
 ```nix
 # flake.nix

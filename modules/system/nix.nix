@@ -229,12 +229,6 @@ in {
       inherit (cfg) allowUnfree;
     };
 
-    # Home-manager must see the same nixpkgs policy as the system (unfree,
-    # overlays). With its own instantiation, an unfree HM package fails even
-    # though allowUnfree is on. mkDefault so consumers keep the last word.
-    home-manager.useGlobalPkgs = lib.mkDefault true;
-    home-manager.useUserPackages = lib.mkDefault true;
-
     nix.settings = {
       # Curated defaults, mkDefault so a host can replace them without
       # lib.mkForce (e.g. disable store optimisation on slow storage).
@@ -306,9 +300,11 @@ in {
     system.stateVersion = cfg.stateVersion;
 
     # Per-user state goes through the registry rather than home-manager.users
-    # directly, so othrys.system.users applies the homeManaged guard once, at
+    # directly, so nixosModules.home applies the homeManaged guard once, at
     # the attrset level. See modules/system/users.nix for why the guard cannot
-    # sit on a leaf. The entry is withheld on a host with no managed user,
+    # sit on a leaf. Home Manager is also told to use the system's package
+    # set by that export (modules/system/home.nix), which reads this module's
+    # enable flag. The entry is withheld on a host with no managed user,
     # since a Home Manager state version means nothing there and the registry
     # warns about every entry it has to skip.
     othrys.internal.homeConfig."system.nix" = lib.mkIf config.othrys.system.users.homeManaged {

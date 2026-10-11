@@ -197,7 +197,7 @@ in {
         }
         {
           assertion = pass -> homeManaged;
-          message = "othrys.desktop.keyring.provider is \"pass\", which runs pass-secret-service as a Home Manager user service: othrys.system.users.homeManaged is false, so enable othrys.system.users and leave othrys.system.users.homeManager.enable on.";
+          message = "othrys.desktop.keyring.provider is \"pass\", which runs pass-secret-service as a Home Manager user service: othrys.system.users.homeManaged is false, so enable othrys.system.users, leave othrys.system.users.homeManager.enable on and import othrys.nixosModules.home with the Home Manager module.";
         }
         {
           assertion = pass -> !config.services.gnome.gnome-keyring.enable;
@@ -209,7 +209,7 @@ in {
         }
         {
           assertion = passwordless -> homeManaged;
-          message = "othrys.desktop.keyring.passwordless writes the keyring file from Home Manager: othrys.system.users.homeManaged is false, so enable othrys.system.users and leave othrys.system.users.homeManager.enable on.";
+          message = "othrys.desktop.keyring.passwordless writes the keyring file from Home Manager: othrys.system.users.homeManaged is false, so enable othrys.system.users, leave othrys.system.users.homeManager.enable on and import othrys.nixosModules.home with the Home Manager module.";
         }
         {
           assertion = passwordless -> (diskEncrypted || cfg.allowUnencryptedDisk);

@@ -110,7 +110,7 @@ in {
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [cfg.port];
 
     # Desktop entry only when this host wants one. The homeManaged guard is
-    # applied once by othrys.system.users, so the condition here is the module's
+    # applied once by nixosModules.home, so the condition here is the module's
     # own. A false condition drops the key, so nothing is written and nothing is
     # reported as skipped.
     othrys.internal.homeConfig."services.docs" = lib.mkIf cfg.desktopEntry {

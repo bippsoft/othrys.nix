@@ -16,15 +16,17 @@ evaluation rather than waiting to surprise somebody.
    `othrys.system.users.enable`, at the attrset level, never on a leaf. Home
    Manager configuration goes to `othrys.internal.homeConfig` and persistent
    paths go to `othrys.internal.persist`, never to `home-manager.users` or
-   `environment.persistence`. Each registry applies its guard once.
-1. **`nixosModules.default` writes into one upstream namespace.** Consumers
-   must also import `home-manager`, even when no othrys module configures the
-   user. A consumer who wants Stylix imports `nixosModules.stylix` and the
-   Stylix module together. One who wants the disko layout imports
-   `nixosModules.disko` and the disko module, one who wants the sops plumbing
-   imports `nixosModules.secrets` and the sops-nix module, and one who wants an
-   ephemeral root imports `nixosModules.impermanence` and the impermanence
-   module.
+   `environment.persistence`. One export applies each registry and its guard,
+   `nixosModules.home` for the first and `nixosModules.impermanence` for the
+   second.
+1. **`nixosModules.default` writes into no upstream namespace.** A host built
+   from it alone imports no other module. Five exports are optional, and a
+   host imports each together with the upstream module it configures.
+   `nixosModules.home` goes with Home Manager, `nixosModules.stylix` with
+   Stylix, `nixosModules.disko` with disko, `nixosModules.secrets` with
+   sops-nix and `nixosModules.impermanence` with impermanence.
+   `nixosModules.full` is `default` with all five and the five upstream
+   modules, taken from this flake's own lock.
 1. **specialArgs carry `inputs` or nothing.** Modules read two names from it,
    `nixpkgs` for the registry pin and the optional `secrets`. Not `username`,
    not `hostname`.
@@ -52,7 +54,7 @@ A persistent path in the user's home is an account-level write as well, since
 the impermanence module reads `users.users.<name>.home` to place the bind
 mount. No module spells either of these guards for its own configuration. Home
 Manager configuration is written to `othrys.internal.homeConfig`, which
-`modules/system/users.nix` splices into `home-manager.users` behind
+`modules/system/home.nix` splices into `home-manager.users` behind
 `othrys.system.users.homeManaged`. Persistent paths are written to
 `othrys.internal.persist`, which `modules/system/impermanence.nix` splices into
 `environment.persistence`, the system paths behind
@@ -60,13 +62,16 @@ Manager configuration is written to `othrys.internal.homeConfig`, which
 `othrys.system.users.enable` as well. Each guard is written in one file, so no
 module can spell it wrongly.
 
-**The upstream import is unconditional because `mkIf` does not defer option
-existence.** Writing into an undeclared option namespace fails at evaluation
-whether or not the write is conditional, so importing home-manager only when a
-Home Manager feature is enabled does not work.
+**No upstream import is required because every write into an upstream
+namespace lives in an export.** `mkIf` does not defer option existence. Writing
+into an undeclared option namespace fails at evaluation whether or not the
+write is conditional, so a module in `default` cannot write into the options
+of Home Manager, Stylix, disko, sops-nix or impermanence and still evaluate on
+a host that imports none of them. Each of the five is therefore reached through
+one file that `default` does not import, and the modules in `default` write to
+options that `default` declares itself.
 
-Stylix, disko, sops-nix and impermanence are the exceptions, and each is one
-because of where the writes live. Every module in `nixosModules.default` reads its colours and
+Stylix is the first case. Every module in `nixosModules.default` reads its colours and
 fonts from `othrys.theme`, and the only file that writes into the `stylix`
 namespace is the adapter, `modules/theme/stylix.nix`. The adapter is exported as
 `nixosModules.stylix` and `default` does not import it, so a host without Stylix
@@ -99,9 +104,29 @@ across the tree read the enable flag and the persist root. A host that turns
 impermanence on without the export is rejected by an assertion that names it,
 since the root would be wiped and nothing bound back.
 
-Home Manager stays unconditional. `modules/system/users.nix` is the one file
-that writes `home-manager.users`, and it also creates the account, so it cannot
-leave `default`.
+Home Manager follows it as well, and nearly every app and desktop module
+configures the user. Each of them writes to `othrys.internal.homeConfig`, an
+option `default` declares in `modules/system/users.nix` beside
+`othrys.system.users.homeManager.enable` and the derived `homeManaged`.
+`modules/system/home.nix` is the only file that writes `home-manager.users`,
+and it also sets `home-manager.useGlobalPkgs` and `home-manager.useUserPackages`
+while `othrys.system.nix` is on. It is exported as `nixosModules.home` and
+imported by neither `default` nor `nixosModules.system`. `homeManaged` is true
+only on a host that has the account, leaves `homeManager.enable` on and imports
+the export, so on a host without it every module behaves as it does for a user
+Home Manager does not manage. The registry entries are skipped there and one
+warning names them. A host with an account and `homeManager.enable` left on is
+rejected without the export by an assertion that names it, since most of those
+modules write nothing else and would do nothing at all. A host that wants the
+account alone sets `homeManager.enable = false`.
+
+`nixosModules.full` is for the host that wants all five. It imports `default`,
+the five exports and the five upstream modules. The upstream modules come from
+this flake's own lock, as niri-flake's module does in `default`, and all five
+are inputs of this flake already, so no consumer carries an input for them. A
+host that uses it imports nothing else and declares no input beside this flake
+and nixpkgs. It does not import an upstream module a second time, and it
+chooses another revision of one with a `follows` on this flake's input.
 
 **specialArgs stay minimal because they are the one part of the interface the
 module system cannot type.** Every additional specialArg is an undeclared
@@ -179,11 +204,12 @@ Two guards exist, and they are not interchangeable. Account-level writes
 go behind `othrys.system.users.enable`, spelled in the module. Home Manager
 writes and persistent paths do not spell a guard at all. A module contributes
 to `othrys.internal.homeConfig`, keyed by its own option path, and
-`modules/system/users.nix` splices the whole registry into
-`home-manager.users.<name>` behind `othrys.system.users.homeManaged`. It
+`modules/system/home.nix`, exported as `nixosModules.home`, splices the whole
+registry into `home-manager.users.<name>` behind
+`othrys.system.users.homeManaged`. It
 contributes to `othrys.internal.persist` under the same key, and
 `modules/system/impermanence.nix` splices that registry into
-`environment.persistence`. Nothing else in `modules/` may write
+`environment.persistence`. Nothing else in `modules/` may name
 `home-manager.users` or `environment.persistence`, and `contract-guards` in
 `flake/checks/` enforces both as prohibitions.
 
@@ -204,10 +230,13 @@ Three details follow from the registry:
   contribution survive to `home-manager.users` and still win or lose against
   upstream definitions. An ordinary type would discharge them at the registry
   and silently change what a module means.
-- Reading evaluated Home Manager output is not a write.
-  `modules/apps/gui/vscode/default.nix` reads
-  `config.home-manager.users.<name>.programs.nixvim.build.package`, and the
-  `config.` prefix is what distinguishes a read from a write.
+- A module does not read evaluated Home Manager output through
+  `config.home-manager` either, since that option exists only on a host that
+  imports the Home Manager module. A value one Home Manager module needs from
+  another is read inside the user's configuration.
+  `modules/apps/gui/vscode/default.nix` imports a Home Manager module into its
+  registry entry, and that module reads `config.programs.nixvim.build.package`
+  there.
 
 The `eval-host-server`, `eval-host-anonymous`, `eval-host-server-account`,
 `eval-host-app-no-hm` and `eval-host-app-no-hm-full` checks in `flake/checks/`

@@ -51,11 +51,13 @@ headless host can leave it unset. The template needs neither, because both of
 its per-user writes go through a registry.
 
 User configuration goes into `othrys.internal.homeConfig`, under a key that is
-the module's own option path. `modules/system/users.nix` splices every entry
-into `home-manager.users.<name>` behind `othrys.system.users.homeManaged`, so
-the module spells no Home Manager guard of its own. A module never writes
-`home-manager.users` directly, and the `contract-guards` hook rejects one that
-does. A module whose user configuration depends on a second option wraps the
+the module's own option path. `modules/system/home.nix`, exported as
+`nixosModules.home`, splices every entry into `home-manager.users.<name>`
+behind `othrys.system.users.homeManaged`, so the module spells no Home Manager
+guard of its own. A module never writes `home-manager.users` directly and
+never reads `config.home-manager`, and the `contract-guards` hook rejects one
+that does. Those options exist only on a host that imports the Home Manager
+module, which `nixosModules.default` does not require. A module whose user configuration depends on a second option wraps the
 whole entry in a top-level `lib.mkIf`, as `modules/services/docs.nix` does.
 
 ```nix

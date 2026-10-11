@@ -5,13 +5,22 @@
     othrys.url = "github:bippsoft/othrys.nix";
     nixpkgs.follows = "othrys/nixpkgs";
 
-    # othrys writes into the option namespace of home-manager, so its module
-    # is imported below even when no othrys module configures the user.
-    # Following othrys keeps one copy of it in the lock.
+    # configuration.nix creates a user and leaves Home Manager managing it, so
+    # the Home Manager module and inputs.othrys.nixosModules.home are both
+    # imported below. Following othrys keeps one copy of it in the lock. A
+    # host with no managed user drops this input and both of those imports,
+    # and inputs.othrys.nixosModules.default is then all it needs.
     home-manager.follows = "othrys/home-manager";
 
-    # The disk layout, the sops-nix plumbing and the impermanence adapter are
-    # separate exports, and this host uses none of them. For the layout, add
+    # The disk layout, the sops-nix plumbing, the impermanence adapter and the
+    # Stylix adapter are separate exports, and this host uses none of them.
+    # A host that wants all of them imports inputs.othrys.nixosModules.full in
+    # place of the two othrys modules and the Home Manager module below. It
+    # is `default` with every export and the upstream module each one
+    # configures, taken from the lock of othrys, so nothing is imported
+    # beside it and the home-manager input above is not needed.
+    #
+    # To add one export at a time instead, for the layout add
     # `disko.follows = "othrys/disko";` here and import
     # inputs.othrys.nixosModules.disko beside inputs.disko.nixosModules.disko
     # below. For the plumbing, add `sops-nix.follows = "othrys/sops-nix";` and
@@ -30,6 +39,7 @@
       specialArgs = {inherit inputs;};
       modules = [
         inputs.othrys.nixosModules.default
+        inputs.othrys.nixosModules.home
         inputs.home-manager.nixosModules.home-manager
 
         ./hardware.nix

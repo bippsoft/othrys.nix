@@ -16,9 +16,9 @@
 ______________________________________________________________________
 
 This flake exports NixOS modules and nothing else. There are no hosts here, no
-secrets and no personal data. You import `nixosModules.default` into your own
-configuration, set `othrys.*` options, and every module stays inert until you
-enable it.
+secrets and no personal data. You import `nixosModules.full` or
+`nixosModules.default` into your own configuration, set `othrys.*` options, and
+every module stays inert until you enable it.
 
 Modules curate capability and leave the opinions as options. The Hyprland module
 knows how to float Steam dialogs and pin windows to workspaces, while you decide
@@ -32,21 +32,22 @@ mkdir myhost && cd myhost
 nix flake init -t github:bippsoft/othrys.nix
 ```
 
-The template is a minimal host with the two upstream imports and the mandatory
-options in place. A check instantiates it against this flake on every change,
+The template is a minimal host with a managed user, so it imports
+`nixosModules.default`, `nixosModules.home` and the Home Manager module, and
+has the mandatory options in place. A check instantiates it against this flake on every change,
 so it always evaluates. Replace `hardware.nix`, set the user and `stateVersion`
 in `configuration.nix`, and build with `nixos-rebuild build --flake .#myhost`.
 
-The same shape written out by hand, with a desktop enabled:
+A host that wants everything imports `nixosModules.full`. It is the module tree
+with Home Manager, Stylix, disko, sops-nix and impermanence wired in, each from
+this flake's own lock, so the flake declares no input beside othrys and nixpkgs.
+Written out by hand, with a desktop enabled:
 
 ```nix
 {
   inputs = {
     othrys.url = "github:bippsoft/othrys.nix";
     nixpkgs.follows = "othrys/nixpkgs";
-
-    # Follow the inputs whose modules you import below.
-    home-manager.follows = "othrys/home-manager";
   };
 
   outputs = inputs: {
@@ -54,11 +55,9 @@ The same shape written out by hand, with a desktop enabled:
       system = "x86_64-linux";
       specialArgs = {inherit inputs;};
       modules = [
-        inputs.othrys.nixosModules.default
-
-        # Required. othrys writes into this option namespace, so it must be
-        # imported even when no othrys module configures the user.
-        inputs.home-manager.nixosModules.home-manager
+        # The module tree, the five optional exports and the upstream module
+        # each one configures. Import none of those upstream modules beside it.
+        inputs.othrys.nixosModules.full
 
         {
           othrys.system.user.name = "alice";
@@ -87,6 +86,29 @@ The same shape written out by hand, with a desktop enabled:
   };
 }
 ```
+
+A server with no managed user imports `nixosModules.default` and nothing else.
+`default` writes into no option of an upstream flake, so the module list is one
+line beside the host's own files:
+
+```nix
+modules = [
+  inputs.othrys.nixosModules.default
+  {
+    othrys.system.nix = {
+      enable = true;
+      stateVersion = "26.05";
+    };
+    othrys.services.ssh = {
+      enable = true;
+      server.enable = true;
+    };
+  }
+];
+```
+
+A host between the two imports `default` and the exports it wants, each beside
+its upstream module, as the table under Forewarnings lists them.
 
 `inputs` reaches the modules through `specialArgs`, and two names are read from
 it. `inputs.nixpkgs` pins the flake registry to the revision the host is built
@@ -122,28 +144,36 @@ writes require `othrys.system.users.enable`, and Home Manager writes require
 `othrys.system.users.homeManaged`. The guards wrap whole attrsets rather than
 leaves, since a leaf-level `mkIf` still materializes the Home Manager user and
 trips NixOS's user assertions on a headless host. Modules write Home Manager
-configuration and persistent paths to two registries, and one file per registry
-applies the guard.
+configuration and persistent paths to two registries, and one export per
+registry applies the guard.
 
-**One upstream module import is unconditional.** `nixosModules.default` writes
-into the option namespace owned by home-manager, and writing to an undeclared
-namespace fails evaluation regardless of `mkIf`. Import it even when no othrys
-module configures the user.
+**No upstream module import is required.** `nixosModules.default` writes into no
+option namespace owned by another flake, since writing to an undeclared
+namespace fails evaluation regardless of `mkIf`. A host built from `default`
+alone imports nothing else.
 
-**Stylix, disko, sops-nix and impermanence are optional.** Each has one othrys
-module that writes into its namespace, and that module is a separate export
-`default` leaves out. A host imports the export and the upstream module
-together, and every other host imports neither.
+**Home Manager, Stylix, disko, sops-nix and impermanence are optional.** Each
+has one othrys module that writes into its namespace, and that module is a
+separate export `default` leaves out. A host imports the export and the upstream
+module together, and every other host imports neither. `nixosModules.full` is
+`default` with all five exports and all five upstream modules, taken from this
+flake's lock. A host that imports it imports none of the upstream modules
+itself, and picks another revision of one with
+`inputs.othrys.inputs.<name>.follows`.
 
 | Wanted | othrys export | Upstream module |
 |---|---|---|
+| A user Home Manager manages, `othrys.system.users` | `nixosModules.home` | `inputs.home-manager.nixosModules.home-manager` |
 | Stylix theming | `nixosModules.stylix` | `inputs.stylix.nixosModules.stylix` |
 | The LUKS and BTRFS disk layout, `othrys.system.disko` | `nixosModules.disko` | `inputs.disko.nixosModules.disko` |
 | The sops-nix plumbing, `othrys.system.secrets` | `nixosModules.secrets` | `inputs.sops-nix.nixosModules.sops` |
 | An ephemeral root, `othrys.system.impermanence` | `nixosModules.impermanence` | `inputs.impermanence.nixosModules.impermanence` |
 
 Enabling `othrys.system.impermanence` without its export fails an assertion that
-names it. Impermanence does not need the disko layout. It wipes the btrfs filesystem on
+names it, and so does enabling `othrys.system.users` without
+`nixosModules.home` while `othrys.system.users.homeManager.enable` is left on.
+A host that wants the account and no Home Manager turns that option off. Every
+module that configures the user is then skipped, and one warning names them. Impermanence does not need the disko layout. It wipes the btrfs filesystem on
 `othrys.system.impermanence.device`, which the disko export fills and a host
 that partitions another way sets itself.
 
@@ -187,9 +217,9 @@ and a check holds the export list to the module tree. An individual module reads
 options that `nixosModules.system` declares, among them the primary user and the
 persist root, so import that beside it, and `nixosModules.desktop` beside a
 desktop or hardware module. App modules are reachable only through `default`.
-`nixosModules.stylix`, `nixosModules.disko`, `nixosModules.secrets` and
-`nixosModules.impermanence` are the four exports neither `default` nor a group
-imports.
+`nixosModules.home`, `nixosModules.stylix`, `nixosModules.disko`,
+`nixosModules.secrets` and `nixosModules.impermanence` are the five exports
+neither `default` nor a group imports.
 
 ## Cross-module signals
 

@@ -21,6 +21,10 @@ are Home Manager modules of their own and read it through `osConfig`:
   `othrys.system.users.homeManaged`: the whole per-user guard architecture
   lives at the NixOS layer. Standalone HM has no `osConfig`; every gate
   would need an HM-scoped equivalent.
+- **The registry is applied at the NixOS layer.** `nixosModules.home` is the
+  one module that hands `othrys.internal.homeConfig` to Home Manager, and it
+  writes `home-manager.users`, an option of Home Manager's NixOS module. A
+  standalone export needs a second reader of the registry.
 - **Cross-module signals.** `othrys.desktop.graphical`,
   `othrys.desktop.lockCommand`, `othrys.theme.*`,
   `othrys.apps.languages.*`: the single-signal architecture is declared in

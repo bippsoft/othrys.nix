@@ -7,7 +7,7 @@ othrys.nix is a public NixOS module library built with [flake-parts](https://fla
 ```
 flake.nix                    # Flake entrypoint (no hosts, no secrets)
 flake/                       # Flake-parts modules
-  ├── modules.nix            # Exported nixosModules (incl. aggregate `default`)
+  ├── modules.nix            # Exported nixosModules (incl. aggregates `default` and `full`)
   ├── templates.nix          # `nix flake init` starting points
   ├── packages.nix           # Packaged scripts and tools
   ├── dev-shells.nix         # Development environments
@@ -18,6 +18,7 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   ├── system/                # System fundamentals
   │   ├── user.nix           # Primary user identity option
   │   ├── users.nix          # User account, shell, the Home Manager registry
+  │   ├── home.nix           # Home Manager adapter, a separate export
   │   ├── locale.nix         # Locale, timezone, console
   │   ├── nix.nix            # Nix daemon, substituters, GC
   │   ├── kernel.nix         # Kernel selection

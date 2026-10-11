@@ -17,7 +17,6 @@ impermanence module:
 ```nix
 modules = [
   inputs.othrys.nixosModules.default
-  inputs.home-manager.nixosModules.home-manager
 
   inputs.othrys.nixosModules.impermanence
   inputs.impermanence.nixosModules.impermanence
@@ -25,6 +24,8 @@ modules = [
 ```
 
 with `impermanence.follows = "othrys/impermanence";` among the flake inputs.
+`nixosModules.full` holds both imports already, so a host built from it adds
+neither.
 
 `nixosModules.impermanence` is `modules/system/impermanence.nix`, the only file
 in the tree that writes `environment.persistence`. Enabling

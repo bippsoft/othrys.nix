@@ -8,12 +8,17 @@
 # (modules/apps/**) are personal-workflow-shaped and reachable only via
 # `default`.
 #
-# `default` leaves four exports out, since each writes into the option
-# namespace of an upstream flake that a host may not use. `stylix` is the
-# adapter between othrys.theme and Stylix, `disko` is the disk layout,
-# `secrets` is the sops-nix plumbing and `impermanence` hands the persistence
-# registry to the impermanence module. A host imports each together with the
-# upstream module it configures, or imports neither.
+# `default` leaves five exports out, since each writes into the option
+# namespace of an upstream flake that a host may not use. `home` hands the
+# per-user registry to Home Manager, `stylix` is the adapter between
+# othrys.theme and Stylix, `disko` is the disk layout, `secrets` is the
+# sops-nix plumbing and `impermanence` hands the persistence registry to the
+# impermanence module. A host imports each together with the upstream module
+# it configures, or imports neither. `default` on its own writes into no
+# upstream namespace, so a host built from it alone imports nothing else.
+#
+# `full` is `default` with all five, and with the five upstream modules from
+# this flake's own lock. A host that wants everything imports that one module.
 #
 # Rule when adding a module. If it lives outside modules/apps/, add an
 # individual export here. The `eval-exports` check (flake/checks/) lists the
@@ -21,7 +26,7 @@
 # points at a file that no longer exists.
 #
 # An individual export is one file, and most of them read options declared
-# in other files. The primary user and the home-manager registry come from
+# in other files. The primary user and the Home Manager registry come from
 # system/user.nix and system/users.nix, the persist root from
 # system/ephemeral-root.nix, the persistence registry from
 # system/persistence.nix, the default editor from system/shell, the
@@ -34,12 +39,8 @@
 # `nix`, `secrets`, `hyprland` and `ashell`. Their files take the
 # `othrysInputs` or `inputs` module argument, and the wrapper supplies it.
 #
-# `default` writes into one option namespace owned by an upstream flake,
-# which is home-manager. A consumer of `default` must also import that
-# flake's nixosModule, see docs/src/architecture/host-configuration.md. This
-# holds even when no othrys module configures the user.
-#
-# Usage from another flake:
+# Usage from another flake, see docs/src/architecture/host-configuration.md:
+#   inputs.othrys.nixosModules.full
 #   inputs.othrys.nixosModules.default
 #   inputs.othrys.nixosModules.system
 #   inputs.othrys.nixosModules.tailscale
@@ -72,30 +73,75 @@
   # or `inputs`. `default` is not on the import path of an individual export,
   # so the export carries the arguments itself.
   withArgs = path: {imports = [args path];};
+
+  # Aggregate of the module tree. Injects this flake's own source as the
+  # `othrysSelf` module arg for modules that build from it (services/docs.nix),
+  # so consumers don't need to thread it through specialArgs.
+  #
+  # niri-flake's module is imported here and not inside the tree. An import
+  # is evaluated on every host, and a module argument cannot be read in
+  # `imports`, so importing it from modules/ made every consumer declare a
+  # niri input whether or not they used niri. Here it comes from this
+  # flake's own lock.
+  #
+  # The `key` keeps one copy on a host that imports `default` and `full`
+  # together, since `full` imports this module and `othrysSelf` takes one
+  # definition.
+  default = {
+    key = "othrys.nix/flake/modules.nix#default";
+    imports = [
+      args
+      ../modules
+      inputs.niri.nixosModules.niri
+    ];
+    _module.args.othrysSelf = inputs.self;
+  };
 in {
   flake.nixosModules = {
-    # Aggregate of the full module tree. Injects this flake's own source as the
-    # `othrysSelf` module arg for modules that build from it (services/docs.nix),
-    # so consumers don't need to thread it through specialArgs.
+    inherit default;
+
+    # `default`, the five exports it leaves out and the upstream module each
+    # of them configures. The name says what it holds, which is everything
+    # this flake exports for a host, while `default` stays the tree that
+    # needs no upstream module.
     #
-    # niri-flake's module is imported here and not inside the tree. An import
-    # is evaluated on every host, and a module argument cannot be read in
-    # `imports`, so importing it from modules/ made every consumer declare a
-    # niri input whether or not they used niri. Here it comes from this
-    # flake's own lock.
-    default = {
+    # The upstream modules come from this flake's own lock, on the terms of
+    # niri-flake's module above. All five are inputs of this flake already,
+    # so a consumer's lock holds them whichever export the host imports, and
+    # a flake input is fetched only when something reads it. A host that
+    # imports `default` alone therefore fetches none of them, and a host that
+    # imports `full` declares no input beside othrys and nixpkgs.
+    #
+    # A host that imports `full` imports none of the five upstream modules
+    # itself, since two revisions of one module declare every option twice.
+    # A consumer who wants another revision makes this flake's input follow
+    # their own, as in `inputs.othrys.inputs.home-manager.follows`.
+    full = {
       imports = [
-        args
-        ../modules
-        inputs.niri.nixosModules.niri
+        default
+        ../modules/system/home.nix
+        ../modules/system/impermanence.nix
+        ../modules/system/disko.nix
+        ../modules/system/secrets.nix
+        ../modules/theme/stylix.nix
+        inputs.home-manager.nixosModules.home-manager
+        inputs.impermanence.nixosModules.impermanence
+        inputs.disko.nixosModules.disko
+        inputs.sops-nix.nixosModules.sops
+        inputs.stylix.nixosModules.stylix
       ];
-      _module.args.othrysSelf = inputs.self;
     };
 
     # The option-declaring groups, imported beside an individual export.
     system = withArgs ../modules/system;
     theme = ../modules/theme;
     desktop = withArgs ../modules/desktop;
+
+    # The Home Manager adapter, which `default` and `system` do not import. A
+    # host with a managed user imports this and the Home Manager module
+    # together. The registry it reads and the options beside it are in
+    # `users`, part of `system`, and it reads the enable flag of `nix`.
+    home = ../modules/system/home.nix;
 
     # The Stylix adapter, which `default` does not import. A host that wants
     # Stylix imports this and the Stylix module together.

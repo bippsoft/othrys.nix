@@ -9,22 +9,15 @@ with everything below already in place. The `eval-template` check instantiates
 that template with only the inputs a consumer has, so it cannot drift from the
 contract described here.
 
-A fleet flake takes othrys.nix as an input and builds hosts with `nixosSystem`, importing `nixosModules.default` (the full module tree) alongside the external modules the library builds on:
+A fleet flake takes othrys.nix as an input and builds hosts with `nixosSystem`. `nixosModules.default` is the module tree, and it writes into no option namespace of another flake, so a host built from it alone imports nothing else. Five exports sit outside it, each of which hands part of the tree to an upstream module, and `nixosModules.full` is `default` with all five and the five upstream modules.
+
+A host that wants everything imports the aggregate. The upstream modules come from the lock of othrys, so the fleet flake declares no input for them:
 
 ```nix
 # fleet flake.nix (illustrative)
 inputs = {
   othrys.url = "github:<owner>/othrys.nix";
-
-  # Shared dependencies follow othrys so hosts build against exactly the
-  # versions the module library is locked and tested to.
   nixpkgs.follows = "othrys/nixpkgs";
-  home-manager.follows = "othrys/home-manager";
-
-  # Optional, for the hosts that import the matching othrys export.
-  impermanence.follows = "othrys/impermanence";
-  disko.follows = "othrys/disko";
-  sops-nix.follows = "othrys/sops-nix";
 };
 ```
 
@@ -36,30 +29,70 @@ inputs.nixpkgs.lib.nixosSystem {
   modules = [
     ./hosts/${hostname}
 
-    inputs.othrys.nixosModules.default
-
-    # Required on every host.
-    inputs.home-manager.nixosModules.home-manager
-
-    # Optional, each othrys export beside the upstream module it configures.
-    inputs.othrys.nixosModules.impermanence
-    inputs.impermanence.nixosModules.impermanence
-    inputs.othrys.nixosModules.disko
-    inputs.disko.nixosModules.disko
-    inputs.othrys.nixosModules.secrets
-    inputs.sops-nix.nixosModules.sops
-    {
-      home-manager = {
-        useGlobalPkgs = true;
-        useUserPackages = true;
-        extraSpecialArgs = {inherit inputs;};
-      };
-    }
+    # The tree, the five exports and the five upstream modules.
+    inputs.othrys.nixosModules.full
   ];
 }
 ```
 
-The home-manager module is required on every host, even when no othrys module configures the user, because `nixosModules.default` writes into its option namespace. Five more are optional.
+A host that imports `full` imports none of the five upstream modules itself, since two revisions of one module declare every option twice. A fleet that wants its own revision of one makes the input of othrys follow it, as in `inputs.othrys.inputs.home-manager.follows = "home-manager"`, and every host then gets that revision through `full`.
+
+A server with no managed user imports `default` alone:
+
+```nix
+modules = [
+  ./hosts/${hostname}
+  inputs.othrys.nixosModules.default
+];
+```
+
+A host between the two imports `default` and the exports it wants, each beside the upstream module it configures. The fleet flake then declares those inputs, typically following othrys so hosts build against the versions the library is locked and tested with:
+
+```nix
+# fleet flake.nix (illustrative)
+inputs = {
+  othrys.url = "github:<owner>/othrys.nix";
+  nixpkgs.follows = "othrys/nixpkgs";
+
+  # One for each export a host imports.
+  home-manager.follows = "othrys/home-manager";
+  impermanence.follows = "othrys/impermanence";
+  disko.follows = "othrys/disko";
+  sops-nix.follows = "othrys/sops-nix";
+  stylix.follows = "othrys/stylix";
+};
+```
+
+```nix
+# the host's module list (illustrative)
+modules = [
+  ./hosts/${hostname}
+
+  inputs.othrys.nixosModules.default
+
+  # Each othrys export beside the upstream module it configures.
+  inputs.othrys.nixosModules.home
+  inputs.home-manager.nixosModules.home-manager
+  inputs.othrys.nixosModules.impermanence
+  inputs.impermanence.nixosModules.impermanence
+  inputs.othrys.nixosModules.disko
+  inputs.disko.nixosModules.disko
+  inputs.othrys.nixosModules.secrets
+  inputs.sops-nix.nixosModules.sops
+  inputs.othrys.nixosModules.stylix
+  inputs.stylix.nixosModules.stylix
+];
+```
+
+| Export | Upstream module | Needed by |
+|--------|-----------------|-----------|
+| `nixosModules.home` | `inputs.home-manager.nixosModules.home-manager` | A host whose primary user Home Manager manages |
+| `nixosModules.impermanence` | `inputs.impermanence.nixosModules.impermanence` | A host with an ephemeral root |
+| `nixosModules.disko` | `inputs.disko.nixosModules.disko` | A host that wants the othrys disk layout |
+| `nixosModules.secrets` | `inputs.sops-nix.nixosModules.sops` | A host that wants the othrys sops-nix plumbing |
+| `nixosModules.stylix` | `inputs.stylix.nixosModules.stylix` | A host that wants Stylix |
+
+Home Manager is needed only on a host with a managed user. Every module names its user configuration in `othrys.internal.homeConfig`, an option `nixosModules.default` declares itself, and `modules/system/home.nix` is the only file that writes into the `home-manager` namespace. It is the separate export `nixosModules.home`, which a host imports together with `inputs.home-manager.nixosModules.home-manager`. It hands the registry to `home-manager.users.<name>`, and while `othrys.system.nix` is on it sets `home-manager.useGlobalPkgs` and `home-manager.useUserPackages` as defaults, so the user's packages follow the system's nixpkgs policy. A host that enables `othrys.system.users` and leaves `othrys.system.users.homeManager.enable` on without the export fails an assertion that names it. See [User Identity and Headless Hosts](#user-identity-and-headless-hosts).
 
 impermanence is needed only on a host with an ephemeral root. Every module names what it persists in `othrys.internal.persist`, an option `nixosModules.default` declares itself, and `modules/system/impermanence.nix` is the only file that writes into `environment.persistence`. It is the separate export `nixosModules.impermanence`, which a host imports together with `inputs.impermanence.nixosModules.impermanence`. A host with a persistent root imports neither. A host that sets `othrys.system.impermanence.enable` without the export fails an assertion that names it. See [Impermanence](../system/impermanence.md).
 
@@ -67,7 +100,7 @@ disko is needed only on a host that wants the othrys disk layout. `modules/syste
 
 sops-nix is needed only on a host that wants the othrys secrets plumbing. `modules/system/secrets.nix` is the only file that writes into the `sops` namespace, and it is the separate export `nixosModules.secrets`, which a host imports together with `inputs.sops-nix.nixosModules.sops`. Every other module takes a secret as a runtime file path, so a host with another provider imports neither. See [Secrets Management](../system/secrets.md).
 
-Stylix is needed only on a host that wants it. Nothing in `nixosModules.default` writes into the `stylix` namespace, since every module reads its colours and fonts from `othrys.theme`. The adapter that configures Stylix from the theme is the separate export `nixosModules.stylix`, and a host imports it together with `inputs.stylix.nixosModules.stylix`, with a `stylix.follows = "othrys/stylix"` input beside the others. A host that imports neither evaluates the same without them. See [Theming](../guides/theming.md).
+Stylix is needed only on a host that wants it. Nothing in `nixosModules.default` writes into the `stylix` namespace, since every module reads its colours and fonts from `othrys.theme`. The adapter that configures Stylix from the theme is the separate export `nixosModules.stylix`, and a host imports it together with `inputs.stylix.nixosModules.stylix`. A host that imports neither evaluates the same without them. See [Theming](../guides/theming.md).
 
 Lanzaboote is needed only for Secure Boot on `systemd-boot`, where the host adds a `lanzaboote` input and imports `inputs.lanzaboote.nixosModules.lanzaboote`. Every other host leaves it out and evaluates the same without it. See [Bootloader & Secure Boot](../system/bootloader.md).
 
@@ -131,26 +164,34 @@ directly.
 when a per-user feature is active. Account creation and environment management
 are separate toggles, so hosts pick the coupling they want:
 
-- **Workstations** set `user.name`, enable `othrys.system.users`, and get the
-  managed account plus all home-manager configuration
-  (`users.homeManager.enable` defaults to `true`).
+- **Workstations** set `user.name`, enable `othrys.system.users`, import
+  `nixosModules.home` with the Home Manager module, and get the managed
+  account plus all home-manager configuration (`users.homeManager.enable`
+  defaults to `true`). `nixosModules.full` holds both imports.
 - **Servers with a login account** (an admin user, or an account a webapp runs
   under) enable `othrys.system.users` but set
   `othrys.system.users.homeManager.enable = false`: the account, groups, and
-  persisted home exist, and no home-manager state is generated.
+  persisted home exist, and no home-manager state is generated. Such a host
+  needs neither the export nor the Home Manager module.
 - **Headless/root-only hosts** leave `othrys.system.users` off entirely, or
   even omit `user.name`. Server modules like `ssh`, `docker`, `secrets`, or
-  `impermanence` work without a primary user.
+  `impermanence` work without a primary user, and the host imports
+  `nixosModules.default` alone.
 
 Modules key account-level writes (group memberships, `/persist` home
-directories) on `othrys.system.users.enable` and home-manager writes on the
-derived `othrys.system.users.homeManaged` flag. Service accounts for
+directories) on `othrys.system.users.enable`. Home Manager configuration goes
+to the `othrys.internal.homeConfig` registry, which `nixosModules.home` applies
+behind the derived `othrys.system.users.homeManaged` flag. That flag is true
+when the account exists, `homeManager.enable` is on and the export is
+imported. On any other host the registry entries are skipped and one warning
+names the modules they came from. Service accounts for
 individual daemons are not othrys's concern. Declare them with plain
 `users.users.<name>.isSystemUser` (most NixOS service modules do this
 themselves).
 
 The `eval-host-server`, `eval-host-anonymous`, and `eval-host-server-account`
-checks in `flake/checks/` enforce this contract in CI.
+checks in `flake/checks/` enforce this contract in CI, on hosts that import no
+Home Manager module, and `eval-optional-exports` reads back each shape above.
 
 Additionally, `nixosModules.default` injects `othrysSelf` (this flake's own source) as a module argument, so modules that build from the flake source, such as the [docs server](../modules/services.md), work without extra wiring. Importing individual module files instead of `default` skips that injection. The argument then does not exist, so set `othrys.services.docs.package` explicitly, or the default fails with the module system's missing-argument error when it is read.
 

@@ -16,11 +16,13 @@
       specialArgs = {inherit inputs;};
       modules = [
         inputs.self.nixosModules.default
+        # The reference covers the five exports `default` leaves out too,
+        # each beside the upstream module it writes into. The Home Manager
+        # and impermanence adapters declare no option of their own. The
+        # othrys.system.users and othrys.system.impermanence options are
+        # declared in `default` and are listed either way.
+        inputs.self.nixosModules.home
         inputs.home-manager.nixosModules.home-manager
-        # The reference covers the four exports `default` leaves out too,
-        # each beside the upstream module it writes into. The impermanence
-        # adapter declares no option of its own. The othrys.system.impermanence
-        # options are declared in `default` and are listed either way.
         inputs.self.nixosModules.impermanence
         inputs.impermanence.nixosModules.impermanence
         inputs.self.nixosModules.stylix
