@@ -1,6 +1,8 @@
 # modules/apps/gui/vscode/languages/java.nix
-# Java: extensions for the shared toolchain (othrys.apps.languages.java).
-# redhat.java bundles jdtls, while jdk/maven/gradle come from the language module.
+# Java: extensions for the shared toolchain (othrys.apps.languages.java)
+#
+# redhat.java bundles jdtls, while jdk/maven/gradle come from the language
+# module.
 {
   osConfig,
   lib,

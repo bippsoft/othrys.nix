@@ -123,5 +123,8 @@ in
     "PRIME without bus ids is rejected" = rejectedWith "set intelBusId and nvidiaBusId" primeAlone;
     "PRIME with the driver and bus ids is accepted" = !rejectedWith "othrys.hardware.nvidia.prime" primeSet;
     "the bus ids reach the driver" = primeSet.hardware.nvidia.prime.intelBusId == "PCI:0:2:0" && primeSet.hardware.nvidia.prime.nvidiaBusId == "PCI:1:0:0";
+    "PRIME adds no kernel parameter of its own" = !builtins.any (p: lib.hasPrefix "nvidia" p || lib.hasPrefix "i915" p) primeSet.boot.kernelParams;
+    "nixpkgs still turns modesetting on through the module parameters" = primeSet.hardware.nvidia.moduleParams.nvidia-drm.modeset == 1;
+    "video memory is preserved through the power management option" = primeSet.hardware.nvidia.powerManagement.enable && primeSet.hardware.nvidia.moduleParams.nvidia.NVreg_PreserveVideoMemoryAllocations == 1;
     "i915 is not blacklisted unless asked" = !builtins.elem "i915" primeSet.boot.blacklistedKernelModules;
   }

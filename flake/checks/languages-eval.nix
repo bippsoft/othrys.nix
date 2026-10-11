@@ -69,6 +69,8 @@
     };
   };
 
+  immutable = host {othrys.apps.vscode.mutableExtensionsDir = false;};
+
   home = cfg: cfg.home-manager.users.${cfg.othrys.system.user.name};
   registry = cfg: cfg.othrys.apps.languages;
   nixvim = cfg: (home cfg).programs.nixvim;
@@ -115,6 +117,8 @@ in
 
     "a null server leaves vscode without a server path" = !((settings serverless) ? "nix.serverPath") && !(settings serverless)."nix.enableLanguageServer" && !((settings serverless) ? "rust-analyzer.server.path") && !((settings serverless) ? "Lua.misc.executablePath") && !((settings serverless)."go.alternateTools" ? gopls);
     "a null server keeps the vscode formatter" = inStore (settings serverless)."nix.formatterPath";
+    "vscode keeps a writable extensions directory by default" = (home overridden).programs.vscodium.mutableExtensionsDir;
+    "a host can make the vscode extensions directory immutable" = !(home immutable).programs.vscodium.mutableExtensionsDir;
     "a null server enables no nixvim server" = !(servers serverless).nil_ls.enable && !(servers serverless).rust_analyzer.enable && !(servers serverless).lua_ls.enable && !(servers serverless).gopls.enable;
     "bash without shellcheck in its tools sets no shellcheck path" = !((settings serverless) ? "shellcheck.executablePath") && !((settings serverless) ? "bashIde.shellcheckPath");
     "a host with null servers raises no assertion" = builtins.all (a: a.assertion) serverless.assertions;

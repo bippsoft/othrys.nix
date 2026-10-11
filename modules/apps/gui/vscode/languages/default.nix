@@ -1,5 +1,5 @@
 # modules/apps/gui/vscode/languages/default.nix
-# Language-specific VS Code extension imports
+# Language-specific VSCodium extension imports
 {
   imports = [
     ./nix.nix

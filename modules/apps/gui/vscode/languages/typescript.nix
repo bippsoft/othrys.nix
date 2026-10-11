@@ -1,8 +1,9 @@
 # modules/apps/gui/vscode/languages/typescript.nix
-# TypeScript: settings for the shared toolchain
-# (othrys.apps.languages.typescript). The editor's built-in TypeScript
-# support provides the language service and takes no external server, so only
-# the formatter is wired, through prettier.nix.
+# TypeScript: settings for othrys.apps.languages.typescript
+#
+# The editor's built-in TypeScript support provides the language service and
+# takes no external server, so only the formatter is wired, through
+# prettier.nix.
 {
   osConfig,
   lib,

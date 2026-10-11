@@ -6,7 +6,9 @@
 # fixture has that shape. The managed host reads back the modes of the
 # directories that hold tokens and keys, the directories that are no longer
 # persisted because Home Manager owns their contents, and the paths that were
-# once left on the ephemeral root.
+# once left on the ephemeral root. Both hosts carry every app module, so the
+# few app settings that differ between a managed and an unmanaged user are
+# read here as well.
 {
   hostConfig,
   mkExpectations,
@@ -90,6 +92,20 @@
     else (builtins.head hits).mode;
   userMode = rel: modeOf userDirs "${home}/${rel}";
   persistsUser = rel: builtins.elem "${home}/${rel}" userDirPaths;
+
+  hm = managed.home-manager.users.${user};
+  onSystemPath = name: cfg: builtins.any (p: (p.pname or "") == name) cfg.environment.systemPackages;
+  firewall = managed.networking.firewall;
+  # Steam with no console variable set, the one case where its registry key
+  # has nothing to write.
+  plainSteam = hostConfig [
+    functioningHost
+    {
+      othrys.system.nix.allowUnfree = true;
+      othrys.desktop.graphical = true;
+      othrys.apps.gaming.steam.enable = true;
+    }
+  ];
 in
   mkExpectations "othrys-eval-persistence" {
     "a host with impermanence and no managed account evaluates" = unmanaged.system.build.toplevel.drvPath != null;
@@ -118,6 +134,19 @@ in
     "the history file itself is not persisted" = !(builtins.elem "${home}/.zsh_history" userFiles);
     "HISTFILE points under the persisted directory" =
       managed.home-manager.users.${user}.programs.zsh.history.path == "$HOME/.local/share/zsh/history";
+
+    ".claude.json is persisted as a file beside the directory" = builtins.elem "${home}/.claude.json" userFiles;
+
+    "Steam opens no firewall port by default" =
+      !builtins.any (port: builtins.elem port firewall.allowedTCPPorts) [27036 27037 27040 27015]
+      && !builtins.any (port: builtins.elem port firewall.allowedUDPPorts) [27036 10400 10401 27015]
+      && !builtins.any (range: range.from == 27031) firewall.allowedUDPPortRanges;
+    "Steam writes steam_dev.cfg when a console variable is set" = hm.home.file ? ".local/share/Steam/steam_dev.cfg";
+    "Steam leaves its registry key out when none is set" = !(plainSteam.othrys.internal.homeConfig ? "apps.gaming.steam");
+
+    "comma is installed once, with its database, for a managed user" = !onSystemPath "comma" managed && !onSystemPath "nix-index" managed && hm.programs.nix-index-database.comma.enable;
+    "the managed user gets the command-not-found handler" = hm.programs.nix-index.enable;
+    "an unmanaged host keeps comma on the system path" = onSystemPath "comma" unmanaged && onSystemPath "nix-index" unmanaged;
 
     "NetworkManager connections are persisted" = modeOf systemDirs "/etc/NetworkManager/system-connections" == "0700";
     "NetworkManager state is persisted" = builtins.elem "/var/lib/NetworkManager" systemDirPaths;

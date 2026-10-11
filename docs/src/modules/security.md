@@ -33,8 +33,12 @@ succeed, and the key is a second factor. That applies to the whole PAM service
 and not to one user, so every account that authenticates through a listed
 service needs an enrolled credential, and an account with none is locked out
 of those services while other accounts keep working. The module refuses the
-setting when the primary user has no mapping; enrol and test a key for every
-other account that logs in, and count service and recovery accounts among them.
+setting while any normal user of the host has no mapping, the primary user and
+every other account declared with `isNormalUser` alike. An account that never
+authenticates through a listed service, such as one reached over SSH alone, is
+named in `u2fExemptUsers` and the check passes it over. root is not checked,
+since `su` stays off the list as the way to it. Enrol and test a key for every
+account that logs in, and count service and recovery accounts among them.
 
 `othrys.services.security.yubikey.u2fRequirePassword = false` switches the
 control to `sufficient`: a touch on an enrolled key satisfies the service on

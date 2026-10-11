@@ -1,8 +1,9 @@
 # modules/services/victorialogs.nix
-# VictoriaLogs, a log database from the VictoriaMetrics family (LogsQL,
-# resource-efficient). Pairs with othrys.services.victoriametrics for the
-# full metrics+logs store. The host's journal ships to it natively via
-# systemd-journal-upload (no extra agent).
+# VictoriaLogs, a log database from the VictoriaMetrics family
+#
+# It is queried with LogsQL and is resource-efficient. Pairs with
+# othrys.services.victoriametrics for the full metrics+logs store. The host's
+# journal ships to it natively via systemd-journal-upload (no extra agent).
 {
   config,
   lib,

@@ -1,6 +1,8 @@
 # modules/services/mounts/disks.nix
 # Additional disk mounting configuration
-# Supports multiple disks with different filesystems (NTFS, ext4, btrfs, etc.)
+#
+# Supports multiple disks with different filesystems (NTFS, ext4, btrfs,
+# etc.).
 {
   config,
   lib,

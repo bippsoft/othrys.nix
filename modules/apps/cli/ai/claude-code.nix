@@ -96,6 +96,11 @@ in {
             mode = "0700";
           }
         ];
+        # .claude.json sits in the home directory itself, so it has no
+        # parent directory that could be persisted in its place and it stays
+        # a file bind mount. A writer that renamed a temporary over it would
+        # leave the persisted copy stale. Claude Code 2.1 does not, since
+        # its saves land in the persisted file while a session runs.
         files = [
           ".claude.json"
         ];

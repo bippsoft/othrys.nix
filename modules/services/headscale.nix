@@ -1,9 +1,10 @@
 # modules/services/headscale.nix
-# Headscale, the self-hosted Tailscale control server (the coordination plane the
-# tailscale module can point its `baseURL` at). A thin wrapper over
-# services.headscale with helpers for the public URL, listen socket, MagicDNS,
-# and OIDC, while everything else goes through `settings` (freeform config.yaml),
-# deep-merged over the generated config.
+# Headscale, the self-hosted Tailscale control server
+#
+# It is the coordination plane the tailscale module can point its `baseURL`
+# at. A thin wrapper over services.headscale with helpers for the public URL,
+# listen socket, MagicDNS, and OIDC, while everything else goes through
+# `settings` (freeform config.yaml), deep-merged over the generated config.
 #
 # An optional web UI (Headplane) is bundled under `ui`. Headplane was chosen over
 # the SPA UIs (headscale-ui, headscale-admin) on two axes. Nixpkgs ships a native

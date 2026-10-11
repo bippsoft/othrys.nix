@@ -28,11 +28,18 @@ host.
 
 The clock shows no weather until `weatherLocation` is set. With the default of
 `null` the key is left out of the config and the bar makes no forecast request.
-The value is the TOML ashell reads, and it is identity-shaped, so the host sets
-it.
+The value is a city name or a pair of coordinates, and it is identity-shaped, so
+the host sets it. The module renders either form as the `weather_location`
+table ashell reads. A string holding a brace or an equals sign is refused,
+which catches the raw TOML fragment the option used to take.
 
 ```nix
-othrys.desktop.ashell.weatherLocation = "{ Coordinates = [40.7128, -74.0060] }";
+othrys.desktop.ashell.weatherLocation = {
+  latitude = 40.7128;
+  longitude = -74.006;
+};
+
+othrys.desktop.ashell.weatherLocation = "New York";
 ```
 
 The clipboard button reads a history that cliphist keeps, fed by a Home Manager
@@ -40,7 +47,11 @@ user service on Hyprland and on Niri alike. The history is a plain file under
 `~/.cache/cliphist` and holds everything copied, apart from entries a password
 manager marks as sensitive. It keeps `clipboard.maxItems` entries, 100 by
 default, and the default lock command wipes it each time the session locks. A
-host that replaces `othrys.desktop.lockCommand` takes over that wipe.
+host that replaces `othrys.desktop.lockCommand` takes over that wipe. A second
+user unit, `cliphist-wipe`, wipes the history when the graphical session ends,
+at logout, reboot or shutdown, whatever the lock command is. A session that
+dies without stopping its units, as on a power cut, leaves the file in place
+until the next lock or logout.
 `clipboard.enable = false` removes the service, the button and the wipe. A
 Hyprland host without ashell no longer records a clipboard history at all.
 
@@ -225,6 +236,15 @@ Noctalia, which manages idle itself. Noctalia reads the same `timeouts` for
 its own lock, screen-off and suspend behaviors, so a Noctalia host locks on
 the same schedule without enabling this module; the dim stage has no Noctalia
 equivalent.
+
+`lockBeforeSleep`, on by default, locks the session before the host sleeps.
+With the module enabled it is hypridle's before-sleep command. A Hyprland or
+Niri host that enables neither this module nor Noctalia still gets hypridle for
+that one job, configured with the lock command and no idle stage, together with
+the locker and its PAM service. Such a host therefore locks on suspend and on
+`loginctl lock-session` and never on idle time. Noctalia locks before suspend
+itself. Setting `othrys.desktop.idle.lockBeforeSleep = false` removes the
+before-sleep lock in both cases.
 
 The module declares the PAM service of each locker it installs, `hyprlock` for
 Hyprland and `swaylock` for Niri or an unmanaged compositor, and so does ashell

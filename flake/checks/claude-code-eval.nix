@@ -49,6 +49,12 @@
       };
     }
   ];
+  dataLine = h: let
+    lines = builtins.filter (l: inputs.nixpkgs.lib.hasPrefix "- **Store data**" l) (inputs.nixpkgs.lib.splitString "\n" h.othrys.apps.ai.mcp.context);
+  in
+    if lines == []
+    then ""
+    else builtins.head lines;
   mentionsWipe = h: inputs.nixpkgs.lib.hasInfix "wiped on every boot" h.othrys.apps.ai.mcp.context;
   host = hostConfig [
     functioningHost
@@ -106,4 +112,6 @@ in
     "no hook is registered" = !(settings ? hooks);
     "the context names the root wipe on an impermanence host" = mentionsWipe impermanenceHost;
     "the context does not name the root wipe on a host with a persistent root" = !mentionsWipe host;
+    "the context confines data to the home directory on an impermanence host" = inputs.nixpkgs.lib.hasPrefix "- **Store data**: Only in `$HOME`" (dataLine impermanenceHost) && inputs.nixpkgs.lib.hasInfix "gone after a reboot" (dataLine impermanenceHost);
+    "the context only suggests the home directory on a host with a persistent root" = inputs.nixpkgs.lib.hasPrefix "- **Store data**: In `$HOME`" (dataLine host);
   }

@@ -1,7 +1,8 @@
 # modules/apps/cli/nixvim/plugins/dashboard.nix
-# Start screen via snacks.dashboard (presets.dashboard). Entries adapt to the
-# other presets, so picker-backed items and session restore only appear when their
-# preset provides the implementation.
+# Start screen via snacks.dashboard (presets.dashboard)
+#
+# Entries adapt to the other presets, so picker-backed items and session
+# restore only appear when their preset provides the implementation.
 {
   lib,
   osConfig,

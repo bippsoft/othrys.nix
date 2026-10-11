@@ -1,7 +1,8 @@
 # modules/apps/cli/nixvim/languages/python.nix
-# Python: wires the shared toolchain (othrys.apps.languages.python) into
-# nixvim. basedpyright for types/completion, ruff for formatting, the same
-# canonical stack vscode uses.
+# Python: wires the shared toolchain (othrys.apps.languages.python) into nixvim
+#
+# basedpyright for types/completion, ruff for formatting, the same canonical
+# stack vscode uses.
 {
   osConfig,
   lib,

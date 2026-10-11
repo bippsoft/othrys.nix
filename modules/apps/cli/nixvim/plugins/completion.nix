@@ -1,7 +1,9 @@
 # modules/apps/cli/nixvim/plugins/completion.nix
-# Completion via blink.cmp. Snippets stay on luasnip (see snippets.nix), which
-# blink drives through its luasnip preset, so friendly-snippets and the
-# existing <C-k>/<C-j> jump bindings keep working unchanged.
+# Completion via blink.cmp
+#
+# Snippets stay on luasnip (see snippets.nix), which blink drives through its
+# luasnip preset, so friendly-snippets and the existing <C-k>/<C-j> jump
+# bindings keep working unchanged.
 _: {
   programs.nixvim = {
     plugins.blink-cmp = {

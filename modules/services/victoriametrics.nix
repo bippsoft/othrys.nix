@@ -1,9 +1,10 @@
 # modules/services/victoriametrics.nix
-# VictoriaMetrics, a fast and resource-efficient time-series database with a
-# Prometheus-compatible API (scrape, remote-write, MetricsQL). A thin wrapper
-# over services.victoriametrics, loopback by default (reverse proxy in front),
-# retention as policy, and optional scraping of the node exporter the
-# othrys monitoring module runs.
+# VictoriaMetrics, a time-series database with a Prometheus-compatible API
+#
+# The API covers scrape, remote-write and MetricsQL. A thin wrapper over
+# services.victoriametrics, loopback by default (reverse proxy in front),
+# retention as policy, and optional scraping of the node exporter the othrys
+# monitoring module runs.
 {
   config,
   lib,

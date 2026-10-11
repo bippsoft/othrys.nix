@@ -1,8 +1,10 @@
 # modules/apps/cli/nixvim/plugins/which-key.nix
-# Which-key: keybinding discoverability (always on, since it documents whatever
-# the enabled presets install). Only GROUP labels are declared here, while the
-# per-key descriptions come from each keymap's own `desc`, which which-key
-# discovers automatically, so there is no duplicated registry to keep in sync.
+# Which-key: keybinding discoverability
+#
+# Always on, since it documents whatever the enabled presets install. Only
+# GROUP labels are declared here, while the per-key descriptions come from
+# each keymap's own `desc`, which which-key discovers automatically, so there
+# is no duplicated registry to keep in sync.
 _: {
   programs.nixvim = {
     plugins.which-key.enable = true;

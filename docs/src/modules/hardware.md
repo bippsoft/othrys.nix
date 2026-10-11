@@ -110,6 +110,12 @@ othrys.hardware.nvidia = {
 `prime.enable` on a host without `othrys.hardware.nvidia.enable` also fails
 evaluation, since PRIME configures nothing without the driver.
 
+The module sets no kernel parameter. nixpkgs turns `nvidia-drm.modeset` on for
+an offload host and sets `NVreg_PreserveVideoMemoryAllocations` together with
+the suspend services whenever `hardware.nvidia.powerManagement.enable` is on,
+which it is by default with PRIME. A host that turns power management off
+therefore loses the parameter and the services together.
+
 ### Options
 
 ```nix

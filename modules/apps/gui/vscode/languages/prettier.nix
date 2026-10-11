@@ -1,6 +1,8 @@
 # modules/apps/gui/vscode/languages/prettier.nix
-# Prettier: one extension and one module path for every language whose
-# registry formatter is prettier (typescript, json, yaml).
+# Prettier: one extension and one module path for the languages that use it
+#
+# Those are the languages whose registry formatter is prettier, out of
+# typescript, json and yaml.
 #
 # The extension loads prettier as a Node module, so the setting names the
 # module directory inside the registry package. Left unset, the extension

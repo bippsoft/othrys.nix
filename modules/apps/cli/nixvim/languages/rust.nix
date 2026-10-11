@@ -1,7 +1,9 @@
 # modules/apps/cli/nixvim/languages/rust.nix
-# Rust: wires the shared toolchain (othrys.apps.languages.rust) into nixvim.
+# Rust: wires the shared toolchain (othrys.apps.languages.rust) into nixvim
+#
 # cargo/rustc come from the project (nix develop), not the editor. The native
-# lsp namespace never installs a toolchain of its own, so this needs no opt-out.
+# lsp namespace never installs a toolchain of its own, so this needs no
+# opt-out.
 {
   osConfig,
   lib,

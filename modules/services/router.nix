@@ -1,8 +1,10 @@
 # modules/services/router.nix
-# L3 router firewall + NAT (nftables). Generates a default-drop `inet` filter
-# (input/forward) and an `ip` NAT masquerade from WAN/LAN interface options, with
-# an optional NFQUEUE hook that hands forwarded traffic to Suricata (pair with
-# othrys.services.suricata mode = "nfqueue").
+# L3 router firewall and NAT on nftables
+#
+# Generates a default-drop `inet` filter (input/forward) and an `ip` NAT
+# masquerade from WAN/LAN interface options, with an optional NFQUEUE hook
+# that hands forwarded traffic to Suricata (pair with othrys.services.suricata
+# mode = "nfqueue").
 #
 # Thin by design, since interface names and subnets are identity and come from the
 # fleet host. Port forwards are declared, since each one is two rules in two

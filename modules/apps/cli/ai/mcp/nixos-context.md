@@ -14,7 +14,7 @@ This is a NixOS system. You must understand these constraints:
 - **Project dependencies**: Add to project's `flake.nix` devShell, then `nix develop`
 - **Find packages**: Use NixOS MCP tools or `nix search nixpkgs <query>`
 - **Task automation**: Create/update a `justfile` for project commands
-- **Store data**: Only in `$HOME` (~/.config, ~/.local, project directories)
+- **Store data**: In `$HOME` (~/.config, ~/.local, project directories)
 
 ## Quick Reference
 

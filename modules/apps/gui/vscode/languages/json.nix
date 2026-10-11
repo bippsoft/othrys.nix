@@ -1,6 +1,7 @@
 # modules/apps/gui/vscode/languages/json.nix
-# JSON: settings for the shared toolchain (othrys.apps.languages.json). The
-# editor's built-in JSON support is the same server the registry holds and
+# JSON: settings for the shared toolchain (othrys.apps.languages.json)
+#
+# The editor's built-in JSON support is the same server the registry holds and
 # takes no external path, so only the formatter is wired, through
 # prettier.nix.
 {

@@ -1,9 +1,10 @@
 # modules/desktop/night-light.nix
-# Screen color temperature (blue-light reduction) via gammastep. Coordinates
-# are identity-shaped, so the host provides them for the manual provider. A
-# host that wants its location resolved instead turns geoclue on explicitly,
-# since that enables a location service for the whole host. Noctalia hosts
-# are excluded, since the shell has its own night light.
+# Screen color temperature (blue-light reduction) via gammastep
+#
+# Coordinates are identity-shaped, so the host provides them for the manual
+# provider. A host that wants its location resolved instead turns geoclue on
+# explicitly, since that enables a location service for the whole host.
+# Noctalia hosts are excluded, since the shell has its own night light.
 {
   config,
   lib,

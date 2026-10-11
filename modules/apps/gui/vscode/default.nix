@@ -1,5 +1,5 @@
 # modules/apps/gui/vscode/default.nix
-# VS Code / VSCodium, wired to the shared language toolchains
+# VSCodium, wired to the shared language toolchains
 {
   config,
   lib,
@@ -27,6 +27,23 @@ in {
       type = lib.types.attrsOf lib.types.anything;
       default = {};
       description = "Additional user settings to merge.";
+    };
+
+    mutableExtensionsDir = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      example = false;
+      description = ''
+        Whether `~/.vscode-oss/extensions` is a directory the editor can
+        write. With `true`, Home Manager's own default, the extensions named
+        here are linked into it and anything installed by hand from Open VSX
+        sits beside them, persists with `.vscode-oss` and updates itself.
+        With `false` the directory is a link into the Nix store, so the
+        extension set is exactly what the configuration names and an install
+        from the editor fails. A host switching to `false` removes the
+        existing directory first, since Home Manager does not replace a
+        directory it did not create.
+      '';
     };
 
     neovimIntegration.enable = lib.mkOption {
@@ -70,6 +87,7 @@ in {
 
         programs.vscodium = {
           enable = true;
+          inherit (cfg) mutableExtensionsDir;
 
           profiles.default = {
             enableUpdateCheck = false;

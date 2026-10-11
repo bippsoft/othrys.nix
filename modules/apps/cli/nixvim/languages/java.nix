@@ -1,8 +1,9 @@
 # modules/apps/cli/nixvim/languages/java.nix
-# Java: wires the shared toolchain (othrys.apps.languages.java) into nixvim.
-# Deliberately no Java LSP in neovim, since jdtls integration is heavyweight and
-# vscode (redhat.java) covers the IDE use case, and nixvim gets formatting and
-# syntax. jdk/maven/gradle come from the language module's extraTools.
+# Java: wires the shared toolchain (othrys.apps.languages.java) into nixvim
+#
+# Deliberately no Java LSP in neovim, since jdtls integration is heavyweight
+# and vscode (redhat.java) covers the IDE use case, and nixvim gets formatting
+# and syntax. jdk/maven/gradle come from the language module's extraTools.
 {
   osConfig,
   lib,

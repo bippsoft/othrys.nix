@@ -1,8 +1,10 @@
 # modules/services/ddns.nix
-# Dynamic DNS updates via inadyn, keeping hostnames pointing at a dynamic
-# residential IP (pairs with the Traefik DNS-01 ACME setup). Credentials
-# arrive as an inadyn include snippet from a secrets provider (the file
-# carries `password = ...` in inadyn.conf syntax), never inline.
+# Dynamic DNS updates via inadyn
+#
+# Keeps hostnames pointing at a dynamic residential IP (pairs with the Traefik
+# DNS-01 ACME setup). Credentials arrive as an inadyn include snippet from a
+# secrets provider (the file carries `password = ...` in inadyn.conf syntax),
+# never inline.
 {
   config,
   lib,

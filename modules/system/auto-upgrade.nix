@@ -1,8 +1,10 @@
 # modules/system/auto-upgrade.nix
-# Unattended flake upgrades for headless hosts, pulling the host configuration
-# flake on a schedule, switch, optionally reboot inside a window. Failures push
-# through othrys-notify when the notify module is enabled. An upgrade that
-# silently stops applying is how fleets rot.
+# Unattended flake upgrades for headless hosts
+#
+# Pulls the host configuration flake on a schedule, switches, and optionally
+# reboots inside a window. Failures push through othrys-notify when the notify
+# module is enabled. An upgrade that silently stops applying is how fleets
+# rot.
 #
 # With verify on, a oneshot unit fetches the repository first and only hands
 # the rebuild a commit whose signature comes from a configured key.
@@ -374,6 +376,12 @@ in {
             RuntimeDirectory = verifyUnit;
             RuntimeDirectoryMode = "0700";
             RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
+            # Root is mapped to itself inside the namespace, so the state
+            # directory and the checkout stay owned by root as the rebuild
+            # needs, and the unit holds no capability to lose. No
+            # IPAddressDeny, since the unit fetches from wherever verify.url
+            # points.
+            PrivateUsers = true;
           }
           # The stale report posts through othrys-notify, which reads the
           # token from the credentials directory the way notify-failure@ does.

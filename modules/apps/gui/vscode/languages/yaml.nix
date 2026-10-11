@@ -1,5 +1,6 @@
 # modules/apps/gui/vscode/languages/yaml.nix
-# YAML: extension for the shared toolchain (othrys.apps.languages.yaml).
+# YAML: extension for the shared toolchain (othrys.apps.languages.yaml)
+#
 # redhat.vscode-yaml bundles yaml-language-server and has no setting for an
 # external one, so the registry server reaches nixvim and the PATH only. The
 # formatter is wired through prettier.nix.

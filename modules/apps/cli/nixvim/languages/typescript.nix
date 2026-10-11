@@ -1,7 +1,7 @@
 # modules/apps/cli/nixvim/languages/typescript.nix
-# TypeScript: wires the shared toolchain (othrys.apps.languages.typescript)
-# into nixvim. JSON and YAML are languages of their own, in json.nix and
-# yaml.nix.
+# TypeScript: wires othrys.apps.languages.typescript into nixvim
+#
+# JSON and YAML are languages of their own, in json.nix and yaml.nix.
 {
   osConfig,
   lib,

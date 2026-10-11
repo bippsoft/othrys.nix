@@ -1,7 +1,8 @@
 # modules/services/wireguard.nix
-# Raw WireGuard interfaces for site-to-site links, exit nodes, and peers
-# where a coordination server (tailscale/headscale) is unwanted. Private
-# keys are runtime secrets-provider paths, never inline values.
+# Raw WireGuard interfaces for site-to-site links, exit nodes and peers
+#
+# For hosts where a coordination server (tailscale/headscale) is unwanted.
+# Private keys are runtime secrets-provider paths, never inline values.
 {
   config,
   lib,

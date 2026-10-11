@@ -1,11 +1,13 @@
 # modules/services/alerting.nix
-# Alert evaluation via vmalert, datasource-agnostic (any Prometheus-
-# compatible HTTP API: VictoriaMetrics, Prometheus). The datasource is
-# discovered from whichever othrys metrics store is enabled, and delivery flows
-# to othrys.services.notify through an internal
-# alertmanager -> alertmanager-ntfy chain (vmalert only speaks the
-# Alertmanager API, and both hops are loopback implementation details, while the
-# consumer surface is rules in, ntfy notifications out).
+# Alert evaluation via vmalert, delivered through othrys.services.notify
+#
+# vmalert is datasource-agnostic and reads any Prometheus-compatible HTTP API,
+# VictoriaMetrics or Prometheus. The datasource is discovered from whichever
+# othrys metrics store is enabled, and delivery flows to
+# othrys.services.notify through an internal alertmanager -> alertmanager-ntfy
+# chain. vmalert only speaks the Alertmanager API, and both hops are loopback
+# implementation details, while the consumer surface is rules in, ntfy
+# notifications out.
 {
   config,
   lib,
@@ -258,6 +260,10 @@ in {
           CapabilityBoundingSet = ["CAP_DAC_READ_SEARCH"];
           PrivateNetwork = true;
           RestrictAddressFamilies = "none";
+          IPAddressDeny = "any";
+          # No PrivateUsers. Inside a user namespace the capability above no
+          # longer reaches a file owned by a user of the host, which is the
+          # one thing the unit keeps it for.
         };
       script = ''
         token_file=${lib.escapeShellArg notifyCfg.tokenFile}

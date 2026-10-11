@@ -1,6 +1,7 @@
 # modules/system/secrets.nix
 # sops-nix infrastructure, providing age decryption capability
-# Individual secrets are declared in host configs, not here
+#
+# Individual secrets are declared in host configs, not here.
 {
   config,
   lib,

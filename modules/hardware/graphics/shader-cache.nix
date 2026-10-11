@@ -1,11 +1,13 @@
 # modules/hardware/graphics/shader-cache.nix
-# GPU driver shader disk caches, size-tuned and persisted. Steam's fossilize
-# pre-caching and per-app cache redirects live inside the persisted Steam
-# tree (see apps/gui/gaming/steam.nix), but the DRIVER caches they warm live
-# in ~/.cache, which impermanence wipes every boot, and NVIDIA's cache is
-# capped at 1 GiB with background eviction. Modern Vulkan titles blow past
-# that cap, so the driver evicts what fossilize just compiled and every
-# launch recompiles from zero (CS2 reports it as a corrupted shader cache).
+# GPU driver shader disk caches, size-tuned and persisted
+#
+# Steam's fossilize pre-caching and per-app cache redirects live inside the
+# persisted Steam tree (see apps/gui/gaming/steam.nix), but the DRIVER caches
+# they warm live in ~/.cache, which impermanence wipes every boot, and
+# NVIDIA's cache is capped at 1 GiB with background eviction. Modern Vulkan
+# titles blow past that cap, so the driver evicts what fossilize just compiled
+# and every launch recompiles from zero (CS2 reports it as a corrupted shader
+# cache).
 {
   config,
   lib,

@@ -67,6 +67,7 @@
     };
   });
   offload = ips.systemd.services.suricata-disable-offload;
+  recover = ips.systemd.services.suricata-recover;
 
   crowdsecAfter = unbound:
     (host {
@@ -110,6 +111,8 @@ in
     "dropRules reach suricata-update" = ips.services.suricata.dropRules == ["re:trojan"];
     "the offload unit is bound to its interfaces' device units" = builtins.elem "sys-subsystem-net-devices-wan0.device" offload.bindsTo && builtins.elem "sys-subsystem-net-devices-eth0.100.device" offload.after;
     "the offload unit no longer swallows an ethtool failure" = builtins.match ".*\\|\\| true.*" offload.script == null;
+    "the offload unit reaches no address and keeps its capability out of a user namespace" = offload.serviceConfig.IPAddressDeny == "any" && !(offload.serviceConfig ? PrivateUsers);
+    "the recover unit reaches no address and stays root on the host" = recover.serviceConfig.IPAddressDeny == "any" && !(recover.serviceConfig ? PrivateUsers);
     "matching queue counts are accepted" = !rejectedWith "queues" (pairedRouter 2);
     "a queue count that differs from the router's is rejected" = rejectedWith "differ; packets sent to a queue" (pairedRouter 4);
     "the router's NFQUEUE hook with af-packet suricata is rejected" = rejectedWith "needs othrys.services.suricata.mode" afPacketRouter;

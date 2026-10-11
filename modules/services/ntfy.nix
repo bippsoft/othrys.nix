@@ -1,6 +1,7 @@
 # modules/services/ntfy.nix
-# Self-hosted ntfy push-notification server (services.ntfy-sh). The
-# implementation-named server half of the notification pair, while the
+# Self-hosted ntfy push-notification server (services.ntfy-sh)
+#
+# The implementation-named server half of the notification pair, while the
 # implementation-agnostic othrys.services.notify client dispatches to it (or
 # to any other ntfy instance). Same relationship as headscale (server) and
 # tailscale (client).

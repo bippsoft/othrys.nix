@@ -1,7 +1,9 @@
 # modules/apps/gui/vscode/languages/lua.nix
-# Lua: extensions for the shared toolchain (othrys.apps.languages.lua).
-# sumneko.lua formats through the language server, so the registry formatter
-# reaches nixvim and the PATH only.
+# Lua: extensions for the shared toolchain (othrys.apps.languages.lua)
+#
+# sumneko.lua formats through the language server and has no setting for an
+# external formatter, so the registry formatter reaches nixvim and the PATH
+# only.
 {
   osConfig,
   lib,

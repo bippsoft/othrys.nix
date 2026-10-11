@@ -1,7 +1,9 @@
 # modules/hardware/smart.nix
-# Disk health monitoring via smartd (auto-detected devices). SMART warnings
-# reach the wall by default. With othrys.services.notify enabled they are
-# also pushed through othrys-notify (smartd's mailer hook, no mail stack).
+# Disk health monitoring via smartd (auto-detected devices)
+#
+# SMART warnings reach the wall by default. With othrys.services.notify
+# enabled they are also pushed through othrys-notify (smartd's mailer hook, no
+# mail stack).
 {
   config,
   lib,

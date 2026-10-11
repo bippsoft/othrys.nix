@@ -17,9 +17,20 @@ Gaming modules under `othrys.apps.gaming.*`. Located in `modules/apps/gui/gaming
 
 - FHS environment with essential X11, audio, and system libraries
 - Proton-GE for compatibility
-- Firewall rules for Remote Play and LAN transfers, with the dedicated server ports opt-in
-  (`dedicatedServer.openFirewall`, which opens TCP and UDP 27015 and defaults to `false`)
+- Three firewall options, each off until a host turns it on
 - Gamescope session support
+
+The module opens no port by default. Each option below opens its ports on
+every interface, so a host turns on the ones it uses.
+
+| Option | Opens | For |
+|--------|-------|-----|
+| `remotePlay.openFirewall` | TCP 27036 and 27037, UDP 10400, 10401 and 27031 to 27036 | streaming a game from this host to another device |
+| `localNetworkGameTransfers.openFirewall` | TCP 27040, UDP 27036 | copying an installed game from another Steam client on the network |
+| `dedicatedServer.openFirewall` | TCP and UDP 27015 | a Source Dedicated Server |
+
+Remote Play and local transfers still work outward with the ports closed. The
+options matter on the host that serves the stream or the game files.
 
 Steam's per-app shader caches persist with the Steam tree, but the DRIVER
 shader caches they depend on live in `~/.cache` and NVIDIA's is capped at
@@ -68,8 +79,11 @@ leaves the others in place.
   `apply_gpu_optimisations = "accept-responsibility"`, the literal value
   GameMode requires before it changes the GPU power state. With it set,
   GameMode switches the PowerMizer mode or the AMD performance level each
-  time a game starts. A host that does not want that sets
-  `settings.gpu.apply_gpu_optimisations = 0`.
+  time a game starts, as root and with no password prompt for the active
+  session. GameMode documents these GPU settings as able to damage hardware,
+  which is why the value is spelled as an acceptance. A host that does not
+  want that sets `settings.gpu.apply_gpu_optimisations = 0`, which leaves the
+  GPU alone and keeps the CPU and scheduling changes.
 - **A notification daemon.** The start and end hooks call `notify-send`, and
   the module installs `libnotify` for it. Nothing is shown on a session with
   no notification daemon running.

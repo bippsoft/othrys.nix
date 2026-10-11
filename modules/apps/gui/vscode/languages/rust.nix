@@ -1,5 +1,6 @@
 # modules/apps/gui/vscode/languages/rust.nix
-# Rust: extensions for the shared toolchain (othrys.apps.languages.rust).
+# Rust: extensions for the shared toolchain (othrys.apps.languages.rust)
+#
 # rust-analyzer formats by running the rustfmt it finds on the PATH, which is
 # where the registry formatter is installed.
 {

@@ -75,12 +75,14 @@ in {
         };
       };
 
-      # Kernel parameters for hybrid
-      boot.kernelParams = [
-        "nvidia-drm.modeset=1"
-        "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
-        "i915.enable_rc6=1"
-      ];
+      # No kernel parameter is set here. nixpkgs writes nvidia-drm.modeset=1
+      # into the modprobe configuration whenever offload is on, and
+      # nvidia.NVreg_PreserveVideoMemoryAllocations=1 whenever
+      # hardware.nvidia.powerManagement.enable is, which nvidia.nix turns on
+      # for a PRIME host. The second one needs the suspend services that
+      # option installs, so it follows the option and a host that turns power
+      # management off loses both together. i915 has had no enable_rc6
+      # parameter since Linux 4.16 and RC6 is on wherever the hardware has it.
 
       # GPU monitoring and offload tools
       # powertop lives in the laptop module, and nvidia-offload is already provided by

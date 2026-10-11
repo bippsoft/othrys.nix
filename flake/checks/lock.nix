@@ -5,6 +5,7 @@
 # right. Four hosts cover the four ways a locker is reached: the idle module
 # on hyprland and on niri, ashell's lock button with no idle module and no
 # YubiKey, and noctalia, whose IPC lock falls back to the compositor's locker.
+# A compositor with none of the three locks before sleep and at no other time.
 {
   hostConfig,
   mkExpectations,
@@ -41,6 +42,18 @@
     othrys.desktop.noctalia.enable = true;
     othrys.desktop.idle.timeouts.suspend = 1800;
   };
+  niriAlone = host {othrys.desktop.compositors.niri.enable = true;};
+  niriUnlocked = host {
+    othrys.desktop.compositors.niri.enable = true;
+    othrys.desktop.idle.lockBeforeSleep = false;
+  };
+  niriIdleUnlocked = host {
+    othrys.desktop.compositors.niri.enable = true;
+    othrys.desktop.idle = {
+      enable = true;
+      lockBeforeSleep = false;
+    };
+  };
   unordered = host {
     othrys.desktop.compositors.niri.enable = true;
     othrys.desktop.idle.enable = true;
@@ -52,6 +65,7 @@
 
   user = hyprlandIdle.othrys.system.user.name;
   hypridle = cfg: cfg.home-manager.users.${user}.services.hypridle.settings;
+  runsHypridle = cfg: cfg.home-manager.users.${user}.services.hypridle.enable;
   noctalia = niriNoctalia.home-manager.users.${user}.programs.noctalia.settings;
   lockScript = builtins.readFile niriNoctalia.othrys.desktop.lockCommand;
   hasInfix = needle: s: builtins.match ".*${needle}.*" s != null;
@@ -85,5 +99,13 @@ in
       }).home-manager.users.${
         user
       }.programs.noctalia.settings.idle.behavior.suspend.enabled;
+    "the idle module locks before sleep" = (hypridle niriIdle).general.before_sleep_cmd == "swaylock";
+    "a compositor alone locks before sleep" = runsHypridle niriAlone && (hypridle niriAlone).general.before_sleep_cmd == "swaylock";
+    "a compositor alone has no idle stage" = !((hypridle niriAlone) ? listener);
+    "a compositor alone gets the locker and its PAM service" = niriAlone.security.pam.services ? swaylock && builtins.any (p: p.pname or "" == "swaylock") niriAlone.environment.systemPackages;
+    "ashell without idle locks before sleep with the shared command" = runsHypridle hyprlandAshell && (hypridle hyprlandAshell).general.before_sleep_cmd == hyprlandAshell.othrys.desktop.lockCommand;
+    "noctalia is left to lock before sleep itself" = !runsHypridle niriNoctalia;
+    "a host can turn the sleep lock off" = !runsHypridle niriUnlocked;
+    "the idle module honours the sleep lock switch" = !((hypridle niriIdleUnlocked).general ? before_sleep_cmd) && (hypridle niriIdleUnlocked).general.lock_cmd == "swaylock";
     "a screen-off stage before the lock stage is rejected" = rejectedWith "timeouts must increase" unordered;
   }

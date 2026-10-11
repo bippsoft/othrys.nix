@@ -1,9 +1,10 @@
 # modules/services/grafana.nix
-# Grafana dashboards. Datasources are auto-provisioned from whichever othrys
-# stores are enabled on the same host (Prometheus via monitoring,
-# VictoriaMetrics, VictoriaLogs, the last with its datasource plugin
-# installed). Enabling grafana next to any of them wires them together with
-# zero config.
+# Grafana dashboards, with datasources provisioned from the othrys stores
+#
+# Datasources are auto-provisioned from whichever othrys stores are enabled on
+# the same host (Prometheus via monitoring, VictoriaMetrics, VictoriaLogs, the
+# last with its datasource plugin installed). Enabling grafana next to any of
+# them wires them together with zero config.
 {
   config,
   lib,

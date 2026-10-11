@@ -1,9 +1,11 @@
 # modules/desktop/compositors/niri.nix
-# Niri, a scrollable-tiling Wayland compositor. Config is generated through
-# niri-flake's typed `programs.niri.settings` (build-time validated KDL);
-# the option surface mirrors the hyprland module where concepts map (chords,
-# terminal/browser, outputs, touchpad, screenshots) and is niri-native where
-# they don't (columns scroll, so there is no workspace split to configure).
+# Niri, a scrollable-tiling Wayland compositor
+#
+# Config is generated through niri-flake's typed `programs.niri.settings`,
+# which is KDL validated at build time. The option surface mirrors the
+# hyprland module where concepts map (chords, terminal/browser, outputs,
+# touchpad, screenshots) and is niri-native where they don't (columns scroll,
+# so there is no workspace split to configure).
 #
 # Session: niri manages its own systemd session (`niri-session`), so no uwsm.
 # login.nix starts it by default on a host where niri is the only compositor.

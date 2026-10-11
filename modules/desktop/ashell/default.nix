@@ -43,6 +43,17 @@
     niri = "niri msg action quit";
   };
 
+  # ashell reads weather_location as a tagged value, a table with the one key
+  # City over a string or the one key Coordinates over a pair of floats. Both
+  # are written through toJSON, whose strings and floats are valid TOML, and
+  # an integer is made a float first so the pair is always two floats.
+  weatherLocationToml = location:
+    if builtins.isString location
+    then "{ City = ${builtins.toJSON location} }"
+    else "{ Coordinates = [${builtins.toJSON (location.latitude * 1.0)}, ${builtins.toJSON (location.longitude * 1.0)}] }";
+
+  cliphist = lib.getExe pkgs.cliphist;
+
   leftModules = ["Custom:launcher"] ++ lib.optional cfg.clipboard.enable "Custom:clipboard" ++ ["Workspaces"];
   tomlList = lib.concatMapStringsSep ", " (name: "\"${name}\"");
 
@@ -138,7 +149,7 @@
 
     [tempo]
     clock_format = "${cfg.clockFormat}"
-    ${lib.optionalString (cfg.weatherLocation != null) "weather_location = ${cfg.weatherLocation}"}
+    ${lib.optionalString (cfg.weatherLocation != null) "weather_location = ${weatherLocationToml cfg.weatherLocation}"}
     weather_indicator = "IconAndTemperature"
     wind_speed_unit = "Mph"
 
@@ -189,13 +200,37 @@ in {
     enable = lib.mkEnableOption "Ashell status bar";
 
     weatherLocation = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
+      type = lib.types.nullOr (lib.types.either
+        # A city name holds neither a brace nor an equals sign, and the raw
+        # TOML table this option once took holds both, so that form is
+        # refused here instead of being looked up as a city.
+        (lib.types.strMatching "[^{}=]+")
+        (lib.types.submodule {
+          options = {
+            latitude = lib.mkOption {
+              type = lib.types.numbers.between (-90) 90;
+              example = 40.7128;
+              description = "Latitude in decimal degrees, north positive.";
+            };
+            longitude = lib.mkOption {
+              type = lib.types.numbers.between (-180) 180;
+              example = -74.006;
+              description = "Longitude in decimal degrees, east positive.";
+            };
+          };
+        }));
       default = null;
-      example = "{ Coordinates = [40.7128, -74.0060] }";
+      example = lib.literalExpression ''
+        {
+          latitude = 40.7128;
+          longitude = -74.006;
+        }
+      '';
       description = ''
-        ashell `weather_location` value, written as the TOML ashell reads, so
-        `{ Coordinates = [lat, lng] }` or `{ City = "name" }`. The clock shows
-        the weather for it and fetches the forecast over the network. With
+        Where the clock's weather is for. A string is a city name, which
+        ashell looks up, and an attribute set of `latitude` and `longitude`
+        is a point. The module renders either as the `weather_location` value
+        ashell reads. The bar fetches the forecast over the network. With
         `null` the key is left out, the bar shows no weather and makes no
         request. The location is identity-shaped, so the consuming host sets
         it.
@@ -210,8 +245,9 @@ in {
           Keep a clipboard history with cliphist and show the bar button that
           picks from it. The history is a plain file under `~/.cache/cliphist`
           holding everything copied, apart from entries a password manager
-          marks as sensitive. It is capped at `maxItems` and wiped each time
-          the session locks through `othrys.desktop.lockCommand`.
+          marks as sensitive. It is capped at `maxItems`, wiped each time
+          the session locks through `othrys.desktop.lockCommand` and wiped
+          again when the graphical session ends.
         '';
       };
       maxItems = lib.mkOption {
@@ -331,7 +367,7 @@ in {
 
       # The history holds whatever was copied while the session was open, so
       # locking the session empties it. A failed wipe must not stop the lock.
-      othrys.desktop.lockHooks = lib.mkIf cfg.clipboard.enable "${lib.getExe pkgs.cliphist} wipe || true";
+      othrys.desktop.lockHooks = lib.mkIf cfg.clipboard.enable "${cliphist} wipe || true";
 
       # No sandbox baseline. The bar is a GPU client of the user's own
       # session, so it needs the render devices PrivateDevices hides and the
@@ -371,6 +407,29 @@ in {
         services.cliphist = lib.mkIf cfg.clipboard.enable {
           enable = true;
           extraOptions = ["-max-items" (toString cfg.clipboard.maxItems)];
+        };
+
+        # The history should not outlive the session that filled it either,
+        # and on a host that keeps its home directory nothing else removes
+        # it. The unit does nothing when it starts and wipes when it stops,
+        # which is when graphical-session.target goes down at logout, reboot
+        # or shutdown. It is ordered before the watcher, so it stops after
+        # the watcher has and nothing is stored behind the wipe. A session
+        # that ends without stopping its units, as on a power cut, leaves
+        # the history for the next lock or logout.
+        systemd.user.services.cliphist-wipe = lib.mkIf cfg.clipboard.enable {
+          Unit = {
+            Description = "Wipe the clipboard history when the session ends.";
+            PartOf = ["graphical-session.target"];
+            Before = ["cliphist.service"];
+          };
+          Service = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            ExecStart = "${pkgs.coreutils}/bin/true";
+            ExecStop = "${cliphist} wipe";
+          };
+          Install.WantedBy = ["graphical-session.target"];
         };
 
         wayland.windowManager.hyprland.settings = lib.mkIf hyprlandEnabled {

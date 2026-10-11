@@ -1,6 +1,7 @@
 # modules/lib/net.nix
-# Address helpers shared by the service modules, imported directly like
-# types.nix rather than threaded through specialArgs.
+# Address helpers shared by the service modules
+#
+# Imported directly like types.nix rather than threaded through specialArgs.
 {lib}: {
   # The address a client on the same host connects to, given the address a
   # service binds. Several modules pair a listener with a local consumer, the

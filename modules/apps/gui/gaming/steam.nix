@@ -96,8 +96,13 @@ in {
 
     remotePlay.openFirewall = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Open firewall ports for Steam Remote Play.";
+      default = false;
+      description = ''
+        Open the firewall for Steam Remote Play, which streams a game from
+        this host to another device. It opens TCP 27036 and 27037 and UDP
+        10400, 10401 and 27031 to 27036 on every interface. Off by default,
+        so a host that streams turns it on.
+      '';
     };
 
     dedicatedServer.openFirewall = lib.mkOption {
@@ -105,16 +110,20 @@ in {
       default = false;
       description = ''
         Open firewall ports for Source Dedicated Server, TCP and UDP 27015.
-        Off by default, since a host that plays games does not also serve
-        them, while Remote Play and LAN transfers are client features and
-        stay open.
+        Off by default, as the other two firewall options are.
       '';
     };
 
     localNetworkGameTransfers.openFirewall = lib.mkOption {
       type = lib.types.bool;
-      default = true;
-      description = "Open firewall ports for Steam Local Network Game Transfers.";
+      default = false;
+      description = ''
+        Open the firewall for Steam Local Network Game Transfers, which
+        copies an installed game from another Steam client on the network
+        instead of downloading it. It opens TCP 27040 for the transfer and
+        UDP 27036 for peer discovery on every interface. Off by default, so
+        a host that shares its library turns it on.
+      '';
     };
 
     gamescopeSession.enable = lib.mkOption {
@@ -218,11 +227,11 @@ in {
 
     # The file sits inside the Steam tree persisted above, so the home-manager
     # symlink survives a reboot on impermanence hosts. Steam only reads the
-    # file, which makes a store symlink safe there.
-    othrys.internal.homeConfig = lib.mkIf (devConfig != {}) {
-      "apps.gaming.steam" = {
-        home.file.".local/share/Steam/steam_dev.cfg".text = devConfigText;
-      };
+    # file, which makes a store symlink safe there. The condition wraps the
+    # value of this module's key, so an empty devConfig drops the key and the
+    # rest of the registry is defined unconditionally.
+    othrys.internal.homeConfig."apps.gaming.steam" = lib.mkIf (devConfig != {}) {
+      home.file.".local/share/Steam/steam_dev.cfg".text = devConfigText;
     };
   };
 }

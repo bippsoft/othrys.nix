@@ -1,5 +1,6 @@
 # modules/apps/gui/vscode/languages/bash.nix
-# Bash: extensions for the shared toolchain (othrys.apps.languages.bash).
+# Bash: extensions for the shared toolchain (othrys.apps.languages.bash)
+#
 # bash-ide-vscode bundles bash-language-server and has no setting for an
 # external one, so the registry server reaches nixvim and the PATH only.
 {

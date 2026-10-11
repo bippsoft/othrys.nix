@@ -1,6 +1,8 @@
 # modules/desktop/login.nix
-# Graphical login manager. greetd is the common backend, and the `greeter` option
-# selects the frontend (tuigreet TUI or System76's cosmic-greeter).
+# Graphical login manager on greetd
+#
+# greetd is the common backend, and the `greeter` option selects the frontend
+# (tuigreet TUI or System76's cosmic-greeter).
 {
   config,
   lib,

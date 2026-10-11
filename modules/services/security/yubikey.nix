@@ -28,6 +28,12 @@
   };
   u2fEnabled = cfg.u2fMappings != {};
 
+  # Every account a person logs in to, which is what the listed services
+  # authenticate. The primary user is one of them when the host manages it.
+  # root is left out, since `su` stays off the list as the way to it.
+  loginUsers = lib.attrNames (lib.filterAttrs (_: user: user.isNormalUser) config.users.users);
+  unmappedUsers = lib.subtractLists (lib.attrNames cfg.u2fMappings ++ cfg.u2fExemptUsers) loginUsers;
+
   # Generate U2F mappings file content
   u2fMappingsContent = lib.concatStringsSep "\n" (
     lib.mapAttrsToList (user: keys: "${user}:${lib.concatStringsSep ":" keys}") cfg.u2fMappings
@@ -83,14 +89,29 @@ in {
         and not to one user, so every account that authenticates through one
         of those services needs an enrolled credential, and an account with
         none is locked out of them while other accounts keep working. Enrol
-        and test a key for every such account before turning it on, and the
-        module refuses the setting when the primary user has no mapping.
+        and test a key for every such account before turning it on. The
+        module refuses the setting while any normal user of the host has no
+        mapping, apart from the accounts named in `u2fExemptUsers`.
 
         With this off, pam_u2f is `sufficient`: a touch on an enrolled key
         satisfies the service with no password, which is authentication by
         possession alone. Whoever holds the token holds root, and a token
         left in a laptop is a token in someone's hand. An account with no
         mapping falls through to its password, so nothing is locked out.
+      '';
+    };
+
+    u2fExemptUsers = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      example = ["deploy"];
+      description = ''
+        Normal users that have no entry in `u2fMappings` on purpose. With
+        `u2fRequirePassword` on, the module refuses a host where a normal
+        user has no mapping, since that account fails every service in
+        `u2fServices`. An account that never authenticates through them, such
+        as one reached over SSH alone, is named here and the check passes it
+        over. It stays locked out of those services.
       '';
     };
 
@@ -133,13 +154,14 @@ in {
 
   config = lib.mkIf cfg.enable {
     # With `required`, an account with no mapping cannot pass any listed
-    # service, so the primary user needs one. With `sufficient` a missing
-    # mapping falls through to the password and locks nobody out. Only the
-    # primary user is known here; the host owns its other accounts.
+    # service, and the control covers the whole service, so every normal user
+    # of the host needs a mapping and not the primary user alone. With
+    # `sufficient` a missing mapping falls through to the password and locks
+    # nobody out.
     assertions = [
       {
-        assertion = !(usersEnabled && u2fEnabled && cfg.u2fRequirePassword) || builtins.hasAttr username cfg.u2fMappings;
-        message = "othrys.services.security.yubikey: u2fRequirePassword is on and u2fMappings has no entry for '${username}', which would lock that user out of ${lib.concatStringsSep ", " cfg.u2fServices}. Add a u2fMappings.\"${username}\" entry, or set u2fRequirePassword = false.";
+        assertion = !(u2fEnabled && cfg.u2fRequirePassword) || unmappedUsers == [];
+        message = "othrys.services.security.yubikey: u2fRequirePassword is on and u2fMappings has no entry for ${lib.concatStringsSep ", " unmappedUsers}, so each would be locked out of ${lib.concatStringsSep ", " cfg.u2fServices}. Add a u2fMappings entry for each, name an account that never uses those services in u2fExemptUsers, or set u2fRequirePassword = false.";
       }
     ];
 

@@ -45,4 +45,5 @@ in
     "--impure is refused" = refuses "--impure";
     "the verify unit stages the notify token" = (unit notifying).serviceConfig.LoadCredential == ["token:/run/secrets/ntfy/token"];
     "the verify unit stages nothing without notify" = !((unit host).serviceConfig ? LoadCredential);
+    "the verify unit runs in its own user namespace and keeps its network" = (unit host).serviceConfig.PrivateUsers && !((unit host).serviceConfig ? IPAddressDeny);
   }

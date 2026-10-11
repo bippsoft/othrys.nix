@@ -93,17 +93,29 @@ in {
           url = "https://addons.mozilla.org/firefox/downloads/file/5034826/ublock_origin-1.75.0.xpi";
           hash = "sha256-W3RBWGBFY3BkS9gPFhJehlsObDVrtd/PuEBpln6qUoc=";
         };
-        "{aecec67f-0d10-4fa7-b7c7-609a2db280cf}" = {
-          url = "https://addons.mozilla.org/firefox/downloads/file/5009389/violentmonkey-2.49.0.xpi";
-          hash = "sha256-dh6moyzueMMmPRm72CHq/U6gci8Q/zWOy6JznFv/dvs=";
-        };
       };
-      defaultText = lib.literalMD "Sidebery, Bitwarden, uBlock Origin and Violentmonkey at pinned versions";
+      defaultText = lib.literalMD "Sidebery, Bitwarden and uBlock Origin at pinned versions";
+      example = lib.literalExpression ''
+        options.othrys.apps.floorp.extensions.default
+        // {
+          "{aecec67f-0d10-4fa7-b7c7-609a2db280cf}" = {
+            url = "https://addons.mozilla.org/firefox/downloads/file/5009389/violentmonkey-2.49.0.xpi";
+            hash = "sha256-dh6moyzueMMmPRm72CHq/U6gci8Q/zWOy6JznFv/dvs=";
+          };
+        }
+      '';
       description = ''
         Extensions force-installed from the Nix store, keyed by extension id.
         Each is fetched at build time by URL and hash, so the set a host runs
-        is the set its configuration names. Replace the attribute set to drop
-        one, or add to it.
+        is the set its configuration names. A definition replaces the default
+        set, so a host that adds one extension merges it over
+        `options.othrys.apps.floorp.extensions.default`, as the example does
+        for Violentmonkey.
+
+        A userscript manager such as Violentmonkey is left to the host. Every
+        script it installs runs with page access on the sites it matches, can
+        make cross-origin requests and updates itself from its own URL, which
+        is more code execution than the rest of the set together.
       '';
     };
 

@@ -44,7 +44,9 @@ value is refused at evaluation.
 The shared context every MCP-enabled assistant receives describes the host it
 runs on. Its line about the root wipe is rendered from
 `othrys.system.impermanence.enable`, so a host with a persistent root is not
-told its root is wiped.
+told its root is wiped. The line about where to store data follows the same
+option. It says "only in `$HOME`" on a host that wipes its root and suggests
+the home directory on every other host.
 
 ## MCP Servers
 

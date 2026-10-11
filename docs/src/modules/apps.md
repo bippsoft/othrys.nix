@@ -15,7 +15,7 @@ No desktop environment required, so these are usable on servers and headless sys
 | Development | `othrys.apps.development` | Development tools bundle, direnv with its allow database persisted |
 | GitHub CLI | `othrys.apps.gh` | GitHub CLI with persistence |
 | Yazi | `othrys.apps.yazi` | Terminal file manager |
-| Comma | `othrys.apps.comma` | Run uninstalled programs with nix-index |
+| Comma | `othrys.apps.comma` | Run uninstalled programs with nix-index, whose `command-not-found` handler names the package for a missing command |
 
 The assistant modules under `modules/apps/cli/ai/` are listed on the
 [AI Assistants](./ai.md) page.
@@ -92,11 +92,16 @@ and accepts any JSON value.
 
 ## Floorp
 
-The browser force-installs a curated extension set, Sidebery, Bitwarden,
-uBlock Origin and Violentmonkey, through `othrys.apps.floorp.extensions`.
+The browser force-installs a curated extension set, Sidebery, Bitwarden and
+uBlock Origin, through `othrys.apps.floorp.extensions`.
 Each entry names a versioned download URL and its hash, so the file is
 fetched at build time and installed from the Nix store rather than pulled
-from the add-on site at first start. Replace the set to drop one. The
+from the add-on site at first start. Replace the set to drop one. A
+definition replaces the whole default, so a host that wants one more
+extension merges it over `options.othrys.apps.floorp.extensions.default`.
+The option's example does that for Violentmonkey, which is not in the
+default set because a userscript manager runs whatever scripts it is given
+with page access on the sites they match. The
 built-in password manager is off beside Bitwarden
 (`builtinPasswordManager`), tracking protection exempts nothing until a host
 lists sites in `trackingProtectionExemptions`, and the theme follows the
@@ -105,6 +110,18 @@ Stylix polarity.
 `search.extraEngines` adds search engines over the curated set. Each engine
 is an attribute set of JSON values in the shape Home Manager documents for
 `programs.firefox.profiles.<name>.search.engines`.
+
+## VSCodium
+
+`othrys.apps.vscode.mutableExtensionsDir` decides whether the editor can
+install extensions itself. With `true`, the default and Home Manager's own,
+`~/.vscode-oss/extensions` is a real directory. The extensions the
+configuration names are linked into it, and one installed by hand from Open VSX
+sits beside them, persists with `.vscode-oss` and updates itself. With `false`
+the directory is a link into the Nix store, so the editor runs exactly the set
+the configuration names and an install from the editor fails. A host that
+switches to `false` removes the existing directory first, since Home Manager
+does not replace a directory it did not create.
 
 ## Language Toolchains (`modules/apps/languages/`)
 

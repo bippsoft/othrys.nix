@@ -1,7 +1,8 @@
 # modules/services/notify.nix
-# Host notification dispatch, the implementation-agnostic client half of
-# the notification pair (othrys.services.ntfy is the self-hosted server it
-# points at by default, and any ntfy endpoint works).
+# Host notification dispatch, the client half of the notification pair
+#
+# The client is implementation-agnostic. othrys.services.ntfy is the
+# self-hosted server it points at by default, and any ntfy endpoint works.
 #
 # Provides:
 # - `othrys-notify <title> [message...]` on PATH
@@ -137,6 +138,17 @@ in {
 
           DynamicUser = true;
           RestrictAddressFamilies = ["AF_INET" "AF_INET6"];
+          # The unit keeps no capability and its user exists only for the
+          # run, so it takes a user namespace of its own.
+          PrivateUsers = true;
+        }
+        # A notification for an ntfy on this host never leaves loopback, so
+        # every other address is closed to the unit. An endpoint elsewhere is
+        # reached by a name resolved at run time, which no address list
+        # written here can follow, so IPAddressDeny is left off for it.
+        // lib.optionalAttrs (cfg.url != null && loopbackUrl cfg.url) {
+          IPAddressDeny = "any";
+          IPAddressAllow = "localhost";
         }
         // sandbox.baseline
         // lib.optionalAttrs (cfg.tokenFile != null) {

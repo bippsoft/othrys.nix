@@ -32,7 +32,10 @@
     othrys.desktop.compositors.niri.enable = true;
     othrys.desktop.ashell = {
       enable = true;
-      weatherLocation = "{ Coordinates = [0.0, 0.0] }";
+      weatherLocation = {
+        latitude = 12.5;
+        longitude = -45.25;
+      };
       clipboard.maxItems = 50;
     };
     othrys.apps.kitty = {
@@ -45,8 +48,20 @@
     othrys.desktop.ashell = {
       enable = true;
       clipboard.enable = false;
+      weatherLocation = "Example City";
     };
   };
+  # The raw TOML table the option took before it was typed. The type refuses
+  # it, which aborts the read, so it is tried instead of asserted on.
+  rawWeather =
+    builtins.tryEval
+    (host {
+      othrys.desktop.compositors.niri.enable = true;
+      othrys.desktop.ashell = {
+        enable = true;
+        weatherLocation = "{ Coordinates = [0.0, 0.0] }";
+      };
+    }).othrys.desktop.ashell.weatherLocation;
 
   # The wallpaper is only ever read as a path here, so any file serves.
   wallpaper = {othrys.system.stylix.wallpaper = ./desktop-eval.nix;};
@@ -107,7 +122,9 @@ in
     "a night light with no location is rejected" = rejectedWith "needs a location" unlocated;
 
     "ashell writes no weather location by default" = !lib.hasInfix "weather_location" (ashellToml hyprlandAshell);
-    "ashell writes the weather location a host sets" = lib.hasInfix "\nweather_location = { Coordinates = [0.0, 0.0] }\n" (ashellToml niriAshell);
+    "ashell renders coordinates as the table it reads" = lib.hasInfix "\nweather_location = { Coordinates = [12.5, -45.25] }\n" (ashellToml niriAshell);
+    "ashell renders a city as the table it reads" = lib.hasInfix "\nweather_location = { City = \"Example City\" }\n" (ashellToml noClipboard);
+    "a raw TOML weather location is refused" = !rawWeather.success;
 
     "the clipboard history runs on niri with ashell" = (home niriAshell).services.cliphist.enable;
     "the clipboard history runs on hyprland with ashell" = (home hyprlandAshell).services.cliphist.enable;
@@ -115,6 +132,11 @@ in
     "the clipboard button is in the bar" = lib.hasInfix "\"Custom:clipboard\"" (ashellToml niriAshell);
     "locking wipes the clipboard history" = lib.hasInfix "cliphist wipe" (builtins.readFile niriAshell.othrys.desktop.lockCommand);
     "the lock still ends in the locker" = lib.hasInfix "exec swaylock" (builtins.readFile niriAshell.othrys.desktop.lockCommand);
+    "the clipboard history is wiped when the session ends" = let
+      unit = (home niriAshell).systemd.user.services.cliphist-wipe;
+    in
+      lib.hasSuffix "cliphist wipe" unit.Service.ExecStop && unit.Unit.PartOf == ["graphical-session.target"] && unit.Unit.Before == ["cliphist.service"];
+    "without the history nothing is wiped at session end" = !((home noClipboard).systemd.user.services ? cliphist-wipe);
     "a host can turn the clipboard history off" = !(home noClipboard).services.cliphist.enable && !lib.hasInfix "clipboard" (ashellToml noClipboard);
     "without the history the lock command is the bare locker" = noClipboard.othrys.desktop.lockCommand == "swaylock";
 

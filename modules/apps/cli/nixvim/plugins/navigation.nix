@@ -1,6 +1,7 @@
 # modules/apps/cli/nixvim/plugins/navigation.nix
-# File explorer via snacks.explorer (presets.fileTree). Backed by the picker,
-# so it inherits the same fuzzy matching and keymaps.
+# File explorer via snacks.explorer (presets.fileTree)
+#
+# Backed by the picker, so it inherits the same fuzzy matching and keymaps.
 {
   lib,
   osConfig,

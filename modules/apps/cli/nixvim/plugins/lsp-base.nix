@@ -1,6 +1,7 @@
 # modules/apps/cli/nixvim/plugins/lsp-base.nix
-# Global LSP configuration applying to every language server. Individual
-# servers are enabled in the languages/*.nix modules.
+# Global LSP configuration applying to every language server
+#
+# Individual servers are enabled in the languages/*.nix modules.
 #
 # Uses nixvim's top-level `lsp` namespace, which drives neovim's native
 # vim.lsp.config/vim.lsp.enable directly. nvim-lspconfig is still installed,

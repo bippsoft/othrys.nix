@@ -24,6 +24,17 @@ in {
 
         The shape is that of gamemode.ini, a section name over keys whose
         values are a string, a number, a boolean or a list of those.
+
+        One default deserves a decision.
+        `gpu.apply_gpu_optimisations = "accept-responsibility"` lets gamemode
+        change GPU power settings as root at every game start, with no
+        password prompt for the active session. It then sets the NVIDIA
+        PowerMizer mode to maximum performance and the AMD
+        `power_dpm_force_performance_level` to `high`. The value is spelled
+        that way upstream because gamemode documents these GPU settings as
+        able to damage hardware, and writing it accepts that. A host that
+        does not want it sets `gpu.apply_gpu_optimisations = 0`, which leaves
+        the GPU alone and keeps the CPU and scheduling changes.
       '';
       example = lib.literalExpression ''
         {
@@ -51,6 +62,8 @@ in {
             renice = lib.mkDefault 15;
           };
           gpu = {
+            # Upstream's literal for "change GPU power settings as root". The
+            # option description says what the value accepts.
             apply_gpu_optimisations = lib.mkDefault "accept-responsibility";
             gpu_device = lib.mkDefault 0;
             nv_powermizer_mode = lib.mkDefault 1; # NVIDIA performance mode

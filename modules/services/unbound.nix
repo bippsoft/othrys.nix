@@ -1,8 +1,10 @@
 # modules/services/unbound.nix
-# Unbound recursive DNS, a thin wrapper over services.unbound with helpers for
-# binding interfaces, per-subnet access control, DNS-over-TLS upstream
-# forwarding, and RPZ blocklists. Anything else goes through `settings`
-# (freeform unbound.conf), deep-merged over the generated config.
+# Unbound recursive DNS, a thin wrapper over services.unbound
+#
+# It adds helpers for binding interfaces, per-subnet access control,
+# DNS-over-TLS upstream forwarding, and RPZ blocklists. Anything else goes
+# through `settings` (freeform unbound.conf), deep-merged over the generated
+# config.
 {
   config,
   lib,

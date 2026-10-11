@@ -1,8 +1,10 @@
 # modules/services/scrutiny.nix
-# Scrutiny, S.M.A.R.T. disk health with history. smartd alarms when an
-# attribute crosses a threshold, while Scrutiny keeps every reading in InfluxDB and
-# judges devices against Backblaze's observed failure rates, which is how a
-# slowly dying disk becomes visible months before smartd has anything to say.
+# Scrutiny, S.M.A.R.T. disk health with history
+#
+# smartd alarms when an attribute crosses a threshold, while Scrutiny keeps
+# every reading in InfluxDB and judges devices against Backblaze's observed
+# failure rates, which is how a slowly dying disk becomes visible months
+# before smartd has anything to say.
 #
 # A thin wrapper over services.scrutiny with a hub-and-spoke shape:
 #

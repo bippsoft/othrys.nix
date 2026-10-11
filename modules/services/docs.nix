@@ -19,6 +19,8 @@
     if cfg.port < 1024
     then ["CAP_NET_BIND_SERVICE"]
     else [""];
+  # Whether the server is bound to loopback and so serves this host only.
+  loopbackOnly = builtins.match "(127\\.[0-9.]+|::1|localhost)" cfg.interface != null;
 
   docsPackage = pkgs.stdenv.mkDerivation {
     pname = "othrys-docs";
@@ -91,6 +93,17 @@ in {
           RestrictAddressFamilies = ["AF_INET" "AF_INET6"];
           CapabilityBoundingSet = bindCapability;
           AmbientCapabilities = bindCapability;
+          # A capability held inside a user namespace does not bind a low
+          # port of the host, so the namespace is left off for a port below
+          # 1024 and taken otherwise.
+          PrivateUsers = cfg.port >= 1024;
+        }
+        # Bound to loopback, the server answers this host and nothing else.
+        # On any other interface its clients are whoever the firewall lets
+        # in, so IPAddressDeny is left off there.
+        // lib.optionalAttrs loopbackOnly {
+          IPAddressDeny = "any";
+          IPAddressAllow = "localhost";
         };
     };
 

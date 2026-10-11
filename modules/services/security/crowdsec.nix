@@ -1,8 +1,9 @@
 # modules/services/security/crowdsec.nix
-# CrowdSec security engine + nftables firewall bouncer (both in nixpkgs). The
-# engine parses logs and decides, while the bouncer enforces those decisions in
-# nftables. registerBouncer wires the two automatically, so no manual
-# `cscli bouncers add` / API key is needed for the local setup.
+# CrowdSec security engine and nftables firewall bouncer, both from nixpkgs
+#
+# The engine parses logs and decides, while the bouncer enforces those
+# decisions in nftables. registerBouncer wires the two automatically, so no
+# manual `cscli bouncers add` / API key is needed for the local setup.
 #
 # Central-console enrollment (crowd-sourced blocklists) is a one-time runtime
 # step, `cscli console enroll <key>` with a key from your secrets provider,

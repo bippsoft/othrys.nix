@@ -1,6 +1,8 @@
 # modules/system/networking.nix
-# systemd-networkd networking: per-interface DHCP/static plus router topology
-# helpers (bridges, VLANs, enslavement). IP forwarding lives in
+# systemd-networkd networking, per-interface addressing and router topology
+#
+# Each interface takes DHCP or a static address, and the topology helpers
+# cover bridges, VLANs and enslavement. IP forwarding lives in
 # othrys.services.router. Anything not modelled here (IPv6 prefix delegation,
 # policy routing, bonds) is set through `systemd.network.*` directly.
 {

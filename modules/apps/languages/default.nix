@@ -1,6 +1,7 @@
 # modules/apps/languages/default.nix
-# Per-language development toolchains, the single "this host develops
-# language X" signal (othrys.apps.languages.<lang>).
+# Per-language development toolchains under othrys.apps.languages.<lang>
+#
+# Enabling a language is the single signal that this host develops in it.
 #
 # Each language declares one canonical toolchain (server, formatter, extras),
 # installed once into the user's PATH through Home Manager. The editor modules

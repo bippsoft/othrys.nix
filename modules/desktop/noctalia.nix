@@ -1,10 +1,12 @@
 # modules/desktop/noctalia.nix
-# Noctalia, a native Wayland desktop shell (bar, launcher, control center,
-# notifications, lock screen, wallpaper, clipboard, OSD in one layer, with no
-# Qt/GTK). Configured through upstream's home-manager module, where declarative
-# defaults land in a build-time-validated config.toml, and the GUI's runtime
-# overrides layer on top in ~/.local/state/noctalia (persisted under
-# impermanence), so nix-declared config and in-shell settings coexist.
+# Noctalia, a native Wayland desktop shell
+#
+# It is a bar, launcher, control center, notifications, lock screen,
+# wallpaper, clipboard and OSD in one layer, with no Qt/GTK. Configured
+# through upstream's home-manager module, where declarative defaults land in a
+# build-time-validated config.toml, and the GUI's runtime overrides layer on
+# top in ~/.local/state/noctalia (persisted under impermanence), so
+# nix-declared config and in-shell settings coexist.
 #
 # Theming defaults to a custom palette generated from the Stylix base16
 # scheme (one theming authority, and noctalia synthesizes terminal colors from

@@ -1,6 +1,8 @@
 # modules/desktop/session.nix
-# Picks a command by the compositor the session runs under. Not a NixOS module,
-# just a plain function the desktop modules import, as hyprland-lua.nix is.
+# Picks a command by the compositor the session runs under
+#
+# Not a NixOS module, just a plain function the desktop modules import, as
+# hyprland-lua.nix is.
 #
 # A host can enable both compositors and let the greeter choose, so which
 # module is enabled says nothing about which compositor is running. Every

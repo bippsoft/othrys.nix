@@ -1,8 +1,9 @@
 # modules/apps/gui/vscode/languages/python.nix
-# Python: extensions for the shared toolchain (othrys.apps.languages.python).
-# basedpyright for types/completion, ruff for lint/format, the same
-# canonical stack nixvim uses. detachhead.basedpyright has no setting for an
-# external server binary, so it runs the one it bundles.
+# Python: extensions for the shared toolchain (othrys.apps.languages.python)
+#
+# basedpyright for types/completion, ruff for lint/format, the same canonical
+# stack nixvim uses. detachhead.basedpyright has no setting for an external
+# server binary, so it runs the one it bundles.
 {
   osConfig,
   lib,

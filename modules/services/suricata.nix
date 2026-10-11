@@ -326,6 +326,10 @@ in {
           Type = "oneshot";
           # Talks to systemd over its private socket, and needs nothing else.
           RestrictAddressFamilies = ["AF_UNIX"];
+          IPAddressDeny = "any";
+          # No PrivateUsers. systemd starts the engine because the caller is
+          # root on the host, and the unit stays out of a user namespace so
+          # that this holds.
           ExecCondition = "${config.systemd.package}/bin/systemctl is-failed --quiet suricata.service";
           ExecStart = [
             "${config.systemd.package}/bin/systemctl reset-failed suricata.service"
@@ -354,6 +358,10 @@ in {
           # ioctl on an inet socket, and both need CAP_NET_ADMIN.
           CapabilityBoundingSet = ["CAP_NET_ADMIN"];
           RestrictAddressFamilies = ["AF_NETLINK" "AF_INET" "AF_INET6"];
+          # The inet socket carries an ioctl and no packet, so no address is
+          # needed. No PrivateUsers, since CAP_NET_ADMIN inside a user
+          # namespace does not reach the interfaces of the host.
+          IPAddressDeny = "any";
         };
       script = lib.concatMapStringsSep "\n" (iface: "${pkgs.ethtool}/bin/ethtool -K ${iface} gro off gso off tso off lro off") cfg.offloadInterfaces;
     };

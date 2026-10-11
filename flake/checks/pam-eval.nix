@@ -41,6 +41,20 @@
       u2fRequirePassword = false;
     };
   });
+  # A second account beside the primary user, which has its mapping.
+  secondUnmapped = host {users.users.carol.isNormalUser = true;};
+  secondMapped = host {
+    users.users.carol.isNormalUser = true;
+    othrys.services.security.yubikey.u2fMappings.carol = [credential];
+  };
+  secondExempt = host {
+    users.users.carol.isNormalUser = true;
+    othrys.services.security.yubikey.u2fExemptUsers = ["carol"];
+  };
+  secondTouchAlone = host {
+    users.users.carol.isNormalUser = true;
+    othrys.services.security.yubikey.u2fRequirePassword = false;
+  };
   noKey = host ({lib, ...}: {othrys.services.security.yubikey.u2fMappings = lib.mkForce {};});
 
   services = cfg: cfg.security.pam.services;
@@ -55,7 +69,11 @@ in
     "sshd does not take the key" = !((services twoFactor).sshd.u2f.enable or false);
     "the mappings file is in the store and named in the settings" = builtins.match "/nix/store/.*u2f-mappings" (toString twoFactor.security.pam.u2f.settings.authfile) != null;
     "no ENTER prompt, only the touch cue" = !twoFactor.security.pam.u2f.settings.interactive && twoFactor.security.pam.u2f.settings.cue;
-    "required with no mapping for the primary user is rejected" = rejectedWith "would lock that user out" unmapped;
+    "required with no mapping for the primary user is rejected" = rejectedWith "no entry for alice, so each would be locked out" unmapped;
+    "required with no mapping for a second account is rejected" = rejectedWith "no entry for carol, so each would be locked out" secondUnmapped;
+    "a second account with a mapping is accepted" = !rejectedWith "locked out" secondMapped;
+    "a second account named as exempt is accepted" = !rejectedWith "locked out" secondExempt;
+    "sufficient with no mapping for a second account is accepted" = !rejectedWith "locked out" secondTouchAlone;
     "sufficient with no mapping for the primary user is accepted" = !rejectedWith "lock" unmappedTouchAlone;
     "no mapping at all leaves every service alone" = !builtins.any (name: (services noKey).${name}.u2f.enable) listed;
     "sudo runs commands in a pseudo-terminal with a timeout" = builtins.match ".*Defaults use_pty.*Defaults timestamp_timeout=5.*" twoFactor.security.sudo.extraConfig != null;

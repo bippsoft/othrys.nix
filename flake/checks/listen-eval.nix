@@ -79,6 +79,25 @@
   notifyHttps = notify "https://ntfy.example.com";
   notifyLoopback = notify "http://127.0.0.1:2586";
 
+  # The units that merge the sandbox baseline, read for the two settings the
+  # baseline leaves to each of them.
+  failureUnit = cfg: cfg.systemd.services."notify-failure@".serviceConfig;
+  docs = settings: (hostConfig [functioningHost {othrys.services.docs = {enable = true;} // settings;}]).systemd.services.othrys-docs.serviceConfig;
+  bridgeAuth =
+    (hostConfig [
+      functioningHost
+      {
+        othrys.services.monitoring.enable = true;
+        othrys.services.alerting.enable = true;
+        othrys.services.notify = {
+          enable = true;
+          url = "https://ntfy.example.com";
+          tokenFile = "/run/secrets/notify-token";
+        };
+      }
+    ]).systemd.services.othrys-alerting-ntfy-auth.serviceConfig;
+  loopbackOnly = unit: (unit.IPAddressDeny or null) == "any" && (unit.IPAddressAllow or null) == "localhost";
+
   warnsAbout = needle: cfg: builtins.any (w: builtins.match ".*${needle}.*" w != null) cfg.warnings;
 
   # Prometheus scrape configs by job name, each reduced to its first target
@@ -134,4 +153,12 @@ in
     "a token over https does not warn" = !warnsAbout "sent in clear" notifyHttps;
     "a token over plain http to loopback does not warn" = !warnsAbout "sent in clear" notifyLoopback;
     "no token does not warn" = !warnsAbout "sent in clear" specific;
+
+    "the failure notifier runs in its own user namespace" = (failureUnit notifyHttps).PrivateUsers;
+    "a notifier for an ntfy on this host reaches loopback only" = loopbackOnly (failureUnit notifyLoopback);
+    "a notifier for an ntfy elsewhere keeps its network" = !((failureUnit notifyHttps) ? IPAddressDeny);
+    "the docs server on loopback reaches loopback only, in a user namespace" = loopbackOnly (docs {}) && (docs {}).PrivateUsers;
+    "the docs server on every interface keeps its network" = !((docs {interface = "0.0.0.0";}) ? IPAddressDeny);
+    "the docs server on a low port keeps its capability out of a user namespace" = !(docs {port = 80;}).PrivateUsers;
+    "the bridge auth unit reaches no address and stays out of a user namespace" = bridgeAuth.IPAddressDeny == "any" && !(bridgeAuth ? PrivateUsers);
   }

@@ -1,5 +1,6 @@
 # modules/desktop/uwsm.nix
-# UWSM - Universal Wayland Session Manager for systemd integration.
+# UWSM, the Universal Wayland Session Manager, for systemd integration
+#
 # The login manager lives in login.nix.
 {
   config,

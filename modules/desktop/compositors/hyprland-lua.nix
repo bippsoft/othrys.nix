@@ -1,6 +1,7 @@
 # modules/desktop/compositors/hyprland-lua.nix
-# Helpers for Hyprland's Lua config format. Not a NixOS module, just a plain
-# function that modules contributing to
+# Helpers for Hyprland's Lua config format
+#
+# Not a NixOS module, just a plain function that modules contributing to
 # `wayland.windowManager.hyprland.settings` import directly.
 #
 # Home Manager's Lua renderer turns every top-level `settings` attribute into

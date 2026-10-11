@@ -1,7 +1,8 @@
 # modules/lib/types.nix
-# Shared option types for the othrys module tree, imported directly by the
-# modules that need them rather than threaded through specialArgs (the consumer
-# contract keeps specialArgs to `inputs` alone).
+# Shared option types for the othrys module tree
+#
+# Imported directly by the modules that need them rather than threaded through
+# specialArgs, which the consumer contract keeps to `inputs` alone.
 {lib}: {
   # A runtime path to credential material, produced by a secrets provider at
   # boot and read by a service at start.
