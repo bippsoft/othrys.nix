@@ -1,3 +1,52 @@
+## v0.15.0 (2026-10-11)
+
+### BREAKING CHANGE
+
+- nixosModules.default no longer applies Home Manager
+configuration. A host with othrys.system.users.enable and
+homeManager.enable imports nixosModules.home beside the Home Manager
+module, or imports nixosModules.full, and fails to evaluate with a
+named assertion otherwise. A host that wants the account alone sets
+othrys.system.users.homeManager.enable = false. A host that imports
+nixosModules.full imports none of the five upstream modules itself.
+- nixosModules.default no longer writes
+environment.persistence. A host that sets
+othrys.system.impermanence.enable imports nixosModules.impermanence
+beside the impermanence module, and fails an assertion otherwise. A
+host with a persistent root drops the impermanence import.
+nixosModules.impermanence is now the adapter alone, and the options
+and the root wipe are exported as nixosModules.ephemeral-root.
+- ashell, Hyprland, nixvim and nix-index-database come
+from this flake's lock and no longer from the consumer's inputs. A
+consuming flake that still declares inputs of those names keeps
+evaluating and they are no longer read, so a revision pinned there
+stops taking effect without an error. A consumer keeps their own
+revision with inputs.othrys.inputs.<name>.follows, or with the
+package options of the Hyprland and ashell modules.
+- nixosModules.default no longer carries
+othrys.system.disko or othrys.system.secrets. A host that sets either
+imports nixosModules.disko beside the disko module, or
+nixosModules.secrets beside the sops-nix module, and a host that uses
+neither drops both upstream imports. othrys.system.impermanence.device
+is null by default. The disko export sets it, and a host with
+impermanence and no disko layout sets it or fails an assertion.
+- othrys.apps.ai.mcp.github is removed, and a host that
+still sets it fails to evaluate. Delete the option, revoke the token
+it used, enable othrys.apps.gh and run gh auth login once per user, or
+set othrys.apps.gh.tokenFile on a host with no browser.
+othrys.apps.gh writes the git credential helper for github.com and
+gist.github.com and sets gh's editor, which credentialHelper.enable =
+false and editor = null turn off.
+
+### Feat
+
+- **home**: hand the per-user registry to Home Manager from an export, and add an aggregate of every export
+- **persistence**: declare persistent paths in a registry, and make impermanence an optional export
+- **flake**: supply ashell, Hyprland, nixvim and nix-index-database from this flake's own lock
+- **flake**: make the disko layout and the sops plumbing optional exports
+- **keyring**: add a pass provider and a passwordless store for hosts that log in with a hardware key
+- **gh**: remove the GitHub MCP server, and configure the gh CLI in full
+
 ## v0.14.0 (2026-10-11)
 
 ### BREAKING CHANGE
