@@ -159,7 +159,11 @@ filter table at all. A `dnat` or `redirect` rule goes in `extraPrerouting`.
 With `suricata.enable`, forwarded traffic is handed to Suricata via NFQUEUE
 (`queue num 0-<N-1> bypass`) instead of plain `accept`. Pair it with
 `othrys.services.suricata` (`mode = "nfqueue"`, matching `nfqueue.queues`).
-It disables `networking.firewall` (and asserts `othrys.services.firewall` is
+Suricata inspects forwarded traffic only. The queue verdict is written in the
+forward chain and nowhere else, so connections to the router itself, which the
+input chain decides, and connections the router opens are never queued.
+
+The router disables `networking.firewall` (and asserts `othrys.services.firewall` is
 off), and still reads the firewall's port lists. A port a module opens through
 `openFirewall` lands in `networking.firewall.allowedTCPPorts` or the UDP list,
 and the input chain accepts it on every interface but the WAN, so SSH,
@@ -203,10 +207,25 @@ NFQUEUE hook on, the module refuses an af-packet Suricata and a queue count
 that differs from the router's, since a queue nobody listens on accepts its
 packets uninspected.
 
-Both directions fail open on purpose, since an IPS crash on a router should not
-sever the network it protects. The consequence is worth stating plainly: while
+On this NFQUEUE path a stopped Suricata always fails open, since `bypass` is
+unconditional. An overloaded one fails open by default and drops what does not
+fit its queue once `nfqueue.failOpen` is `false`. The default is deliberate,
+since an IPS crash on a router should not sever the network it protects. While
 Suricata is down, forwarded traffic is uninspected rather than blocked, so the
 link stays up with no IPS behind it.
+
+An af-packet IPS fails the other way. With `mode = "af-packet"` and
+`posture = "ips"` Suricata copies frames between the two interfaces itself, and
+the module sets up no other path between them, so the link is down whenever
+the engine is.
+
+IPv6 is forwarded and filtered when `ipv6` is on, and the WAN interface accepts
+router advertisements so it keeps its default route. The module does no more
+for IPv6 than that. There is no NATv6, so the LAN needs a routed prefix, and
+requesting a delegated prefix from the uplink and sending router
+advertisements on the LAN are the host's job. systemd-networkd does both
+through `DHCPPrefixDelegation` and `IPv6SendRA`, and dhcpcd with radvd is the
+other common pair.
 
 ### Options
 
@@ -381,9 +400,12 @@ Scheduled [restic](https://restic.net/) backups, one entry per named backup
 runtime **file path** sourced from a secrets provider (e.g. sops), never an
 inline value or a `/nix/store` path. Use `passwordFile`, `repositoryFile`,
 `environmentFile`, and `rcloneConfigFile`. Use plain `repository` only for
-non-sensitive locations (a local disk path). A `repository` URL with
-`user:password@` in it is refused by an assertion, since the value is written
-to the unit file in the store.
+non-sensitive locations (a local disk path). The value is written to the
+unit file in the store, so an assertion refuses a `repository` URL that carries
+a credential. That is `user:password@` under any scheme, anything before the
+`@` of an `http` or `https` URL, where a lone token is a credential too, and a
+query parameter named for a token, a key, a secret, a password or a signature.
+An `sftp://user@host` URL names a login and no secret, and is accepted.
 
 `initialize` is on by default and creates the repository on the first run when
 none exists. Where several hosts share one repository, one host keeps it on
@@ -449,6 +471,13 @@ othrys.services.restic.backups.headscale = {
 
 On a fast local repository, `checkOpts = ["--read-data"]` buys full content
 verification on every run.
+
+With [Notify](#notify) on, a failed unit is reported through
+`restic-notify-failure@`, and the message says which part failed. A failed
+check after a completed backup is reported as a failed repository check, which
+means the new snapshot exists. Anything earlier is reported as a failed backup.
+The module runs the check as a step of its own to tell the two apart, and that
+step exits with status 90 when `restic check` fails.
 
 ## Tailscale
 
@@ -591,9 +620,25 @@ Additional local disk mounts (NTFS, ext4, btrfs, xfs, vfat).
 
 NTFS and vfat store no Unix owner, so both are mounted with `uid`, `gid`,
 `dmask` and `fmask` from the device's options. The defaults are uid 1000 and
-gid 100, which is the first account on a NixOS host and the `users` group. A
-vfat mount also takes `nosuid` and `nodev`. ext4, btrfs and xfs carry their own
-ownership and get only `extraOptions`.
+gid 100, which is the first account on a NixOS host and the `users` group. The
+two masks are octal strings of three or four digits, and anything else is a
+type error. ext4, btrfs and xfs carry their own ownership and take none of the
+four.
+
+Every filesystem type is mounted with `nosuid` and `nodev`, since these are
+data disks and a data disk is not where a setuid binary or a device node
+belongs. A disk that does hold them, such as one carrying a container store or
+a chroot, sets `allowSuid` or `allowDev` on its device.
+
+```nix
+othrys.services.mounts.disks.devices.containers = {
+  device = "/dev/disk/by-uuid/abcd1234-5678-90ab-cdef";
+  mountPoint = "/var/lib/containers";
+  fsType = "ext4";
+  allowSuid = true;
+  allowDev = true;
+};
+```
 
 #### Options
 
@@ -604,6 +649,13 @@ ownership and get only `extraOptions`.
 ### CIFS
 
 CIFS/SMB network share mounts. Credentials files are generated from sops templates containing username/password pairs.
+
+The files of a share belong to the primary user and that user's group on a
+host with `othrys.system.users.enable`. The account's uid is passed when the
+host declares one, and its name otherwise, which `mount.cifs` resolves at mount
+time. `uid` and `gid` on a share replace either, as a number or a name. A host
+that manages no account has nothing to default to, and an assertion asks for
+both there.
 
 Every share is mounted with `nosuid` and `nodev`. Three options set what
 crosses the network:
@@ -756,6 +808,23 @@ listens on loopback by default, and the module warns when it is moved off
 loopback or its port is opened. Its default port, 8080, is also the CrowdSec
 local API's and Headscale's, and the module refuses that clash on one host.
 Failures of the collector are routed to `notify-failure@` when notify is on.
+
+`collector.endpoint` is written to the collector's unit and configuration in
+the store, so a URL with a user, a password or a token ahead of the host fails
+an assertion. Upstream types the endpoint as a plain string and has no file
+form for it. A satellite whose hub sits behind a proxy that asks for
+credentials sets `collector.environmentFile` to a secrets-provider file with
+the line `COLLECTOR_API_ENDPOINT=https://user:password@scrutiny.example.com`,
+which replaces `endpoint` when the collector runs.
+
+```nix
+othrys.services.scrutiny.collector = {
+  enable = true;
+  endpoint = "https://scrutiny.example.com";
+  environmentFile = config.sops.secrets."scrutiny/collector-env".path;
+};
+```
+
 The state directory is persisted at `/var/lib/private/scrutiny`, where a
 `DynamicUser` service keeps it.
 
@@ -841,6 +910,14 @@ token travels as a bearer header, so the module warns when `url` is plain
 `http://` and not on this host, since every notification then carries the
 token across the network in clear. Use `https://` for a remote server.
 
+The local [Ntfy](#ntfy) server denies clients without credentials by default,
+so a notify that points at it with `tokenFile` unset delivers nothing. The
+module warns in that case. Either set `tokenFile` to a token provisioned
+through `othrys.services.ntfy.tokensFile`, or give anonymous clients the topic
+with an `othrys.services.ntfy.access` entry such as `"*:alerts:write-only"`.
+[Scrutiny](#scrutiny) leaves the notify URL out of its own configuration while
+the warning stands.
+
 ### Options
 
 ```nix
@@ -858,7 +935,10 @@ port.
 peer takes an optional `presharedKeyFile`. A peer whose `allowedIPs` covers
 the default route needs the last two together. `table` moves the tunnel's
 routes out of `main`, and `fwMark` lets an `ip rule` send everything except
-the tunnel's own encrypted packets to that table.
+the tunnel's own encrypted packets to that table. `allowedIPsAsRoutes` is on
+by default and adds a route for every peer's `allowedIPs`. An interface whose
+routes come from a routing daemon or from the host's own rules sets it to
+`false`, and `allowedIPs` then only says which sources a peer may send from.
 
 ```nix
 othrys.services.wireguard.interfaces.wg0 = {
@@ -908,7 +988,9 @@ change `securityHeaders.frameOptions`.
 `openFirewall` opens 80 and 443 and nothing else. The API and dashboard port,
 8080, stays closed even with `dashboard.insecure`, because that listener
 carries no authentication. A host that wants it reachable opens the port in
-its own firewall configuration.
+its own firewall configuration. Scrutiny, Headscale and the CrowdSec local API
+default to 8080 as well, and the module refuses `dashboard.insecure` beside any
+of them on that port.
 
 `acme.storage` has to sit under `dataDir`, which is the directory the module
 persists under impermanence, and an assertion refuses any other path. An
@@ -936,6 +1018,15 @@ host.
   authentication. The module never opens that port in the firewall, and a
   public host leaves the option off, so the dashboard is never on a public
   entrypoint without authentication.
+- **Forwarded headers.** `forwardedHeaders.trustedIPs` is empty by default, so
+  Traefik discards the `X-Forwarded-*` headers of every request and the client
+  address it logs and passes on is the peer's. That is right for a host that
+  faces the internet directly. Behind a CDN or a load balancer the list holds
+  that proxy's ranges and nothing wider, because a listed peer can state any
+  client address. The option writes the list to both entrypoints.
+- **Log level.** `logLevel` sets `log.level` for Traefik's own log and is null
+  by default, which leaves Traefik at `ERROR`. A host being brought up
+  usually wants `"INFO"` or `"DEBUG"` until its routers and certificates work.
 - **Access log.** The module writes no `accessLog`, and Traefik then logs no
   requests. A host that wants them sets `staticConfigOptions.accessLog`.
   `othrys.services.security.crowdsec` turns the log on in JSON when both
@@ -971,6 +1062,9 @@ othrys.services.traefik = {
     dnsProvider = "cloudflare";
   };
   environmentFiles = [config.sops.secrets."traefik/env".path];
+  # Only behind a proxy, and only that proxy's ranges.
+  forwardedHeaders.trustedIPs = ["192.0.2.0/24"];
+  logLevel = "INFO";
   staticConfigOptions.accessLog.format = "json";
   dynamicConfigOptions = {
     tls.options.default.cipherSuites = [

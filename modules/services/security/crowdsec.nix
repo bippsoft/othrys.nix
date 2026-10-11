@@ -105,6 +105,11 @@ in {
   # ANCHOR_END: crowdsec-options
 
   config = lib.mkIf cfg.enable {
+    # The engine reads the sshd journal, and a login through Tailscale SSH
+    # never reaches sshd. tailscaled answers it, and CrowdSec ships no
+    # parser for what tailscaled logs.
+    warnings = lib.optional (config.othrys.services.tailscale.enable && config.othrys.services.tailscale.ssh) "othrys.services.security.crowdsec: othrys.services.tailscale.ssh is on, and CrowdSec has no parser for Tailscale SSH, so those logins are not watched. Access through it is limited by the tailnet's ACLs alone.";
+
     services.crowdsec = {
       enable = true;
       autoUpdateService = cfg.autoUpdate;

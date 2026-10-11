@@ -2,7 +2,9 @@
 # CORE. The Traefik TLS floor and security headers, read back from the
 # configuration the module hands to services.traefik. One host takes every
 # default with ACME on, one turns each default off, and one overrides a
-# generated value through dynamicConfigOptions, which has to win.
+# generated value through dynamicConfigOptions, which has to win. A fourth
+# names a proxy in front and a log level, which reach the static configuration
+# only when set.
 {
   hostConfig,
   mkExpectations,
@@ -49,6 +51,12 @@
     };
   };
 
+  proxied = traefikHost {
+    forwardedHeaders.trustedIPs = ["192.0.2.0/24"];
+    logLevel = "INFO";
+  };
+  entryPoints = host: host.staticConfigOptions.entryPoints;
+
   middleware = "othrys-security-headers";
   headersOf = host: host.dynamicConfigOptions.http.middlewares.${middleware}.headers;
   attached = host: host.staticConfigOptions.entryPoints.websecure.http.middlewares or [];
@@ -69,5 +77,10 @@ in
     "with every header off nothing is attached" = attached allOff == [];
     "dynamicConfigOptions overrides a generated value" = overridden.dynamicConfigOptions.tls.options.default.minVersion == "VersionTLS13";
     "dynamicConfigOptions keeps the generated middleware" = (headersOf overridden).contentTypeNosniff;
+    "no peer's forwarded headers are trusted by default" = !((entryPoints noAcme).web ? forwardedHeaders) && !((entryPoints noAcme).websecure ? forwardedHeaders);
+    "trusted proxies reach both entrypoints" = (entryPoints proxied).web.forwardedHeaders.trustedIPs == ["192.0.2.0/24"] && (entryPoints proxied).websecure.forwardedHeaders.trustedIPs == ["192.0.2.0/24"];
+    "the entrypoints keep their addresses beside the trusted proxies" = (entryPoints proxied).web.address == ":80" && (entryPoints proxied).websecure.address == ":443";
+    "no log level is written by default" = !(noAcme.staticConfigOptions ? log);
+    "logLevel reaches the static configuration" = proxied.staticConfigOptions.log.level == "INFO";
     "dynamicConfigOptions adds its own router" = overridden.dynamicConfigOptions.http.routers.app.rule == "Host(`app.example.com`)";
   }

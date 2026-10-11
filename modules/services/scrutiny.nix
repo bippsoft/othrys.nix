@@ -27,10 +27,15 @@
   lib,
   ...
 }: let
+  othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.scrutiny;
   notifyCfg = config.othrys.services.notify;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
+
+  # Anything between the scheme and an `@` ahead of the first slash, which
+  # is a user, a user and password, or a token.
+  carriesUserinfo = url: url != null && builtins.match ".*://[^/?#]*@.*" url != null;
 
   # "http(s)://host:port" → the shoutrrr ntfy form Scrutiny understands.
   # shoutrrr assumes https, and the ?scheme query carries a plain-http origin.
@@ -64,11 +69,11 @@ in {
     notifyUrls = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default =
-        lib.optional (notifyCfg.enable && notifyCfg.url != null && notifyCfg.tokenFile == null)
+        lib.optional (notifyCfg.enable && notifyCfg.url != null && notifyCfg.tokenFile == null && !config.othrys.internal.notifyRefusedLocally)
         (ntfyShoutrrr notifyCfg.url notifyCfg.topic);
-      defaultText = lib.literalExpression "the othrys.services.notify endpoint as a shoutrrr ntfy URL, when notify is enabled and unauthenticated; else []";
+      defaultText = lib.literalExpression "the othrys.services.notify endpoint as a shoutrrr ntfy URL, when notify is enabled, unauthenticated and not refused by the ntfy server on this host; else []";
       example = ["ntfy://ntfy.example.com/alerts"];
-      description = "shoutrrr URLs Scrutiny pushes device-failure notifications to. Follows the fleet notify channel by default. A token-authenticated notify endpoint is NOT auto-wired (the token would end up world-readable in the rendered config). Pass an explicit URL instead.";
+      description = "shoutrrr URLs Scrutiny pushes device-failure notifications to. Follows the fleet notify channel by default. A token-authenticated notify endpoint is NOT auto-wired (the token would end up world-readable in the rendered config). Pass an explicit URL instead. Nothing is wired either when notify points at the ntfy server on this host with no token while that server denies anonymous clients, since every push would be refused.";
     };
 
     collector = {
@@ -83,7 +88,28 @@ in {
         type = lib.types.nullOr lib.types.str;
         default = null;
         example = "https://scrutiny.example.com";
-        description = "Scrutiny API base URL the collector reports to. Null means the local web UI (hub hosts); satellites must set it.";
+        description = ''
+          Scrutiny API base URL the collector reports to. Null means the local
+          web UI, which suits a hub, and a satellite must set it. The value
+          is written to the collector's unit and configuration in the store,
+          so a URL with a user, password or token before the host is refused.
+          A hub behind a proxy that asks for credentials is reached through
+          `environmentFile`.
+        '';
+      };
+
+      environmentFile = lib.mkOption {
+        type = lib.types.nullOr othrysTypes.secretPath;
+        default = null;
+        example = lib.literalExpression ''config.sops.secrets."scrutiny/collector-env".path'';
+        description = ''
+          Environment file read by the collector unit, a secrets-provider
+          path. A line `COLLECTOR_API_ENDPOINT=https://user:password@scrutiny.example.com`
+          in it replaces `endpoint` at run time, which is how the collector
+          authenticates to a hub behind a proxy without the credentials
+          entering the store. Upstream types the endpoint as a plain string
+          and has no file form for it.
+        '';
       };
 
       schedule = lib.mkOption {
@@ -113,6 +139,10 @@ in {
       {
         assertion = cfg.collector.enable -> (cfg.enable || cfg.collector.endpoint != null);
         message = "othrys.services.scrutiny: a collector-only host must set collector.endpoint (there is no local web UI to report to).";
+      }
+      {
+        assertion = !carriesUserinfo cfg.collector.endpoint;
+        message = "othrys.services.scrutiny: collector.endpoint carries credentials in its URL, which would be written to the store. Leave them out of endpoint and put COLLECTOR_API_ENDPOINT with the full URL in collector.environmentFile.";
       }
       # The hub binds `port`; a collector-only host binds nothing, so the
       # clash is the hub's alone.
@@ -158,8 +188,13 @@ in {
 
     # A collector that stops running is a monitoring gap that looks like good
     # news, so route the oneshot's failures into the fleet channel.
-    systemd.services.scrutiny-collector.onFailure =
-      lib.mkIf (cfg.collector.enable && notifyCfg.enable) ["notify-failure@%n.service"];
+    systemd.services.scrutiny-collector = lib.mkIf cfg.collector.enable {
+      onFailure = lib.mkIf notifyCfg.enable ["notify-failure@%n.service"];
+      # systemd applies an EnvironmentFile after the unit's own Environment
+      # lines, so a COLLECTOR_API_ENDPOINT in the file replaces the one
+      # upstream renders from `endpoint`.
+      serviceConfig.EnvironmentFile = lib.mkIf (cfg.collector.environmentFile != null) [cfg.collector.environmentFile];
+    };
 
     # Scrutiny's device DB + the InfluxDB time series. The upstream unit runs
     # with DynamicUser + StateDirectory, so the real directory is under

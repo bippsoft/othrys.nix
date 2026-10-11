@@ -118,7 +118,14 @@ in {
     ipv6 = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Forward IPv6 as well (no NATv6, so routed prefixes are assumed).";
+      description = ''
+        Forward IPv6 as well. There is no NATv6, so the LAN needs a routed
+        prefix of its own. This module forwards and filters IPv6 and
+        configures no addressing. Requesting a delegated prefix from the
+        uplink and sending router advertisements on the LAN are the host's
+        job, through systemd-networkd's `DHCPPrefixDelegation` and
+        `IPv6SendRA`, or through dhcpcd and radvd.
+      '';
     };
 
     suricata = {

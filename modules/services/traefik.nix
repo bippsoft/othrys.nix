@@ -7,6 +7,9 @@
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.traefik;
+  scrutiny = config.othrys.services.scrutiny;
+  headscale = config.othrys.services.headscale;
+  crowdsec = config.othrys.services.security.crowdsec;
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
 
@@ -15,6 +18,17 @@
     then cfg.acme.storage
     else "${cfg.dataDir}/acme.json";
 
+  # The insecure dashboard is served on Traefik's own `traefik` entrypoint,
+  # which binds :8080 on every address unless the host defines that
+  # entrypoint itself.
+  dashboardOn8080 = cfg.dashboard.enable && cfg.dashboard.insecure && !((cfg.staticConfigOptions.entryPoints or {}) ? traefik);
+
+  # Traefik drops the X-Forwarded-* headers of a request unless its peer is
+  # listed, so the list is written only when a host names a proxy in front.
+  trustedProxies = lib.optionalAttrs (cfg.forwardedHeaders.trustedIPs != []) {
+    forwardedHeaders = {inherit (cfg.forwardedHeaders) trustedIPs;};
+  };
+
   # Static config assembled from the options, and hosts extend it via
   # staticConfigOptions (merged on top).
   generatedStatic =
@@ -22,6 +36,7 @@
       entryPoints = {
         web =
           {address = ":80";}
+          // trustedProxies
           // lib.optionalAttrs cfg.httpsRedirect {
             http.redirections.entryPoint = {
               to = "websecure";
@@ -31,6 +46,7 @@
         websecure =
           lib.recursiveUpdate (
             {address = ":443";}
+            // trustedProxies
             // lib.optionalAttrs cfg.acme.enable {
               http.tls.certResolver = cfg.acme.resolver;
             }
@@ -40,6 +56,9 @@
             http.middlewares = ["${headersMiddleware}@file"];
           });
       };
+    }
+    // lib.optionalAttrs (cfg.logLevel != null) {
+      log.level = cfg.logLevel;
     }
     // lib.optionalAttrs cfg.dashboard.enable {
       api = {
@@ -239,6 +258,32 @@ in {
       };
     };
 
+    forwardedHeaders.trustedIPs = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      example = ["192.0.2.0/24"];
+      description = ''
+        Addresses or CIDR ranges of the proxies in front of Traefik whose
+        `X-Forwarded-*` headers are kept, written to the `web` and
+        `websecure` entrypoints. With the list empty Traefik discards those
+        headers from every peer, which is right for a host that faces the
+        internet directly. Behind a CDN or a load balancer the list holds that
+        proxy's ranges and nothing wider, since a listed peer can state any
+        client address it likes.
+      '';
+    };
+
+    logLevel = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum ["TRACE" "DEBUG" "INFO" "WARN" "ERROR" "FATAL" "PANIC"]);
+      default = null;
+      example = "INFO";
+      description = ''
+        Level of Traefik's own log, written as `log.level`. Null leaves
+        Traefik's default of `ERROR`. This is the log of the proxy itself,
+        and requests go to the access log, which is a separate setting.
+      '';
+    };
+
     environmentFiles = lib.mkOption {
       type = lib.types.listOf othrysTypes.secretPath;
       default = [];
@@ -286,6 +331,20 @@ in {
       {
         assertion = !cfg.acme.enable || lib.hasPrefix "${toString cfg.dataDir}/" acmeStorage;
         message = "othrys.services.traefik: acme.storage (${acmeStorage}) must be under dataDir (${toString cfg.dataDir}), the directory persisted under impermanence.";
+      }
+      # Scrutiny, Headscale and the CrowdSec local API default to 8080 as
+      # well, and whichever starts second fails to bind.
+      {
+        assertion = !(dashboardOn8080 && scrutiny.enable && scrutiny.port == 8080);
+        message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is also othrys.services.scrutiny.port. Give Scrutiny another port, or move the dashboard through staticConfigOptions.entryPoints.traefik.address.";
+      }
+      {
+        assertion = !(dashboardOn8080 && headscale.enable && headscale.port == 8080);
+        message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is also othrys.services.headscale.port. Give Headscale another port, or move the dashboard through staticConfigOptions.entryPoints.traefik.address.";
+      }
+      {
+        assertion = !(dashboardOn8080 && crowdsec.enable);
+        message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is where the CrowdSec local API listens on this host. Move the dashboard through staticConfigOptions.entryPoints.traefik.address, or serve it through a router to api@internal.";
       }
     ];
 

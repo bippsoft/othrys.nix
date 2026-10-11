@@ -186,8 +186,12 @@
         if [ "$age_days" -gt ${toString cfg.verify.maxAge} ]; then
           echo "${verifyUnit}: warning: the verified commit $new is $age_days days old, past verify.maxAge of ${toString cfg.verify.maxAge} days, so the source has stopped advancing or updates are being held back" >&2
           ${lib.optionalString notifyEnabled ''
-          othrys-notify "auto-upgrade on ${config.networking.hostName} is stale" \
-            "the verified commit is $age_days days old, past verify.maxAge of ${toString cfg.verify.maxAge} days" || true
+          # Called by its path, since this script runs with a PATH of its
+          # runtimeInputs alone and the command is not among them. A report
+          # that cannot be sent is logged and does not fail the upgrade.
+          /run/current-system/sw/bin/othrys-notify "auto-upgrade on ${config.networking.hostName} is stale" \
+            "the verified commit is $age_days days old, past verify.maxAge of ${toString cfg.verify.maxAge} days" ||
+            echo "${verifyUnit}: warning: the stale report was not sent, othrys-notify exited with status $?" >&2
         ''}
         fi
       ''}

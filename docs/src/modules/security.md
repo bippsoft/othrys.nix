@@ -126,7 +126,8 @@ machine credentials are minted on first start under
 and a banned address is no longer forwarded to the LAN. The engine watches the
 sshd journal by default and Traefik's access log when that module is on, which
 the crowdsec module turns on in JSON; Tailscale SSH has no CrowdSec parser and
-is not watched. Enable `openFirewall` only if a remote bouncer or a
+is not watched, and the module warns when `othrys.services.tailscale.ssh` is
+on beside it. Enable `openFirewall` only if a remote bouncer or a
 second engine has to reach that API.
 
 ### Options

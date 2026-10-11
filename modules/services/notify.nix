@@ -27,6 +27,20 @@
   # clear, and the warning below says so.
   loopbackUrl = url: builtins.match "http://(127\\.[0-9.]+|localhost|[[]::1[]])(:[0-9]+)?(/.*)?" url != null;
 
+  # The ntfy server on this host turns away a client with no credentials
+  # unless a rule gives anonymous clients the topic, and a publisher pointed
+  # at it with no token is such a client. Rules written on the host with
+  # `ntfy access` live in the auth database and cannot be read here, which
+  # is why this is reported as a warning and does not fail the evaluation.
+  localNtfyUrl = "http://${local ntfyCfg.listenAddress}:${toString ntfyCfg.port}";
+  anonymousRule = builtins.any (rule: lib.hasPrefix "*:" rule || lib.hasPrefix "everyone:" rule) ntfyCfg.access;
+  refusedLocally =
+    ntfyCfg.enable
+    && (cfg.url == localNtfyUrl || cfg.url == ntfyCfg.baseUrl)
+    && cfg.tokenFile == null
+    && ntfyCfg.defaultAccess == "deny-all"
+    && !anonymousRule;
+
   # The token never becomes a curl argument. An `-H "Authorization: Bearer $t"`
   # argv is world-readable through /proc/<pid>/cmdline for the life of the
   # request, which is the same rule the cachix-push wrapper follows in
@@ -112,6 +126,18 @@ in {
   };
   # ANCHOR_END: notify-options
 
+  # Read by a module that publishes to the same endpoint through a client of
+  # its own, as Scrutiny does, so it can leave out a URL that would be
+  # refused.
+  options.othrys.internal.notifyRefusedLocally = lib.mkOption {
+    type = lib.types.bool;
+    default = cfg.enable && refusedLocally;
+    defaultText = lib.literalMD "derived from `othrys.services.notify` and `othrys.services.ntfy`";
+    internal = true;
+    readOnly = true;
+    description = "Whether notify publishes without a token to an ntfy server on this host that denies anonymous clients.";
+  };
+
   config = lib.mkIf cfg.enable {
     assertions = [
       {
@@ -120,7 +146,9 @@ in {
       }
     ];
 
-    warnings = lib.optional (cfg.tokenFile != null && cfg.url != null && lib.hasPrefix "http://" cfg.url && !loopbackUrl cfg.url) "othrys.services.notify: url is ${cfg.url} and tokenFile is set, so the token is sent in clear over the network on every notification. Use an https:// URL, or an ntfy on this host.";
+    warnings =
+      lib.optional (cfg.tokenFile != null && cfg.url != null && lib.hasPrefix "http://" cfg.url && !loopbackUrl cfg.url) "othrys.services.notify: url is ${cfg.url} and tokenFile is set, so the token is sent in clear over the network on every notification. Use an https:// URL, or an ntfy on this host."
+      ++ lib.optional refusedLocally "othrys.services.notify: url is the ntfy server on this host, which refuses clients without credentials (othrys.services.ntfy.defaultAccess = \"deny-all\"), and tokenFile is null, so no notification is delivered. Set tokenFile to a token provisioned through othrys.services.ntfy.tokensFile, or give anonymous clients the topic with an othrys.services.ntfy.access entry such as \"*:${cfg.topic}:write-only\".";
 
     environment.systemPackages = [notifyScript];
 

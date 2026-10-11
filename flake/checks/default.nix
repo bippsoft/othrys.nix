@@ -1081,12 +1081,12 @@
 
       # Start-up defaults of Suricata and CrowdSec (see ./router-services.nix).
       eval-router-services = import ./router-services.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
-      eval-router = import ./router-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
+      eval-router = import ./router-eval.nix {inherit hostConfig hostEval mkExpectations rejectedWith bootBase;};
       eval-headscale = import ./headscale-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
       eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
-      eval-exposure = import ./exposure-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost;};
+      eval-exposure = import ./exposure-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost;};
       eval-claude-code = import ./claude-code-eval.nix {inherit hostConfig mkExpectations functioningHost bootBase inputs;};
-      eval-k3s = import ./k3s-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
+      eval-k3s = import ./k3s-eval.nix {inherit hostConfig hostEval mkExpectations rejectedWith bootBase;};
       eval-pam = import ./pam-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-containers = import ./containers-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-nix = import ./nix-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
@@ -1106,7 +1106,7 @@
       eval-hardware = import ./hardware-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
 
       # What the smaller service modules pass upstream and refuse (see ./services-eval.nix).
-      eval-services = import ./services-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
+      eval-services = import ./services-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost inputs;};
       eval-auto-upgrade = import ./auto-upgrade-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
 
       # What the option types and the named assertions refuse (see ./types-eval.nix).

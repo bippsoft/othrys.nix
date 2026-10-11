@@ -65,3 +65,13 @@ server that initialises or joins a cluster. k3s bundles its own Traefik on 80
 and 443, so a server beside `othrys.services.traefik` must list `"traefik"` in
 `disable`. `/etc/rancher`, which holds the admin kubeconfig, is persisted
 private to root.
+
+`hardenedFlags` is on by default and starts a server with
+`--write-kubeconfig-mode=0600` and `--secrets-encryption`, ahead of
+`extraFlags`. k3s requires every server of a cluster to agree on secrets
+encryption, so all of them take the same value. A cluster created without
+encryption sets `hardenedFlags = false` and turns encryption on with
+`k3s secrets-encrypt`, as the k3s documentation describes. An agent takes
+neither flag. Forwarding is switched on through `net.ipv4.conf.all.forwarding`
+as a default, the key `othrys.services.router` writes, so a host with both
+emits it once.

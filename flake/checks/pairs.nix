@@ -13,11 +13,12 @@
 #
 # Pairs that another file already reads are left to it: rootful Docker on a
 # router (./containers-eval.nix), Headscale beside Scrutiny, CrowdSec and the
-# docs server (./headscale-eval.nix), k3s beside Traefik (./k3s-eval.nix), the
-# router's Suricata hook (./router-services.nix), PRIME without the driver
-# (./hardware-eval.nix), autologin without a lock path (./login.nix), the
-# bootloader types under secureBoot (./bootloader.nix), and the requirements
-# the enable matrix names by message (./enable-matrix.nix).
+# docs server (./headscale-eval.nix), the insecure Traefik dashboard beside a
+# Headscale on another port (./services-eval.nix), k3s beside Traefik
+# (./k3s-eval.nix), the router's Suricata hook (./router-services.nix), PRIME
+# without the driver (./hardware-eval.nix), autologin without a lock path
+# (./login.nix), the bootloader types under secureBoot (./bootloader.nix), and
+# the requirements the enable matrix names by message (./enable-matrix.nix).
 {
   hostConfig,
   mkExpectations,
@@ -95,6 +96,44 @@
       enable = true;
       collections = [];
     };
+  };
+
+  # Traefik's insecure dashboard binds 8080, the default of three other
+  # services.
+  insecureDashboard = {
+    othrys.services.traefik = {
+      enable = true;
+      dashboard = {
+        enable = true;
+        insecure = true;
+      };
+    };
+  };
+  dashboardBesideScrutiny = headless {
+    imports = [insecureDashboard];
+    othrys.services.scrutiny.enable = true;
+  };
+  dashboardBesideHeadscale = headless {
+    imports = [insecureDashboard];
+    othrys.services.headscale = {
+      enable = true;
+      serverUrl = "https://hs.example.com";
+      baseDomain = "tail.example.com";
+      nameservers = ["192.0.2.53"];
+    };
+  };
+  dashboardBesideCrowdsec = headless {
+    imports = [insecureDashboard];
+    othrys.services.security.crowdsec = {
+      enable = true;
+      collections = [];
+    };
+  };
+  # The same pair with the dashboard's entrypoint moved by the host.
+  dashboardMoved = headless {
+    imports = [insecureDashboard];
+    othrys.services.traefik.staticConfigOptions.entryPoints.traefik.address = "127.0.0.1:8090";
+    othrys.services.scrutiny.enable = true;
   };
 
   primeWithoutIntel = workstation {
@@ -233,6 +272,10 @@ in
     "the night light beside noctalia is rejected" = rejectedWith "othrys.desktop.nightLight conflicts with othrys.desktop.noctalia" nightLightBesideNoctalia;
     "ashell beside noctalia is rejected" = rejectedWith "exclusive shell layers" ashellBesideNoctalia;
     "scrutiny beside crowdsec on port 8080 is rejected" = rejectedWith "Give Scrutiny another port" scrutinyBesideCrowdsec;
+    "the insecure dashboard beside scrutiny on port 8080 is rejected" = rejectedWith "which is also othrys.services.scrutiny.port" dashboardBesideScrutiny;
+    "the insecure dashboard beside headscale on port 8080 is rejected" = rejectedWith "which is also othrys.services.headscale.port" dashboardBesideHeadscale;
+    "the insecure dashboard beside crowdsec is rejected" = rejectedWith "dashboard.insecure serves the dashboard on port 8080, which is where the CrowdSec local API" dashboardBesideCrowdsec;
+    "a dashboard entrypoint the host moved is accepted" = !rejectedWith "dashboard.insecure serves the dashboard" dashboardMoved;
     "blacklistIntel beside PRIME is rejected" = rejectedWith "blacklistIntel removes the i915 driver" primeWithoutIntel;
     "the router beside the firewall module is rejected" = rejectedWith "do not also enable othrys.services.firewall" routerBesideFirewall;
     "an identity stub beside an identity file is rejected" = rejectedWith "set ageIdentityStubs or ageIdentityFile, not both" bothIdentities;

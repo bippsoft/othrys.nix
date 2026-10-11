@@ -18,6 +18,10 @@
       "x-systemd.automount"
       "x-systemd.device-timeout=${toString disk.deviceTimeout}"
     ];
+    # These are data disks, and a data disk is not where a setuid binary or
+    # a device node is expected, so every type is mounted without either
+    # unless the device asks for them.
+    restrictOpts = lib.optional (!disk.allowSuid) "nosuid" ++ lib.optional (!disk.allowDev) "nodev";
   in
     if disk.fsType == "ntfs-3g"
     then
@@ -30,6 +34,7 @@
         "big_writes"
         "windows_names"
       ]
+      ++ restrictOpts
       ++ disk.extraOptions
       ++ automountOpts
     else if disk.fsType == "ntfs3"
@@ -42,27 +47,25 @@
         "fmask=${disk.fmask}"
         "windows_names"
       ]
+      ++ restrictOpts
       ++ disk.extraOptions
       ++ automountOpts
     else if disk.fsType == "vfat"
     then
       # FAT stores no owner and no mode, so without these every file belongs
-      # to root. It cannot hold a real setuid binary or device node either,
-      # and nosuid and nodev keep the kernel from honouring anything a
-      # crafted image presents as one.
+      # to root.
       [
         "uid=${toString disk.uid}"
         "gid=${toString disk.gid}"
         "dmask=${disk.dmask}"
         "fmask=${disk.fmask}"
-        "nosuid"
-        "nodev"
       ]
+      ++ restrictOpts
       ++ disk.extraOptions
       ++ automountOpts
     else
       # ext4, btrfs, xfs, etc.
-      disk.extraOptions ++ automountOpts;
+      restrictOpts ++ disk.extraOptions ++ automountOpts;
 
   # Disk submodule type
   diskType = lib.types.submodule {
@@ -98,15 +101,27 @@
       };
 
       dmask = lib.mkOption {
-        type = lib.types.str;
+        type = lib.types.strMatching "[0-7]{3,4}";
         default = "022";
-        description = "Directory permission mask (NTFS and vfat).";
+        description = "Directory permission mask in octal, three or four digits (NTFS and vfat).";
       };
 
       fmask = lib.mkOption {
-        type = lib.types.str;
+        type = lib.types.strMatching "[0-7]{3,4}";
         default = "133";
-        description = "File permission mask (NTFS and vfat).";
+        description = "File permission mask in octal, three or four digits (NTFS and vfat).";
+      };
+
+      allowSuid = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Mount without `nosuid`, so setuid and setgid bits on the disk take effect. Off for every filesystem type, since a data disk has no use for them.";
+      };
+
+      allowDev = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Mount without `nodev`, so device nodes on the disk are usable. Off for every filesystem type.";
       };
 
       automount = lib.mkOption {

@@ -1,7 +1,9 @@
 # flake/checks/router-services.nix
 # CORE. Two start-up defaults of the router's security services, read back from
 # the evaluated host. Both failures they guard against only show on a host with
-# a route out, which no VM test has, so they are pinned here.
+# a route out, which no VM test has, so they are pinned here. The capture
+# entry an NFQUEUE Suricata carries only to satisfy upstream is pinned too,
+# since nothing but the forced command line keeps it from being captured.
 {
   hostConfig,
   mkExpectations,
@@ -68,6 +70,15 @@
   });
   offload = ips.systemd.services.suricata-disable-offload;
   recover = ips.systemd.services.suricata-recover;
+  queued = suricataHost {othrys.services.suricata.nfqueue.queues = 2;};
+  capture = cfg: cfg.services.suricata.settings;
+  engine = cfg: cfg.systemd.services.suricata.serviceConfig;
+  afPacket = suricataHost ({lib, ...}: {
+    othrys.services.suricata = {
+      mode = lib.mkForce "af-packet";
+      afPacket.interface = "lan0";
+    };
+  });
 
   crowdsecAfter = unbound:
     (host {
@@ -98,6 +109,14 @@
     };
   };
   alone = crowdsecOn {};
+  besideTailscale = ssh:
+    crowdsecOn {
+      othrys.services.tailscale = {
+        enable = true;
+        inherit ssh;
+      };
+    };
+  warnsAbout = needle: cfg: builtins.any (hasInfix needle) cfg.warnings;
   withTraefik = crowdsecOn {othrys.services.traefik.enable = true;};
   hasInfix = needle: s: builtins.match ".*${needle}.*" s != null;
   bouncerTable = cfg: family: cfg.networking.nftables.tables.${family}.content;
@@ -116,6 +135,15 @@ in
     "matching queue counts are accepted" = !rejectedWith "queues" (pairedRouter 2);
     "a queue count that differs from the router's is rejected" = rejectedWith "differ; packets sent to a queue" (pairedRouter 4);
     "the router's NFQUEUE hook with af-packet suricata is rejected" = rejectedWith "needs othrys.services.suricata.mode" afPacketRouter;
+    "an NFQUEUE suricata carries one capture entry, the loopback placeholder" = map (entry: entry.interface) (capture queued).pcap == ["lo"] && (capture queued).af-packet == null;
+    "the NFQUEUE command line reads the queues and names no interface" = let
+      command = (engine queued).ExecStart;
+    in
+      hasInfix " -q 0 -q 1" command && !hasInfix " -i " command && !hasInfix "--pcap" command && !hasInfix "--af-packet" command;
+    "the configuration test still runs before the engine starts" = hasInfix " -T" (engine queued).ExecStartPre;
+    "an af-packet suricata carries no placeholder" = (capture afPacket).pcap == null && builtins.length (capture afPacket).af-packet == 1;
+    "crowdsec beside Tailscale SSH warns that those logins are not watched" = warnsAbout "those logins are not watched" (besideTailscale true);
+    "crowdsec beside Tailscale without its SSH server does not warn" = !warnsAbout "those logins are not watched" (besideTailscale false);
     "crowdsec starts after the local resolver when othrys unbound is on" = builtins.elem "unbound.service" (crowdsecAfter true);
     "crowdsec is not ordered after a resolver the host does not run" = !(builtins.elem "unbound.service" (crowdsecAfter false));
     "on a router the bouncer's ipv4 table gains a forward hook on its set" = hasInfix "hook forward" (bouncerTable onRouter "crowdsec") && hasInfix "ip saddr @crowdsec-blacklists drop" (bouncerTable onRouter "crowdsec");

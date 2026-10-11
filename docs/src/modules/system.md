@@ -113,7 +113,8 @@ othrys.system.autoUpgrade = {
 - **Staleness**: a source that stops advancing verifies cleanly every night,
   so `verify.maxAge` (default 30 days) has the unit log a warning once the
   verified commit is older than that, and send a notification when the notify
-  module is on. The upgrade still runs. Null turns the report off.
+  module is on. The upgrade still runs, and a notification that cannot be sent
+  is logged as a second warning. Null turns the report off.
 - **Rollback rule**: the last verified commit id is kept in
   `/var/lib/othrys-auto-upgrade-verify/last-verified`. A new target that does not
   descend from it fails the unit, which stops a validly signed but older commit

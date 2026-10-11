@@ -4,6 +4,8 @@
 # signed by an unlisted key, a signature in the other format, a rollback and an
 # unsigned tag, while the verified checkout stays where it was. The VM has no
 # network, so nixos-rebuild itself never runs and only the unit wiring is checked.
+# The notify module points at a port nothing listens on, so the stale report
+# is attempted and its failure is read back from the journal.
 {
   pkgs,
   inputs,
@@ -30,6 +32,10 @@
     imports = [testStubs];
     virtualisation.memorySize = 768;
     environment.systemPackages = [pkgs.git pkgs.gnupg pkgs.openssh];
+    othrys.services.notify = {
+      enable = true;
+      url = "http://127.0.0.1:9";
+    };
     othrys.system.autoUpgrade = {
       enable = true;
       verify =
@@ -197,6 +203,10 @@ in
                   f"journalctl -o cat _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value {UNIT})"
               )
               assert "past verify.maxAge" in log, f"expected the stale warning in: {log}"
+              # curl exits with 7 when the connection is refused, which shows
+              # that othrys-notify was found and ran. A command that is not
+              # on the unit's PATH would have ended in 127.
+              assert "the stale report was not sent, othrys-notify exited with status 7" in log, f"expected the failed report in: {log}"
 
           with subtest("the upgrade requires and follows the verify unit"):
               wiring = node.succeed("systemctl show nixos-upgrade.service -p Requires -p After")

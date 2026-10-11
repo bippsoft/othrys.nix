@@ -81,6 +81,17 @@ in {
             description = "Routing table the routes for `allowedIPs` are added to, by name or number. Anything but `main` leaves the default route alone until an `ip rule` selects the table.";
           };
 
+          allowedIPsAsRoutes = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = ''
+              Add a route for every peer's `allowedIPs` to `table`. Set to
+              `false` where the routes are managed elsewhere, by a routing
+              daemon or by the host's own rules, and `allowedIPs` should only
+              say which sources a peer may send from.
+            '';
+          };
+
           peers = lib.mkOption {
             default = [];
             description = "Peers for this interface.";
@@ -131,7 +142,7 @@ in {
 
     networking.wireguard.interfaces =
       lib.mapAttrs (_: iface: {
-        inherit (iface) privateKeyFile ips listenPort mtu fwMark table;
+        inherit (iface) privateKeyFile ips listenPort mtu fwMark table allowedIPsAsRoutes;
         peers = map (p:
           {
             inherit (p) publicKey allowedIPs;

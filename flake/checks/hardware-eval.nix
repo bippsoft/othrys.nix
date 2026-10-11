@@ -61,6 +61,28 @@
             mountPoint = "/mnt/usb";
             fsType = "vfat";
           };
+          devices.windows = {
+            device = "/dev/disk/by-label/windows";
+            mountPoint = "/mnt/windows";
+            fsType = "ntfs-3g";
+          };
+          devices.shared = {
+            device = "/dev/disk/by-label/shared";
+            mountPoint = "/mnt/shared";
+            fsType = "ntfs3";
+          };
+          devices.data = {
+            device = "/dev/disk/by-label/data";
+            mountPoint = "/mnt/data";
+            fsType = "ext4";
+          };
+          devices.containers = {
+            device = "/dev/disk/by-label/containers";
+            mountPoint = "/mnt/containers";
+            fsType = "ext4";
+            allowSuid = true;
+            allowDev = true;
+          };
         };
         mounts.cifs = {
           enable = true;
@@ -81,6 +103,51 @@
       luks.allowDiscards = false;
     })
   ];
+
+  # A share on a host that names a user and manages no account, with and
+  # without an owner of its own.
+  share = settings:
+    hostConfig [
+      bootBase
+      nix
+      {
+        othrys.services.mounts.cifs = {
+          enable = true;
+          shares.media =
+            {
+              remotePath = "//nas.example.com/media";
+              credentialsFile = "/run/secrets/cifs";
+            }
+            // settings;
+        };
+      }
+    ];
+  shareUnowned = share {};
+  shareOwned = share {
+    uid = 1500;
+    gid = "media";
+  };
+  ownerNeedle = "uid and gid default to the primary account";
+
+  # A type refuses a value while the option is being read, which aborts the
+  # evaluation, so the mask is read under tryEval.
+  masked = dmask:
+    builtins.tryEval
+    (hostConfig [
+      bootBase
+      nix
+      {
+        othrys.services.mounts.disks = {
+          enable = true;
+          devices.usb = {
+            device = "/dev/disk/by-label/usb";
+            mountPoint = "/mnt/usb";
+            fsType = "vfat";
+            inherit dmask;
+          };
+        };
+      }
+    ]).othrys.services.mounts.disks.devices.usb.dmask;
 
   primeAlone = hostConfig [bootBase nix {othrys.hardware.nvidia.prime.enable = true;}];
   primeSet = hostConfig [
@@ -114,6 +181,15 @@ in
     "a network name is sanitised into its passphrase variable" = equipped.networking.networkmanager.ensureProfiles.profiles."guest-5g.lan".wifi-security.psk == "$WIFI_PSK_GUEST_5G_LAN";
     "each virtual camera gets its own number and label" = lib.hasInfix ''devices=2 video_nr=10,11 card_label="Virtual Camera,Virtual Camera 2" exclusive_caps=1,1'' equipped.boot.extraModprobeConfig;
     "a vfat mount is owned and takes nosuid and nodev" = hasAll ["uid=1000" "gid=100" "dmask=022" "fmask=133" "nosuid" "nodev"] (mountOptions equipped "/mnt/usb");
+    "an ntfs-3g mount takes nosuid and nodev" = hasAll ["nosuid" "nodev" "big_writes"] (mountOptions equipped "/mnt/windows");
+    "an ntfs3 mount takes nosuid and nodev" = hasAll ["nosuid" "nodev" "windows_names"] (mountOptions equipped "/mnt/shared");
+    "an ext4 mount takes nosuid and nodev" = hasAll ["nosuid" "nodev"] (mountOptions equipped "/mnt/data");
+    "allowSuid and allowDev drop both options" = !builtins.elem "nosuid" (mountOptions equipped "/mnt/containers") && !builtins.elem "nodev" (mountOptions equipped "/mnt/containers");
+    "an octal mask of three or four digits is accepted" = (masked "027").success && (masked "0077").success;
+    "a mask that is not octal is refused" = !(masked "0x22").success && !(masked "rwx").success && !(masked "89").success;
+    "a cifs share belongs to the primary user and group by default" = hasAll ["uid=alice" "gid=users"] (mountOptions equipped "/mnt/shares/media");
+    "a cifs share without an owner on a host with no account is rejected" = rejectedWith ownerNeedle shareUnowned;
+    "a cifs share with its own owner is accepted there" = !rejectedWith ownerNeedle shareOwned && hasAll ["uid=1500" "gid=media"] (mountOptions shareOwned "/mnt/shares/media");
     "a cifs mount pins the dialect, seals and takes nosuid and nodev" = hasAll ["vers=3.1.1" "seal" "sec=ntlmssp" "nosuid" "nodev"] (mountOptions equipped "/mnt/shares/media");
     "fstrim follows allowDiscards on" = equipped.services.fstrim.enable;
     "fstrim follows allowDiscards off" = !bareDevice.services.fstrim.enable;

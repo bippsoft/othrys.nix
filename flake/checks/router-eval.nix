@@ -6,26 +6,29 @@
 # their names say.
 {
   hostConfig,
+  hostEval,
   mkExpectations,
   rejectedWith,
   bootBase,
 }: let
-  host = extra:
-    hostConfig [
-      bootBase
-      {
-        othrys.system.nix = {
-          enable = true;
-          stateVersion = "26.05";
-        };
-        othrys.services.router = {
-          enable = true;
-          wan.interface = "wan0";
-          lan.interfaces = ["lan0"];
-        };
-      }
-      extra
-    ];
+  routerModules = extra: [
+    bootBase
+    {
+      othrys.system.nix = {
+        enable = true;
+        stateVersion = "26.05";
+      };
+      othrys.services.router = {
+        enable = true;
+        wan.interface = "wan0";
+        lan.interfaces = ["lan0"];
+      };
+    }
+    extra
+  ];
+  host = extra: hostConfig (routerModules extra);
+  # A description is read from the option, which the config does not carry.
+  ipv6Description = (hostEval (routerModules {})).options.othrys.services.router.ipv6.description;
 
   tables = cfg: cfg.networking.nftables.tables;
   hasInfix = needle: s: builtins.match ".*${needle}.*" s != null;
@@ -120,6 +123,7 @@ in
     "rp_filter is loose on interfaces created later" = plain.boot.kernel.sysctl."net.ipv4.conf.default.rp_filter" == 2;
     "rp_filter is strict on the WAN interface" = plain.boot.kernel.sysctl."net.ipv4.conf.wan0.rp_filter" == 1;
     "a WAN interface with a dot is named with a slash for sysctl" = vlanWan.boot.kernel.sysctl ? "net.ipv4.conf.eth0/100.rp_filter";
+    "the ipv6 option leaves prefix delegation and LAN advertisements to the host" = hasInfix "delegated prefix" ipv6Description && hasInfix "router advertisements on the LAN" ipv6Description;
     "the WAN accepts router advertisements while forwarding" = plain.boot.kernel.sysctl."net.ipv6.conf.wan0.accept_ra" == 2;
     "ICMPv6 is matched by protocol and not by the first header" = hasInfix "meta l4proto ipv6-icmp" (chain "input" (filterOf plain)) && !hasInfix "ip6 nexthdr icmpv6 accept" (filterOf plain);
     "echo requests from the WAN are rate-limited" = hasInfix ''iifname "wan0" meta l4proto ipv6-icmp icmpv6 type echo-request limit rate'' (chain "input" (filterOf plain));

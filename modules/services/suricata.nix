@@ -81,11 +81,13 @@
     then {af-packet = afPacketEntries;}
     else {
       # NFQUEUE runmode reads packets from `-q`, not a capture interface. The
-      # `pcap` entry is an inert placeholder so the upstream module's
-      # "at least one capture interface" assertion passes, and ExecStart is
-      # overridden below to run in NFQUEUE mode, so `lo` is never captured.
+      # `pcap` entry is a placeholder so the upstream module's "at least one
+      # capture interface" assertion passes. Upstream turns every capture
+      # entry into an `-i` argument, so its own command line would capture
+      # `lo`. The ExecStart forced below is what keeps that from happening,
+      # and the `eval-router-services` check reads the command line back.
       # The `suricata -T` pre-check parses the file and opens no interface,
-      # so the placeholder costs nothing there either.
+      # so the placeholder costs nothing there.
       pcap = [{interface = "lo";}];
       nfq = {fail-open = cfg.nfqueue.failOpen;};
     };

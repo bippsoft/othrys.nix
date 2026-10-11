@@ -16,9 +16,60 @@
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.restic;
 
-  # A URL of the form scheme://user:password@host. `repository` is written
-  # into the unit's environment, which sits in the world-readable store.
-  carriesCredentials = repository: repository != null && builtins.match ".*://[^/@]*:[^/@]*@.*" repository != null;
+  sandbox = import ../lib/sandbox.nix;
+  notifyCfg = config.othrys.services.notify;
+
+  # `repository` is written into the unit's environment, which sits in the
+  # world-readable store. Three shapes put a credential there. The first is
+  # scheme://user:password@host under any scheme. The second is anything
+  # before the `@` of an http or https URL, where that part is sent as HTTP
+  # authentication, so a lone token is a credential as well. An sftp URL
+  # names only the login there and is left alone. The third is a query
+  # parameter named for a token, a key, a secret, a password or a signature.
+  credentialShapes = [
+    ".*://[^/@]*:[^/@]*@.*"
+    ".*https?://[^/?#]*@.*"
+    ".*[?&][^=&]*([Tt]oken|[Kk]ey|[Ss]ecret|[Pp]ass|[Ss]ig|[Aa]uth|[Cc]redential)[^=&]*=.*"
+  ];
+  carriesCredentials = repository: repository != null && builtins.any (shape: builtins.match shape repository != null) credentialShapes;
+
+  # The exit status the check step turns a failed `restic check` into.
+  # restic's documented statuses are 1, 3, 10, 11, 12 and 130, so the failure
+  # hook can tell a failed check from a failed backup by this number alone.
+  checkFailedStatus = 90;
+
+  # The check runs as a step of its own behind upstream's backup and prune
+  # commands, which is where upstream's `runCheck` puts it too. Upstream's
+  # copy is turned off below, since its failure cannot be told apart from
+  # that of the commands before it. The options are joined unquoted, the way
+  # upstream hands them to systemd, so an entry such as "--read-data-subset 5%"
+  # still splits into two arguments. The package and the `-o` options are
+  # read from upstream's side, so a host that sets either there gets the same
+  # command for the check as for the backup.
+  checkStep = name: b: let
+    upstream = config.services.restic.backups.${name};
+  in
+    pkgs.writeShellScript "restic-backups-${name}-check" ''
+      ${lib.getExe upstream.package}${lib.concatMapStrings (arg: " -o ${arg}") upstream.extraOptions} check ${lib.concatStringsSep " " b.checkOpts} || exit ${toString checkFailedStatus}
+    '';
+
+  # systemd hands a unit started through OnFailure the exit status of the
+  # process that failed, as MONITOR_EXIT_STATUS. The line is written to the
+  # journal as well, so the reason is on the host when the notification
+  # cannot be sent.
+  failureScript = pkgs.writeShellScript "restic-notify-failure" ''
+    unit="$1"
+    host=${lib.escapeShellArg config.networking.hostName}
+    if [ "''${MONITOR_EXIT_STATUS:-}" = ${toString checkFailedStatus} ]; then
+      title="$unit: repository check failed on $host"
+      message="the backup completed and the repository check after it failed, so the new snapshot exists and the repository needs attention"
+    else
+      title="$unit: backup failed on $host"
+      message="the backup or the prune after it failed, and no repository check ran"
+    fi
+    echo "$unit: $message" >&2
+    exec /run/current-system/sw/bin/othrys-notify "$title" "$message"
+  '';
 
   backupType = lib.types.submodule {
     options = {
@@ -33,7 +84,15 @@
         type = lib.types.nullOr lib.types.str;
         default = null;
         example = "/mnt/backup/restic";
-        description = "Repository location for non-sensitive targets (e.g. a local path). The value is written to the unit file in the store, so a URL with `user:password@` in it is rejected. Use repositoryFile when the URL carries a host or credentials.";
+        description = ''
+          Repository location for non-sensitive targets (e.g. a local path).
+          The value is written to the unit file in the store, so a URL that
+          carries a credential is rejected. That covers `user:password@`
+          under any scheme, anything before the `@` of an `http` or `https`
+          URL, a lone token included, and a query parameter named for a token,
+          a key, a secret, a password or a signature. Use repositoryFile when
+          the URL carries a host or credentials.
+        '';
       };
 
       repositoryFile = lib.mkOption {
@@ -186,18 +245,43 @@ in {
     # Restic CLI for manual snapshot/restore against the same repositories.
     environment.systemPackages = [pkgs.restic];
 
-    # A failed backup or repository check must reach a human, not die in the
-    # journal (cross-module conditional, no hard dependency on notify).
-    systemd.services = lib.mkIf config.othrys.services.notify.enable (
-      lib.mapAttrs' (name: _:
+    systemd.services = lib.mkMerge [
+      (lib.mapAttrs' (name: b:
         lib.nameValuePair "restic-backups-${name}" {
-          onFailure = ["notify-failure@%n.service"];
+          serviceConfig.ExecStart = lib.mkIf b.runCheck (lib.mkAfter ["${checkStep name b}"]);
+          # A failed backup or repository check must reach a human, not die
+          # in the journal (cross-module conditional, no hard dependency on
+          # notify).
+          onFailure = lib.mkIf notifyCfg.enable ["restic-notify-failure@%n.service"];
         })
-      cfg.backups
-    );
+      cfg.backups)
+
+      # notify-failure@ with a message of its own. The generic unit says that
+      # a unit failed, which reads the same for a backup that never ran and
+      # for a good backup whose repository check failed. The token is staged
+      # the way notify-failure@ stages it.
+      (lib.mkIf notifyCfg.enable {
+        "restic-notify-failure@" = {
+          description = "Failure notification for the restic backup %i.";
+          serviceConfig =
+            {
+              Type = "oneshot";
+              ExecStart = "${failureScript} %i";
+              DynamicUser = true;
+              RestrictAddressFamilies = ["AF_INET" "AF_INET6"];
+            }
+            // sandbox.baseline
+            // lib.optionalAttrs (notifyCfg.tokenFile != null) {
+              LoadCredential = ["token:${notifyCfg.tokenFile}"];
+            };
+        };
+      })
+    ];
 
     services.restic.backups =
       lib.mapAttrs (_: b: {
+        # The check is the module's own step, see checkStep.
+        runCheck = false;
         inherit
           (b)
           paths
@@ -210,7 +294,6 @@ in {
           initialize
           timerConfig
           pruneOpts
-          runCheck
           checkOpts
           extraBackupArgs
           backupPrepareCommand

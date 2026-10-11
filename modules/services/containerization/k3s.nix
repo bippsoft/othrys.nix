@@ -11,6 +11,13 @@
   impermanenceEnabled = config.othrys.system.impermanence.enable;
   persistRoot = config.othrys.system.impermanence.persistRoot;
   isServer = cfg.role == "server";
+
+  # Both are server flags, and k3s refuses to start an agent that is given
+  # one.
+  hardenedFlags = lib.optionals (isServer && cfg.hardenedFlags) [
+    "--write-kubeconfig-mode=0600"
+    "--secrets-encryption"
+  ];
 in {
   options.othrys.services.containerization.k3s = {
     enable = lib.mkEnableOption "k3s lightweight Kubernetes";
@@ -86,7 +93,24 @@ in {
       type = lib.types.listOf lib.types.str;
       default = [];
       example = ["--flannel-backend=wireguard-native"];
-      description = "Extra flags appended to the k3s command.";
+      description = "Extra flags appended to the k3s command, after the ones `hardenedFlags` contributes.";
+    };
+
+    hardenedFlags = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Server only. Start k3s with `--write-kubeconfig-mode=0600` and
+        `--secrets-encryption`, ahead of `extraFlags`. The first keeps the
+        admin kubeconfig readable by root alone, and the second encrypts
+        Secrets at rest in the datastore.
+
+        k3s requires every server of a cluster to agree on secrets
+        encryption, so the servers of one cluster take the same value here.
+        A cluster created without encryption sets this to `false` and turns
+        encryption on with `k3s secrets-encrypt`, as the k3s documentation
+        describes. An agent takes neither flag.
+      '';
     };
 
     manifests = lib.mkOption {
@@ -129,6 +153,7 @@ in {
     package = lib.mkOption {
       type = lib.types.nullOr lib.types.package;
       default = null;
+      defaultText = lib.literalExpression "pkgs.k3s";
       description = "Override the k3s package (e.g. to pin a Kubernetes version).";
     };
   };
@@ -155,17 +180,26 @@ in {
 
     # Pod networking prerequisites.
     boot.kernelModules = ["br_netfilter" "overlay"];
-    # Defaults, so a host that owns forwarding, such as the router module,
-    # keeps the one definition it makes.
-    boot.kernel.sysctl = lib.mapAttrs (_: lib.mkDefault) {
-      "net.ipv4.ip_forward" = 1;
-      "net.bridge.bridge-nf-call-iptables" = 1;
-      "net.bridge.bridge-nf-call-ip6tables" = 1;
+    boot.kernel.sysctl = {
+      # Forwarding is written under the key the router module and nixpkgs
+      # use. `net.ipv4.ip_forward` is the kernel's other name for the same
+      # switch, and a second key was a second line in sysctl.d that no
+      # definition of the first could override.
+      #
+      # A sysctl takes one definition per priority, so this one sits at 999.
+      # It loses to a host that owns forwarding, which is the router at 100
+      # and Docker, NAT and Tailscale routing in nixpkgs at 97 to 99, and it
+      # does not tie with the default nixpkgs writes for an interface with
+      # proxy ARP.
+      "net.ipv4.conf.all.forwarding" = lib.mkOverride 999 true;
+      "net.bridge.bridge-nf-call-iptables" = lib.mkDefault 1;
+      "net.bridge.bridge-nf-call-ip6tables" = lib.mkDefault 1;
     };
 
     services.k3s = {
       enable = true;
-      inherit (cfg) role clusterInit serverAddr disable disableAgent extraFlags manifests extraKubeletConfig tokenFile nodeName;
+      inherit (cfg) role clusterInit serverAddr disable disableAgent manifests extraKubeletConfig tokenFile nodeName;
+      extraFlags = hardenedFlags ++ cfg.extraFlags;
       package = lib.mkIf (cfg.package != null) cfg.package;
       nodeLabel = cfg.nodeLabels;
       nodeTaint = cfg.nodeTaints;
