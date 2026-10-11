@@ -1,3 +1,91 @@
+## v0.13.0 (2026-10-11)
+
+### BREAKING CHANGE
+
+- the flake no longer has a nixos-hardware input. A
+consumer that follows othrys/nixos-hardware declares the input itself.
+- othrys.system.git.name and email default to null, and
+a host where Home Manager manages the primary user fails to evaluate
+with git enabled and either unset. othrys.system.user.name accepts
+only a lower-case login name. An interface's bridge and vlans must
+name a netdev the host declares. othrys.apps.ai.claude-code.theme
+accepts the six Claude Code themes only, and the Floorp, Vesktop,
+niri, GameMode and Ghostty settings named above refuse a value their
+format cannot hold. A host with a home outside /home gets its XDG and
+persisted directories under that home.
+- a host with othrys.system.hardening.enable boots with
+slab_nomerge, page_alloc.shuffle=1 and vsyscall=none and the six
+sysctls above, and a binary that needs the legacy vsyscall page stops
+working until kernelParams is set without it. A host that sets both
+othrys.system.kernel.enable and boot.kernelPackages fails to evaluate
+until one of them goes.
+- othrys.services.unbound.rpz refuses a url that is not
+https, and accessControl defaults to loopback plus the network of each
+bound address. othrys.services.traefik.openFirewall no longer opens
+8080, and acme.storage must be under dataDir.
+othrys.services.ddns.provider accepts inadyn's provider names only.
+A restic repository URL with a password in it is refused and moves to
+repositoryFile. An alert rule that does not parse fails the build
+unless othrys.services.alerting.checkRules is false.
+- AllowTcpForwarding and AllowAgentForwarding are no on
+an othrys SSH server, so ssh -L, -R, -J through the host and -A are
+refused until a host sets them back under services.openssh.settings.
+MaxAuthTries is 3, so a client whose agent offers more keys names its
+key. The key exchange, cipher and MAC lists are narrower than the
+nixpkgs set. The module opens services.openssh.ports and no longer
+port 22 unconditionally, and othrys.services.ssh.server.openFirewall
+= false opens none. knownHosts and fail2ban.bantime reject values
+their types do not cover. The client no longer sends Compression yes.
+- othrys.desktop.nightLight without coordinates fails
+to evaluate until geoclue.enable is set. The ashell weather module
+shows nothing until weatherLocation is set. kitty accepts remote
+control on its socket only. othrys.apps.ghostty.scrollbackLines is
+removed in favour of scrollbackLimit, in bytes. A Hyprland host with
+noctalia no longer starts hyprpaper, and noctalia hosts run
+gnome-keyring. Clipboard history is kept only with ashell, and a
+Hyprland host without it keeps none. Hyprland no longer exports TERM,
+and nautilus is a user package installed on niri hosts as well.
+- othrys.hardware.nvidia.prime.intelBusId and
+nvidiaBusId have no default, and prime.enable without nvidia fails to
+evaluate. i915 is no longer blacklisted unless
+othrys.hardware.nvidia.blacklistIntel is set. The webcam module no
+longer adds the primary user to the video group. The audio module no
+longer pins USB devices to the duplex profile unless usbDuplexProfile
+is set. CIFS shares mount with vers=3.1.1 and seal, so an older server
+needs vers and seal set on the share. vfat mounts are owned by uid and
+gid, 1000 and 100 by default, and take nosuid and nodev.
+othrys.apps.obs enables othrys.services.virtualcamera and builds
+without CUDA unless nvidia is enabled. A Wi-Fi network name with a
+character other than a letter, digit, hyphen or space reads a
+different WIFI_PSK_ variable than before.
+- othrys.apps.floorp.manageSidebery is removed. The
+extensions are pinned, so a new version needs a new URL and hash in
+othrys.apps.floorp.extensions. The built-in password manager is off
+unless builtinPasswordManager is set, and no site is exempt from
+tracking protection unless trackingProtectionExemptions lists it.
+- enabling othrys.system.shell.zsh makes zsh the primary
+user's login shell unless othrys.system.users.defaultShell is set.
+nix-clean keeps generations younger than seven days. hm-switch is
+removed. A host with nixvim gets EDITOR=nvim everywhere, and one that
+wants another editor sets othrys.system.defaultEditor.
+
+### Feat
+
+- **hardening**: add the zero-cost sysctls and kernel parameters, and close eight gaps in the unit sandbox
+
+### Fix
+
+- **options**: name the missing git identity and interface references, read homes from the account, and type the loose options
+- **auto-upgrade**: refuse three more flags that escape the lock, and report a stale source
+- **services**: tighten unbound, traefik, restic and ddns, and expose the missing printing and wireguard options
+- **ssh**: open the ports sshd listens on, ship hardened server defaults, and let fail2ban follow them
+- **desktop**: dispatch on the running session, make geoclue and weather explicit, and close kitty's remote control
+- **hardware**: require the PRIME bus ids, stage the UPS token, tighten the mounts, and drop dead settings
+- **languages**: run the registry's formatters and servers in both editors, and give JSON and YAML their own entries
+- **floorp**: pin the extensions by hash, drop the unread sidebar file and the dead prefs, and stop vesktop writing Discord's settings
+- **shell**: quiet the headless registry warning, make zsh the login shell, and give EDITOR one owner
+- **flake**: export every infrastructure module, and say what an export needs beside it
+
 ## v0.12.0 (2026-10-11)
 
 ### BREAKING CHANGE
