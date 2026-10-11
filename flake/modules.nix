@@ -8,9 +8,11 @@
 # (modules/apps/**) are personal-workflow-shaped and reachable only via
 # `default`.
 #
-# `stylix` is the one export `default` leaves out. It is the adapter between
-# othrys.theme and Stylix, and a host imports it together with the Stylix
-# module or imports neither.
+# `default` leaves three exports out, since each writes into the option
+# namespace of an upstream flake that a host may not use. `stylix` is the
+# adapter between othrys.theme and Stylix, `disko` is the disk layout and
+# `secrets` is the sops-nix plumbing. A host imports each together with the
+# upstream module it configures, or imports neither.
 #
 # Rule when adding a module. If it lives outside modules/apps/, add an
 # individual export here. The `eval-exports` check (flake/checks/) lists the
@@ -27,8 +29,8 @@
 # colour, and `desktop` beside a desktop or hardware one, or use `default`.
 #
 # Several modules write into option namespaces owned by upstream flakes
-# (disko, home-manager, sops-nix, impermanence). A consumer of `default` must
-# also import those flakes' nixosModules, see
+# (home-manager, impermanence). A consumer of `default` must also import
+# those flakes' nixosModules, see
 # docs/src/architecture/host-configuration.md. This holds even when the
 # corresponding othrys feature is disabled.
 #
@@ -64,8 +66,15 @@
     # Stylix imports this and the Stylix module together.
     stylix = ../modules/theme/stylix.nix;
 
-    # System fundamentals
+    # The disk layout and the sops-nix plumbing, which `default` and `system`
+    # do not import either. A host that wants the layout imports `disko` and
+    # the disko module together, and one that wants the plumbing imports
+    # `secrets` and the sops-nix module together. Both read options the
+    # `system` group declares.
     disko = ../modules/system/disko.nix;
+    secrets = ../modules/system/secrets.nix;
+
+    # System fundamentals
     locale = ../modules/system/locale.nix;
     user = ../modules/system/user.nix;
     users = ../modules/system/users.nix;
@@ -73,7 +82,6 @@
     kernel = ../modules/system/kernel.nix;
     hardening = ../modules/system/hardening.nix;
     networking = ../modules/system/networking.nix;
-    secrets = ../modules/system/secrets.nix;
     impermanence = ../modules/system/impermanence.nix;
     persistence = ../modules/system/persistence.nix;
     bootloader = ../modules/system/bootloader.nix;

@@ -2,6 +2,12 @@
 # sops-nix infrastructure, providing age decryption capability
 #
 # Individual secrets are declared in host configs, not here.
+#
+# Exported as nixosModules.secrets and left out of nixosModules.default, so a
+# host imports it together with the sops-nix module or imports neither. It is
+# the only file in this tree that writes into the `sops` option namespace.
+# Every other module takes a secret as a runtime file path and names no
+# provider.
 {
   config,
   lib,

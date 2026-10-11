@@ -1,5 +1,10 @@
 # modules/system/impermanence.nix
 # Ephemeral root: boot-time BTRFS wipe with an archived snapshot
+#
+# The module names no partitioning tool. It wipes the btrfs filesystem on
+# othrys.system.impermanence.device, which the disko export
+# (modules/system/disko.nix) fills with its LUKS mapping and a host that
+# partitions another way sets itself.
 {
   config,
   lib,
@@ -10,7 +15,11 @@
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.system.impermanence;
-  luksName = config.othrys.system.disko.luks.name;
+  # The wipe unit and the recovery tool both interpolate the device, and a
+  # null there aborts the evaluation before any assertion is reported. The
+  # body below is skipped while no device is named, so the assertion is what
+  # the host sees.
+  configured = cfg.enable && cfg.device != null;
   # systemd names a device unit after the escaped path, so a LUKS name with a
   # hyphen is `dev-mapper-crypt\x2droot.device`, not `dev-mapper-crypt-root`.
   deviceUnit = "${utils.escapeSystemdPath cfg.device}.device";
@@ -94,139 +103,147 @@ in {
     };
 
     device = lib.mkOption {
-      type = lib.types.str;
-      default = "/dev/mapper/${luksName}";
-      defaultText = lib.literalExpression ''"/dev/mapper/''${config.othrys.system.disko.luks.name}"'';
+      type = lib.types.nullOr lib.types.str;
+      default = null;
       description = ''
         Block device holding the btrfs filesystem with the `root` and
         `persist` subvolumes. The wipe unit waits for this device in the initrd
-        and mounts its top-level subvolume. The default is the disko LUKS
-        mapping; a host whose btrfs sits on a plain partition names that
-        partition here.
+        and mounts its top-level subvolume.
+
+        The option has to be set on a host that enables impermanence. With
+        `nixosModules.disko` imported and `othrys.system.disko.enable` on, the
+        layout fills it with its LUKS mapping, `/dev/mapper/<luks.name>`, as a
+        default. A host that partitions any other way names the device here,
+        which is the LUKS mapping for an encrypted root and the partition
+        itself for a plain one.
       '';
       example = "/dev/disk/by-partlabel/root";
     };
   };
   # ANCHOR_END: impermanence-options
 
-  config = lib.mkIf cfg.enable {
-    # The boot-wipe service targets the disko LUKS/btrfs layout (luksName +
-    # the root/persist/nix subvolumes). othrys.system.disko produces exactly
-    # that layout by construction, so disko.enable is the invariant. If disko
-    # ever grows alternative layouts (ext4/ZFS/no-LUKS), this assertion must
-    # be strengthened to check the actual btrfs+LUKS shape the script mounts.
-    assertions = [
-      {
-        assertion = config.othrys.system.disko.enable;
-        message = "othrys.system.impermanence requires othrys.system.disko.enable (the boot-wipe service targets the disko LUKS/btrfs layout).";
-      }
-    ];
-
-    environment.systemPackages = [oldRoots];
-
-    # The wipe is a systemd stage-1 unit. The scripted initrd ignores
-    # boot.initrd.systemd.services without an error, so a host that did not
-    # turn the systemd initrd on for another reason kept its root forever.
-    boot.initrd.systemd.enable = true;
-    # The stage-1 PATH is coreutils, util-linux and btrfs-progs. The prune
-    # loop below needs nothing else, and findutils is here so a later edit
-    # that reaches for `find` keeps working in stage 1 too.
-    boot.initrd.systemd.initrdBin = [pkgs.findutils];
-
-    fileSystems.${cfg.persistRoot}.neededForBoot = true;
-    fileSystems."/nix".neededForBoot = true;
-
-    # The per-user home dir only exists when othrys manages the user account.
-    # Headless hosts run impermanence with no primary user.
-    systemd.tmpfiles.rules =
-      ["d ${cfg.persistRoot}/home 0755 root root -"]
-      ++ lib.optionals usersEnabled [
-        # The group comes from the account rather than a literal "users", since
-        # a host is free to give its primary user a different primary group.
-        # The path follows the account's home as well, since impermanence
-        # binds each per-user entry from the persist root plus that home.
-        "d ${cfg.persistRoot}${config.users.users.${username}.home} 0700 ${username} ${config.users.users.${username}.group} -"
-      ];
-
-    # ANCHOR: boot-wipe-script
-    boot.initrd.systemd.services.root-wipe = {
-      description = "Wipe root BTRFS subvolume for impermanence.";
-      wantedBy = ["initrd.target"];
-      requires = [deviceUnit];
-      # A resume from hibernation never returns from the resume unit, so this
-      # only runs on a boot that is not a resume. Without the ordering the
-      # wipe could run first and the resumed image would see a root that is no
-      # longer the one it had mounted.
-      after = [deviceUnit "systemd-hibernate-resume.service"];
-      before = ["sysroot.mount"];
-      unitConfig.DefaultDependencies = "no";
-      serviceConfig.Type = "oneshot";
-      script = ''
-        mkdir -p /btrfs_tmp
-        # subvolid=5 names the top-level subvolume. A host whose default
-        # subvolume was changed with `btrfs subvolume set-default` would
-        # otherwise mount that one and find no `root` to move.
-        mount -o subvolid=5 ${lib.escapeShellArg cfg.device} /btrfs_tmp
-        if [[ -e /btrfs_tmp/root ]]; then
-            mkdir -p /btrfs_tmp/old_roots
-            timestamp=$(date --date="@$(stat -c %Y /btrfs_tmp/root)" "+%Y-%m-%d_%H:%M:%S")
-            mv /btrfs_tmp/root "/btrfs_tmp/old_roots/$timestamp"
-        fi
-
-        # The new root exists before anything that can fail below runs. A
-        # prune that aborted between the move and this line left the host
-        # with no root subvolume, and sysroot.mount dropped it into the
-        # emergency shell.
-        btrfs subvolume create /btrfs_tmp/root
-
-        ${lib.optionalString usersEnabled "mkdir -p ${lib.escapeShellArg "/btrfs_tmp/persist${config.users.users.${username}.home}"}"}
-
-        # `local IFS` keeps the split scoped to this function. Assigned
-        # globally it survived the first call and silently changed how every
-        # later word split behaved, including the retention loop below.
-        delete_subvolume_recursively() {
-            local IFS=$'\n'
-            for i in $(btrfs subvolume list -o "$1" | cut -f 9- -d ' '); do
-                delete_subvolume_recursively "/btrfs_tmp/$i"
-            done
-            btrfs subvolume delete "$1"
+  config = lib.mkMerge [
+    (lib.mkIf cfg.enable {
+      # The wipe needs a btrfs filesystem with `root` and `persist` subvolumes
+      # on the device, and nothing here can see what a device holds. What can
+      # be checked is that a device is named at all. The disko export names its
+      # own, so this fires on a host that enables impermanence with neither
+      # the layout nor a device of its own.
+      assertions = [
+        {
+          assertion = cfg.device != null;
+          message = "othrys.system.impermanence: set device to the block device that holds the btrfs filesystem with the `root` and `persist` subvolumes, or import nixosModules.disko with the disko module and enable othrys.system.disko, which sets it to the LUKS mapping of its layout.";
         }
+      ];
+    })
 
-        # Retention pruning, best-effort. Data-safety invariants:
-        # - The glob lists the entries of old_roots and never old_roots
-        #   itself, so an archive directory whose own mtime has aged past the
-        #   window (a host up longer than retentionDays) is not a candidate.
-        #   With `find` and no `-mindepth 1` it was, and the ENTIRE archive
-        #   would be deleted at once.
-        # - Only delete entries that are actually btrfs subvolumes, and a stray
-        #   file or directory in old_roots is skipped (deleting the unknown is
-        #   never the right move in a boot script) and must not fail the boot.
-        # - A delete that fails is reported and the entry kept. The root above
-        #   already exists, so nothing here can keep the host from booting.
-        #
-        # A glob with nullglob handles an empty archive and an entry name with
-        # whitespace. The names are generated timestamps today, and a boot
-        # script that deletes subvolumes should not depend on that staying
-        # true. `find` is not on the stage-1 PATH, which is why the loop uses
-        # `stat` instead; see initrdBin above.
-        shopt -s nullglob
-        cutoff=$(( $(date +%s) - ${toString cfg.retentionDays} * 86400 ))
-        for i in /btrfs_tmp/old_roots/*; do
-            if [ "$(stat -c %Y "$i")" -ge "$cutoff" ]; then
-                continue
-            fi
-            if btrfs subvolume show "$i" > /dev/null 2>&1; then
-                delete_subvolume_recursively "$i" \
-                    || echo "impermanence: could not delete '$i', keeping it" >&2
-            else
-                echo "impermanence: skipping non-subvolume '$i' in old_roots" >&2
-            fi
-        done
-        shopt -u nullglob
+    (lib.mkIf configured {
+      environment.systemPackages = [oldRoots];
 
-        umount /btrfs_tmp
-      '';
-    };
-    # ANCHOR_END: boot-wipe-script
-  };
+      # The wipe is a systemd stage-1 unit. The scripted initrd ignores
+      # boot.initrd.systemd.services without an error, so a host that did not
+      # turn the systemd initrd on for another reason kept its root forever.
+      boot.initrd.systemd.enable = true;
+      # The stage-1 PATH is coreutils, util-linux and btrfs-progs. The prune
+      # loop below needs nothing else, and findutils is here so a later edit
+      # that reaches for `find` keeps working in stage 1 too.
+      boot.initrd.systemd.initrdBin = [pkgs.findutils];
+
+      fileSystems.${cfg.persistRoot}.neededForBoot = true;
+      fileSystems."/nix".neededForBoot = true;
+
+      # The per-user home dir only exists when othrys manages the user account.
+      # Headless hosts run impermanence with no primary user.
+      systemd.tmpfiles.rules =
+        ["d ${cfg.persistRoot}/home 0755 root root -"]
+        ++ lib.optionals usersEnabled [
+          # The group comes from the account rather than a literal "users", since
+          # a host is free to give its primary user a different primary group.
+          # The path follows the account's home as well, since impermanence
+          # binds each per-user entry from the persist root plus that home.
+          "d ${cfg.persistRoot}${config.users.users.${username}.home} 0700 ${username} ${config.users.users.${username}.group} -"
+        ];
+
+      # ANCHOR: boot-wipe-script
+      boot.initrd.systemd.services.root-wipe = {
+        description = "Wipe root BTRFS subvolume for impermanence.";
+        wantedBy = ["initrd.target"];
+        requires = [deviceUnit];
+        # A resume from hibernation never returns from the resume unit, so this
+        # only runs on a boot that is not a resume. Without the ordering the
+        # wipe could run first and the resumed image would see a root that is no
+        # longer the one it had mounted.
+        after = [deviceUnit "systemd-hibernate-resume.service"];
+        before = ["sysroot.mount"];
+        unitConfig.DefaultDependencies = "no";
+        serviceConfig.Type = "oneshot";
+        script = ''
+          mkdir -p /btrfs_tmp
+          # subvolid=5 names the top-level subvolume. A host whose default
+          # subvolume was changed with `btrfs subvolume set-default` would
+          # otherwise mount that one and find no `root` to move.
+          mount -o subvolid=5 ${lib.escapeShellArg cfg.device} /btrfs_tmp
+          if [[ -e /btrfs_tmp/root ]]; then
+              mkdir -p /btrfs_tmp/old_roots
+              timestamp=$(date --date="@$(stat -c %Y /btrfs_tmp/root)" "+%Y-%m-%d_%H:%M:%S")
+              mv /btrfs_tmp/root "/btrfs_tmp/old_roots/$timestamp"
+          fi
+
+          # The new root exists before anything that can fail below runs. A
+          # prune that aborted between the move and this line left the host
+          # with no root subvolume, and sysroot.mount dropped it into the
+          # emergency shell.
+          btrfs subvolume create /btrfs_tmp/root
+
+          ${lib.optionalString usersEnabled "mkdir -p ${lib.escapeShellArg "/btrfs_tmp/persist${config.users.users.${username}.home}"}"}
+
+          # `local IFS` keeps the split scoped to this function. Assigned
+          # globally it survived the first call and silently changed how every
+          # later word split behaved, including the retention loop below.
+          delete_subvolume_recursively() {
+              local IFS=$'\n'
+              for i in $(btrfs subvolume list -o "$1" | cut -f 9- -d ' '); do
+                  delete_subvolume_recursively "/btrfs_tmp/$i"
+              done
+              btrfs subvolume delete "$1"
+          }
+
+          # Retention pruning, best-effort. Data-safety invariants:
+          # - The glob lists the entries of old_roots and never old_roots
+          #   itself, so an archive directory whose own mtime has aged past the
+          #   window (a host up longer than retentionDays) is not a candidate.
+          #   With `find` and no `-mindepth 1` it was, and the ENTIRE archive
+          #   would be deleted at once.
+          # - Only delete entries that are actually btrfs subvolumes, and a stray
+          #   file or directory in old_roots is skipped (deleting the unknown is
+          #   never the right move in a boot script) and must not fail the boot.
+          # - A delete that fails is reported and the entry kept. The root above
+          #   already exists, so nothing here can keep the host from booting.
+          #
+          # A glob with nullglob handles an empty archive and an entry name with
+          # whitespace. The names are generated timestamps today, and a boot
+          # script that deletes subvolumes should not depend on that staying
+          # true. `find` is not on the stage-1 PATH, which is why the loop uses
+          # `stat` instead; see initrdBin above.
+          shopt -s nullglob
+          cutoff=$(( $(date +%s) - ${toString cfg.retentionDays} * 86400 ))
+          for i in /btrfs_tmp/old_roots/*; do
+              if [ "$(stat -c %Y "$i")" -ge "$cutoff" ]; then
+                  continue
+              fi
+              if btrfs subvolume show "$i" > /dev/null 2>&1; then
+                  delete_subvolume_recursively "$i" \
+                      || echo "impermanence: could not delete '$i', keeping it" >&2
+              else
+                  echo "impermanence: skipping non-subvolume '$i' in old_roots" >&2
+              fi
+          done
+          shopt -u nullglob
+
+          umount /btrfs_tmp
+        '';
+      };
+      # ANCHOR_END: boot-wipe-script
+    })
+  ];
 }

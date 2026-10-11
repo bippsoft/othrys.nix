@@ -13,6 +13,28 @@ declare and its CI stubs out.
 - Decrypted at activation time by sops-nix, never stored in the Nix store
 - Modules take runtime file paths, so what provides them is the consumer's choice
 
+## Importing
+
+The plumbing is the separate export `nixosModules.secrets`, which
+`nixosModules.default` does not import. It is the only othrys module that writes
+into the `sops` option namespace, so a host that wants it imports the export
+together with the sops-nix module, and a host that installs its secrets another
+way imports neither:
+
+```nix
+# flake inputs
+sops-nix.follows = "othrys/sops-nix";
+
+# host modules
+inputs.othrys.nixosModules.secrets
+inputs.sops-nix.nixosModules.sops
+```
+
+The export without the sops-nix module fails at evaluation, since a write into
+an undeclared option namespace fails whatever guards it. A host with neither
+still uses every other module, since each option that takes a secret takes a
+path and reads the file at run time.
+
 ## Options
 
 ```nix

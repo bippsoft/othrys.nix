@@ -32,7 +32,7 @@ mkdir myhost && cd myhost
 nix flake init -t github:bippsoft/othrys.nix
 ```
 
-The template is a minimal host with the four upstream imports and the mandatory
+The template is a minimal host with the two upstream imports and the mandatory
 options in place. A check instantiates it against this flake on every change,
 so it always evaluates. Replace `hardware.nix`, set the user and `stateVersion`
 in `configuration.nix`, and build with `nixos-rebuild build --flake .#myhost`.
@@ -47,8 +47,6 @@ The same shape written out by hand, with a desktop enabled:
 
     # Follow the inputs whose modules you import below.
     home-manager.follows = "othrys/home-manager";
-    disko.follows = "othrys/disko";
-    sops-nix.follows = "othrys/sops-nix";
     impermanence.follows = "othrys/impermanence";
   };
 
@@ -62,8 +60,6 @@ The same shape written out by hand, with a desktop enabled:
         # Required. othrys writes into these option namespaces, so they must be
         # imported even when the matching othrys feature is off.
         inputs.home-manager.nixosModules.home-manager
-        inputs.disko.nixosModules.disko
-        inputs.sops-nix.nixosModules.sops
         inputs.impermanence.nixosModules.impermanence
 
         {
@@ -124,12 +120,25 @@ writes require `othrys.system.users.enable`, and Home Manager writes require
 leaves, since a leaf-level `mkIf` still materializes the Home Manager user and
 trips NixOS's user assertions on a headless host.
 
-**The upstream module imports are unconditional.** othrys writes into option
-namespaces owned by home-manager, disko, sops-nix and impermanence, and writing
-to an undeclared namespace fails evaluation regardless of `mkIf`. Import all
-four even when the matching othrys feature is off. Stylix is optional. A host
-that wants it imports `nixosModules.stylix` and the Stylix module together, and
-every other host imports neither.
+**Two upstream module imports are unconditional.** `nixosModules.default`
+writes into option namespaces owned by home-manager and impermanence, and
+writing to an undeclared namespace fails evaluation regardless of `mkIf`. Import
+both even when the matching othrys feature is off.
+
+**Stylix, disko and sops-nix are optional.** Each has one othrys module that
+writes into its namespace, and that module is a separate export `default` leaves
+out. A host imports the export and the upstream module together, and every other
+host imports neither.
+
+| Wanted | othrys export | Upstream module |
+|---|---|---|
+| Stylix theming | `nixosModules.stylix` | `inputs.stylix.nixosModules.stylix` |
+| The LUKS and BTRFS disk layout, `othrys.system.disko` | `nixosModules.disko` | `inputs.disko.nixosModules.disko` |
+| The sops-nix plumbing, `othrys.system.secrets` | `nixosModules.secrets` | `inputs.sops-nix.nixosModules.sops` |
+
+Impermanence does not need the disko layout. It wipes the btrfs filesystem on
+`othrys.system.impermanence.device`, which the disko export fills and a host
+that partitions another way sets itself.
 
 **Enabling a module configures the capability, not the machine.** Anything
 identity-shaped, meaning disk IDs, interface names, domains, monitor descriptors
@@ -143,7 +152,8 @@ nixpkgs does not ship for the platform, such as Discord or Plexamp, fails an
 assertion that names it.
 
 **An input named `secrets` is read if you declare one.** othrys declares no such
-input. When your flake does, `othrys.system.secrets.secretFiles` reads
+input. When your flake does and imports `nixosModules.secrets`,
+`othrys.system.secrets.secretFiles` reads
 `inputs.secrets.secretFiles`, which must be an attrset of names to encrypted
 sops files such as `{ common = ./common.yaml; }`. Declaring no `secrets` input
 is entirely fine and leaves the option empty. Declaring one that does not match
@@ -170,6 +180,8 @@ and a check holds the export list to the module tree. An individual module reads
 options that `nixosModules.system` declares, among them the primary user and the
 persist root, so import that beside it, and `nixosModules.desktop` beside a
 desktop or hardware module. App modules are reachable only through `default`.
+`nixosModules.stylix`, `nixosModules.disko` and `nixosModules.secrets` are the
+three exports neither `default` nor a group imports.
 
 ## Cross-module signals
 

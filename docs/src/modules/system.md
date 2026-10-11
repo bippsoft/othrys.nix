@@ -22,9 +22,9 @@ under **System Infrastructure**, and the rest are summarized here.
 | Git | `othrys.system.git` | Git identity and aliases (home-manager) |
 | Persistence | `othrys.system.persistence` | System/user state declarations for impermanence |
 | Impermanence | `othrys.system.impermanence` | Root wipe on boot and the `old-roots` recovery tool, see [Impermanence](../system/impermanence.md) |
-| Disko | `othrys.system.disko` | Disk layout with LUKS and BTRFS subvolumes, see [Disko](../system/disko.md) |
+| Disko | `othrys.system.disko` | Disk layout with LUKS and BTRFS subvolumes, exported as `nixosModules.disko` and not part of `default`, see [Disko](../system/disko.md) |
 | Bootloader | `othrys.system.bootloader` | Limine, systemd-boot or GRUB, with optional Secure Boot, see [Bootloader & Secure Boot](../system/bootloader.md) |
-| Secrets | `othrys.system.secrets` | sops-nix wiring and the manual-editing age identity, see [Secrets Management](../system/secrets.md) |
+| Secrets | `othrys.system.secrets` | sops-nix wiring and the manual-editing age identity, exported as `nixosModules.secrets` and not part of `default`, see [Secrets Management](../system/secrets.md) |
 | Theme | `othrys.theme` | The palette, fonts, opacity and wallpaper every module reads, see [Theming](../guides/theming.md) |
 | Stylix adapter | `othrys.system.stylix` | Stylix configured from `othrys.theme`, exported as `nixosModules.stylix` and not part of `default` |
 | Shell | `othrys.system.shell.{bash,zsh,starship}` | Interactive shells and prompt, see [Shell](./shell.md) |

@@ -21,9 +21,11 @@ Changing any of these breaks consuming flakes.
    `othrys.system.users.enable`, Home Manager writes behind
    `othrys.system.users.homeManaged`, both at the attrset level, never on a leaf.
 1. **`nixosModules.default` writes into upstream namespaces.** Consumers must
-   also import `home-manager`, `disko`, `sops-nix` and `impermanence`, even when
-   the matching othrys feature is off. A consumer who wants Stylix imports
-   `nixosModules.stylix` and the Stylix module together.
+   also import `home-manager` and `impermanence`, even when the matching othrys
+   feature is off. A consumer who wants Stylix imports `nixosModules.stylix`
+   and the Stylix module together. One who wants the disko layout imports
+   `nixosModules.disko` and the disko module, and one who wants the sops
+   plumbing imports `nixosModules.secrets` and the sops-nix module.
 1. **specialArgs carry `inputs` only.** Not `username`, not `hostname`.
 
 <!-- ANCHOR_END: consumer-contract -->

@@ -17,11 +17,14 @@
       modules = [
         inputs.self.nixosModules.default
         inputs.home-manager.nixosModules.home-manager
-        inputs.disko.nixosModules.disko
         inputs.impermanence.nixosModules.impermanence
-        # The reference covers the Stylix adapter too, which `default` leaves out.
+        # The reference covers the three exports `default` leaves out too,
+        # each beside the upstream module it writes into.
         inputs.self.nixosModules.stylix
         inputs.stylix.nixosModules.stylix
+        inputs.self.nixosModules.disko
+        inputs.disko.nixosModules.disko
+        inputs.self.nixosModules.secrets
         inputs.sops-nix.nixosModules.sops
         {
           boot.loader.grub = {

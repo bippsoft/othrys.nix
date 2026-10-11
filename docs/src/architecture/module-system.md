@@ -24,6 +24,8 @@ A module declares options under `options.othrys.{category}.{name}`, guards confi
 
 Each `modules/{category}/default.nix` imports all modules in that category, and `nixosModules.default` aggregates every category. A consuming flake that imports `nixosModules.default` pulls in every module, but nothing activates until `othrys.{category}.{name}.enable = true` is set in the consumer's configuration.
 
+Three files are left out of their category, since each writes into an option namespace that only an upstream flake's module declares. `modules/theme/stylix.nix`, `modules/system/disko.nix` and `modules/system/secrets.nix` are exported as `nixosModules.stylix`, `nixosModules.disko` and `nixosModules.secrets`, and a host imports each together with the upstream module it configures. See [Host Configuration](./host-configuration.md).
+
 ## Home Manager Integration
 
 Home Manager is loaded as a NixOS module and manages one user, the primary user

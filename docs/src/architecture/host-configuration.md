@@ -21,8 +21,10 @@ inputs = {
   nixpkgs.follows = "othrys/nixpkgs";
   home-manager.follows = "othrys/home-manager";
   hyprland.follows = "othrys/hyprland";
-  disko.follows = "othrys/disko";
   impermanence.follows = "othrys/impermanence";
+
+  # Optional, for the hosts that import the matching othrys export.
+  disko.follows = "othrys/disko";
   sops-nix.follows = "othrys/sops-nix";
 };
 ```
@@ -37,10 +39,15 @@ inputs.nixpkgs.lib.nixosSystem {
 
     inputs.othrys.nixosModules.default
 
-    inputs.disko.nixosModules.disko
+    # Required on every host.
     inputs.impermanence.nixosModules.impermanence
-    inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager
+
+    # Optional, each othrys export beside the upstream module it configures.
+    inputs.othrys.nixosModules.disko
+    inputs.disko.nixosModules.disko
+    inputs.othrys.nixosModules.secrets
+    inputs.sops-nix.nixosModules.sops
     {
       home-manager = {
         useGlobalPkgs = true;
@@ -52,7 +59,11 @@ inputs.nixpkgs.lib.nixosSystem {
 }
 ```
 
-The four upstream modules above are required on every host, even when the matching othrys feature is off, because `nixosModules.default` writes into their option namespaces. Two more are optional.
+The home-manager and impermanence modules are required on every host, even when the matching othrys feature is off, because `nixosModules.default` writes into their option namespaces. Four more are optional.
+
+disko is needed only on a host that wants the othrys disk layout. `modules/system/disko.nix` is the only file that writes into the `disko` namespace, and it is the separate export `nixosModules.disko`, which a host imports together with `inputs.disko.nixosModules.disko`. A host that partitions another way imports neither and, if it enables impermanence, sets `othrys.system.impermanence.device` itself. See [Disko](../system/disko.md) and [Impermanence](../system/impermanence.md).
+
+sops-nix is needed only on a host that wants the othrys secrets plumbing. `modules/system/secrets.nix` is the only file that writes into the `sops` namespace, and it is the separate export `nixosModules.secrets`, which a host imports together with `inputs.sops-nix.nixosModules.sops`. Every other module takes a secret as a runtime file path, so a host with another provider imports neither. See [Secrets Management](../system/secrets.md).
 
 Stylix is needed only on a host that wants it. Nothing in `nixosModules.default` writes into the `stylix` namespace, since every module reads its colours and fonts from `othrys.theme`. The adapter that configures Stylix from the theme is the separate export `nixosModules.stylix`, and a host imports it together with `inputs.stylix.nixosModules.stylix`, with a `stylix.follows = "othrys/stylix"` input beside the others. A host that imports neither evaluates the same without them. See [Theming](../guides/theming.md).
 
@@ -89,7 +100,7 @@ declares the ones its hosts use, typically as `follows = "othrys/<name>"`.
 | `ashell` | `othrys.desktop.ashell` |
 | `nixvim` | `othrys.apps.nixvim` |
 | `nix-index-database` | `othrys.apps.comma` |
-| `secrets` | `othrys.system.secrets`, as the default of `secretFiles` when the input exists |
+| `secrets` | `othrys.system.secrets` in the `nixosModules.secrets` export, as the default of `secretFiles` when the input exists |
 
 niri needs no input from the consumer. `nixosModules.default` imports
 niri-flake's module from this flake's own lock.
@@ -127,7 +138,7 @@ checks in `flake/checks/` enforce this contract in CI.
 
 Additionally, `nixosModules.default` injects `othrysSelf` (this flake's own source) as a module argument, so modules that build from the flake source, such as the [docs server](../modules/services.md), work without extra wiring. Importing individual module files instead of `default` skips that injection. The argument then does not exist, so set `othrys.services.docs.package` explicitly, or the default fails with the module system's missing-argument error when it is read.
 
-Secrets are the consumer's responsibility: `othrys.system.secrets.secretFiles` defaults to `inputs.secrets.secretFiles` when the consuming flake declares a `secrets` input (this library does not).
+Secrets are the consumer's responsibility. On a host that imports `nixosModules.secrets`, `othrys.system.secrets.secretFiles` defaults to `inputs.secrets.secretFiles` when the consuming flake declares a `secrets` input, which this library does not.
 
 ## Anatomy of a Host
 

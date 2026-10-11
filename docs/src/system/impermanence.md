@@ -10,9 +10,39 @@ The root filesystem is wiped on every boot. Only explicitly declared state persi
 1. Old roots older than `retentionDays` are deleted, and a delete that fails is reported and the entry kept
 
 The module turns the systemd initrd on, since the unit exists only there. It
-waits for the device named by `othrys.system.impermanence.device`, which is the
-disko LUKS mapping by default, and runs after a resume from hibernation would
-have taken over, so a resumed system never meets a wiped root.
+waits for the device named by `othrys.system.impermanence.device` and runs after
+a resume from hibernation would have taken over, so a resumed system never meets
+a wiped root.
+
+## The device
+
+The wipe needs one fact about the disk, which is the block device holding the
+btrfs filesystem with the `root` and `persist` subvolumes. That is
+`othrys.system.impermanence.device`, and the module names no partitioning tool.
+
+A host that uses the [disko layout](disko.md) sets nothing. The
+`nixosModules.disko` export fills the option with its LUKS mapping,
+`/dev/mapper/<luks.name>`, as a default.
+
+A host that partitions another way names the device itself, and needs neither
+the disko module nor the export:
+
+```nix
+othrys.system.impermanence = {
+  enable = true;
+  device = "/dev/disk/by-partlabel/root";
+};
+```
+
+That host also declares the filesystems the layout would have. The `root`
+subvolume is mounted at `/`, the `persist` subvolume at
+`othrys.system.impermanence.persistRoot`, and `/nix` on a volume the wipe does
+not touch. The module marks the last two as needed for boot. For an encrypted
+root the device is the opened mapping, such as `/dev/mapper/cryptroot`, and not
+the partition under it.
+
+Enabling impermanence with no device and no layout fails an assertion that names
+the option.
 
 ## Options
 

@@ -8,6 +8,12 @@
 #
 # disko formats the disk once, at install, in a mode that erases the target
 # disk. After that the same declaration supplies the host's filesystems.
+#
+# Exported as nixosModules.disko and left out of nixosModules.default, so a
+# host imports it together with the disko module or imports neither. It is
+# the only file in this tree that writes into the `disko` option namespace.
+# othrys.system.impermanence reads no option of this file. It wipes the
+# device its own option names, and this module fills that option below.
 {
   config,
   lib,
@@ -152,6 +158,12 @@ in {
     # fstrim timer is that. mkDefault leaves a host free to mount with
     # discard=async instead.
     services.fstrim.enable = lib.mkDefault cfg.luks.allowDiscards;
+
+    # The btrfs filesystem with the `root` and `persist` subvolumes sits on
+    # the LUKS mapping declared below, which is the device the boot wipe of
+    # othrys.system.impermanence mounts. It is a default, so a host that
+    # sets the option itself wins without mkForce.
+    othrys.system.impermanence.device = lib.mkDefault "/dev/mapper/${cfg.luks.name}";
 
     # FIDO2/YubiKey unlock, which tells the (systemd) initrd to try a FIDO2 token for
     # the root device before prompting for the passphrase. The keyslot itself is

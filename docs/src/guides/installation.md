@@ -5,7 +5,7 @@ Fresh install from NixOS installation media, using this library's disko and impe
 ## Prerequisites
 
 - NixOS installation media (Ventoy recommended)
-- A fleet flake consuming othrys.nix, with a host defined (see [Host Configuration](../architecture/host-configuration.md))
+- A fleet flake consuming othrys.nix, with a host defined that imports `nixosModules.disko` and the disko module (see [Host Configuration](../architecture/host-configuration.md))
 - Target disk identifier (`ls -l /dev/disk/by-id/`)
 - YubiKey (for secrets management, post-install)
 

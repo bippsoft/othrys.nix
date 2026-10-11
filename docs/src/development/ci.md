@@ -53,6 +53,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-shell` | The login shell, the editor variables and the aliases |
 | `eval-types` | The values the option types refuse, and the git identity and bridge or vlan reference assertions |
 | `eval-exports` | The export list in `flake/modules.nix`, held to the module tree |
+| `eval-optional-exports` | A host with no disko, sops-nix or Stylix module, impermanence on a device named by hand, and what the `disko` and `secrets` exports write beside their upstream modules |
 | `eval-template` | The `nix flake init` template, instantiated with only the inputs a consumer has |
 | `eval-dev-shells` | The hooks each dev shell installs |
 | `eval-auto-upgrade` | The evaluation-time rules of the auto-upgrade verify gate |

@@ -16,9 +16,11 @@ evaluation rather than waiting to surprise somebody.
    `othrys.system.users.enable`, Home Manager writes behind
    `othrys.system.users.homeManaged`, both at the attrset level, never on a leaf.
 1. **`nixosModules.default` writes into upstream namespaces.** Consumers must
-   also import `home-manager`, `disko`, `sops-nix` and `impermanence`, even when
-   the matching othrys feature is off. A consumer who wants Stylix imports
-   `nixosModules.stylix` and the Stylix module together.
+   also import `home-manager` and `impermanence`, even when the matching othrys
+   feature is off. A consumer who wants Stylix imports `nixosModules.stylix`
+   and the Stylix module together. One who wants the disko layout imports
+   `nixosModules.disko` and the disko module, and one who wants the sops
+   plumbing imports `nixosModules.secrets` and the sops-nix module.
 1. **specialArgs carry `inputs` only.** Not `username`, not `hostname`.
 
 <!-- ANCHOR_END: consumer-contract -->
@@ -43,18 +45,34 @@ Home Manager owning its dotfiles.
 **The upstream imports are unconditional because `mkIf` does not defer option
 existence.** Writing into an undeclared option namespace fails at evaluation
 whether or not the write is conditional, so importing home-manager only when a
-Home Manager feature is enabled does not work. Consumers import all four.
+Home Manager feature is enabled does not work. Consumers import both.
 
-Stylix is the exception, and it is one because of where the writes live. Every
-module in `nixosModules.default` reads its colours and fonts from `othrys.theme`,
-and the only file that writes into the `stylix` namespace is the adapter,
-`modules/theme/stylix.nix`. The adapter is exported as `nixosModules.stylix` and
-`default` does not import it, so a host without Stylix imports neither and a
-host with Stylix imports both. The adapter without the Stylix module fails at
-evaluation for the reason above. The Stylix module without the adapter is not a
-supported shape either, since the adapter also declares the Home Manager option
-that niri-flake's Stylix target reads on a host where Stylix is imported and
-off.
+Stylix, disko and sops-nix are the exceptions, and each is one because of where
+the writes live. Every module in `nixosModules.default` reads its colours and
+fonts from `othrys.theme`, and the only file that writes into the `stylix`
+namespace is the adapter, `modules/theme/stylix.nix`. The adapter is exported as
+`nixosModules.stylix` and `default` does not import it, so a host without Stylix
+imports neither and a host with Stylix imports both. The adapter without the
+Stylix module fails at evaluation for the reason above. The Stylix module
+without the adapter is not a supported shape either, since the adapter also
+declares the Home Manager option that niri-flake's Stylix target reads on a host
+where Stylix is imported and off.
+
+The disk layout and the secrets plumbing follow the same rule.
+`modules/system/disko.nix` is the only file that writes into the `disko`
+namespace and `modules/system/secrets.nix` the only one that writes into `sops`.
+Neither is imported by `default` or by `nixosModules.system`, and they are
+exported as `nixosModules.disko` and `nixosModules.secrets`. No module in
+`default` reads an option of either. Impermanence wipes the device named by its
+own option, `othrys.system.impermanence.device`, which the disko export fills
+with its LUKS mapping and a host that partitions another way sets itself. Every
+module that needs a secret takes a runtime file path and names no provider, so a
+host without sops-nix hands those options a path from whatever installs its
+secrets.
+
+Home Manager and impermanence stay unconditional because their writes are spread
+across the tree. Dozens of modules register per-user configuration or declare a
+persisted path, and no single file could carry them out of `default`.
 
 **specialArgs stay minimal because they are the one part of the interface the
 module system cannot type.** Every additional specialArg is an undeclared

@@ -25,10 +25,10 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   ├── networking.nix     # systemd-networkd interfaces, bridges, VLANs
   │   ├── auto-upgrade.nix   # Unattended upgrades with signature verification
   │   ├── bootloader.nix     # Bootloader + Secure Boot
-  │   ├── disko.nix          # Declarative disk partitioning
+  │   ├── disko.nix          # Disk layout, exported on its own
   │   ├── impermanence.nix   # Ephemeral root wipe
   │   ├── persistence.nix    # System-critical persistence
-  │   ├── secrets.nix        # sops-nix secrets
+  │   ├── secrets.nix        # sops-nix plumbing, exported on its own
   │   ├── git.nix            # Git configuration
   │   └── shell/             # Shell (Zsh, Bash, Starship)
   ├── theme/                 # The theme every module reads

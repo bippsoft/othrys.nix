@@ -16,14 +16,14 @@ All external dependencies are declared in `flake.nix`:
 | `home-manager` | Declarative user environment management |
 | `hyprland` | Wayland compositor (pinned, not following nixpkgs) |
 | `niri` | niri-flake, the typed `programs.niri.settings` module the Niri compositor module imports |
-| `disko` | Declarative disk partitioning |
+| `disko` | Declarative disk partitioning, written into by the optional `nixosModules.disko` export |
 | `nix-index-database` | Prebuilt database for `comma` and `nix-locate` |
 | `impermanence` | Opt-in state persistence |
 | `nixvim` | Neovim configuration via Nix modules (used by the nixvim module) |
 | `stylix` | System-wide theming, read by the optional Stylix adapter and the checks |
 | `git-hooks` | Pre-commit hooks (treefmt, Statix, Deadnix, commitizen, gitleaks and the three repository hooks) |
 | `treefmt-nix` | Multi-language formatter behind `nix fmt` |
-| `sops-nix` | Secrets management with age encryption |
+| `sops-nix` | Secrets management with age encryption, written into by the optional `nixosModules.secrets` export |
 | `lanzaboote` | Secure Boot for systemd-boot (read by the checks only, since no module imports it and a consumer who wants it declares their own) |
 
 The private `secrets` input is declared only in the consuming fleet flake, never here, since this flake must remain evaluable by anyone. A consuming flake typically declares its own inputs as `follows = "othrys/<name>"` so hosts build against the exact versions this library is locked to (see [Host Configuration](./host-configuration.md)).
