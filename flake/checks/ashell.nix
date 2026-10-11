@@ -42,6 +42,13 @@
       airplaneButton = false;
     };
   };
+  metric = host {
+    othrys.desktop.ashell = {
+      region = "de_DE";
+      systemTemperatureUnit = null;
+    };
+  };
+  localeUnits = host {othrys.desktop.ashell.region = null;};
 in
   mkExpectations "othrys-eval-ashell" {
     "a desktop keeps the indicators it always had" = has ''indicators = ["IdleInhibitor", "PeripheralBattery", "Audio", "Microphone"]'' desktop;
@@ -55,5 +62,10 @@ in
     "PowerProfile appears only with power-profiles-daemon" = has ''indicators = ["IdleInhibitor", "PowerProfile", "Audio", "Microphone", "Brightness", "Network", "PeripheralBattery", "Battery"]'' ppdLaptop;
     "a host's own indicator list wins" = has ''indicators = ["Audio", "Battery"]'' custom;
     "a host's own clock format wins" = has ''clock_format = "%H:%M"'' custom;
+    "the weather is imperial by default" = has ''region = "en_US"'' desktop;
+    "the sensor temperature is in Celsius by default" = has ''units = "Celsius"'' desktop;
+    "no threshold or wind unit is written, so both follow their unit" = !lib.hasInfix "warn_threshold = 140" (tomlOf desktop) && !lib.hasInfix "wind_speed_unit" (tomlOf desktop);
+    "a host's own region wins, and the sensor can follow it" = has ''region = "de_DE"'' metric && !lib.hasInfix "units = " (tomlOf metric);
+    "without a region the key is left out" = !lib.hasInfix "region = " (tomlOf localeUnits);
     "a host can hide the airplane button on a laptop" = has "remove_airplane_btn = true" custom;
   }
