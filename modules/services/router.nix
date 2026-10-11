@@ -255,13 +255,20 @@ in {
     # interface dropped the routes Tailscale installs and the replies of any
     # multi-homed path, since those arrive on an interface the route back
     # does not use.
+    #
+    # The kernel validates a packet with the higher of conf.all and the
+    # interface's own value, so `all` has to stay at 0 for an interface to be
+    # stricter than another. With `all` at 2 the WAN's 1 would be raised to
+    # loose. `default` covers interfaces created later, and the LAN
+    # interfaces are named so they do not depend on creation order.
     boot.kernel.sysctl = lib.mkIf cfg.forwarding (
       {
         "net.ipv4.conf.all.forwarding" = 1;
-        "net.ipv4.conf.all.rp_filter" = 2;
+        "net.ipv4.conf.all.rp_filter" = 0;
         "net.ipv4.conf.default.rp_filter" = 2;
         "net.ipv4.conf.${sysctlInterface}.rp_filter" = 1;
       }
+      // lib.listToAttrs (map (i: lib.nameValuePair "net.ipv4.conf.${lib.replaceStrings ["."] ["/"] i}.rp_filter" 2) cfg.lan.interfaces)
       // lib.optionalAttrs cfg.ipv6 {
         "net.ipv6.conf.all.forwarding" = 1;
         # A forwarding host ignores router advertisements, so the WAN would

@@ -95,7 +95,20 @@ in
 
       with subtest("reverse-path filtering is strict on the WAN and loose elsewhere"):
           assert router.succeed("sysctl -n net.ipv4.conf.eth1.rp_filter").strip() == "1"
-          assert router.succeed("sysctl -n net.ipv4.conf.all.rp_filter").strip() == "2"
+          assert router.succeed("sysctl -n net.ipv4.conf.all.rp_filter").strip() == "0"
+          assert router.succeed("sysctl -n net.ipv4.conf.eth2.rp_filter").strip() == "2"
+
+      with subtest("a packet arriving on the WAN with a LAN source is dropped by the filter"):
+          # The WAN host borrows an address from LAN A and pings the router
+          # from it. The route back to that address leaves through eth2, so
+          # strict filtering on eth1 drops the packet and counts it.
+          count = "nstat -az TcpExtIPReversePathFilter | awk '/IPReversePathFilter/ {print $2}'"
+          before = int(router.succeed(count).strip())
+          wan.succeed("ip addr add ${net.lanA.poolFirst}/32 dev eth1")
+          wan.fail("ping -c 2 -W 1 -I ${net.lanA.poolFirst} ${net.wan.router}")
+          wan.succeed("ip addr del ${net.lanA.poolFirst}/32 dev eth1")
+          after = int(router.succeed(count).strip())
+          assert after > before, f"the reverse-path filter counted nothing: {before} then {after}"
 
       with subtest("the router takes an IPv6 default route from the WAN's advertisements"):
           router.wait_until_succeeds("ip -6 route show default | grep -q 'dev eth1'")

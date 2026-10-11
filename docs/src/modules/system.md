@@ -181,8 +181,11 @@ also undo the loose `networking.firewall.checkReversePath` that NixOS selects
 when `othrys.services.tailscale` is on. Loose mode still drops packets whose
 source is unreachable through any interface.
 
-`othrys.services.router` assigns strict mode on its own, and that assignment
-wins over the profile, so a router with the profile on keeps strict filtering.
+`othrys.services.router` assigns its own values, and they win over the
+profile. The kernel validates a packet with the higher of `conf.all` and the
+interface's own value, so the router sets `all` to 0, its WAN interface to
+strict and everything else to loose. A router with the profile on keeps
+strict filtering on its WAN.
 
 ### Overriding one value
 

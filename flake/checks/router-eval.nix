@@ -116,7 +116,8 @@ in
     "tailscale opens its port on the WAN of a router" = hasInfix ''iifname "wan0" udp dport [{] 41641 [}] accept'' input;
     "a port named on another interface is opened there alone" = hasInfix ''iifname "eth0.100" tcp dport [{] 8080 [}] accept'' input;
     "no port list is rendered when none is set" = !hasInfix "dport" (chain "input" (filterOf plain));
-    "rp_filter is loose on all" = plain.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 2;
+    "rp_filter leaves all at 0, since the kernel takes the higher of all and the interface" = plain.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 0;
+    "rp_filter is loose on interfaces created later" = plain.boot.kernel.sysctl."net.ipv4.conf.default.rp_filter" == 2;
     "rp_filter is strict on the WAN interface" = plain.boot.kernel.sysctl."net.ipv4.conf.wan0.rp_filter" == 1;
     "a WAN interface with a dot is named with a slash for sysctl" = vlanWan.boot.kernel.sysctl ? "net.ipv4.conf.eth0/100.rp_filter";
     "the WAN accepts router advertisements while forwarding" = plain.boot.kernel.sysctl."net.ipv6.conf.wan0.accept_ra" == 2;

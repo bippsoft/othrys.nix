@@ -168,8 +168,10 @@ reaching the internet. A port that must reach the WAN is opened by naming the
 interface, `networking.firewall.interfaces.<wan>.allowedTCPPorts`, which the
 chain renders for that interface alone; the tailscale module does this for its
 own UDP port so direct paths work from outside. Reverse-path filtering is
-strict on the WAN interface and loose on `all` and `default`, so routes that
-Tailscale installs and multi-homed replies are not dropped.
+strict on the WAN interface and loose on the LAN interfaces and on any
+interface created later, so routes that Tailscale installs and multi-homed
+replies are not dropped. `conf.all` stays at 0, since the kernel applies the
+higher of that value and the interface's own.
 
 Two separate mechanisms decide what happens when inspection stops, and they are
 easy to confuse. The `bypass` flag above accepts packets when no process is bound

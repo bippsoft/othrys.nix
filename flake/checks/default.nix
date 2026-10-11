@@ -860,7 +860,7 @@
             "security.protectKernelImage is set" = hardenedHost.security.protectKernelImage;
             "Tailscale keeps the firewall reverse path check loose" = hardenedHost.networking.firewall.checkReversePath == "loose";
             "the hardened router evaluates" = hardenedRouter.system.build.toplevel.drvPath != null;
-            "the router keeps loose rp_filter on all" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 2;
+            "the router's rp_filter on all wins over the profile, at 0" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.all.rp_filter" == 0;
             "the router keeps loose rp_filter on default" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.default.rp_filter" == 2;
             "the router keeps strict rp_filter on its WAN interface" = hardenedRouter.boot.kernel.sysctl."net.ipv4.conf.wan0.rp_filter" == 1;
           }
