@@ -8,6 +8,7 @@
 # fails evaluation.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   rejectedWith,
   bootBase,
@@ -28,6 +29,7 @@
     host {
       imports = [
         {
+          imports = [impermanenceModules];
           fileSystems = {
             "/nix" = {
               device = "/dev/disk/by-label/nix";

@@ -18,7 +18,6 @@ pkgs.testers.runNixOSTest {
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
-      inputs.impermanence.nixosModules.impermanence
     ];
 
     # Two metrics stores, a log store and Grafana run side by side.

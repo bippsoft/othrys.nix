@@ -7,6 +7,7 @@
 {
   lib,
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   rejectedWith,
   bootBase,
@@ -88,6 +89,7 @@
   # is imported, so the wipe is given its device by hand and the two volumes
   # impermanence needs for boot are named.
   impermanence = {
+    imports = [impermanenceModules];
     fileSystems = {
       "/nix" = {
         device = "/dev/disk/by-label/nix";

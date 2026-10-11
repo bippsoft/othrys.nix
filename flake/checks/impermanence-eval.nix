@@ -12,6 +12,7 @@
 # neither is told so.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   rejectedWith,
   bootBase,
@@ -20,6 +21,7 @@
   # Impermanence on, with the two volumes it marks as needed for boot named
   # by hand, which every host of this file shares.
   volumes = {
+    imports = [impermanenceModules];
     fileSystems = {
       "/nix" = {
         device = "/dev/disk/by-label/nix";

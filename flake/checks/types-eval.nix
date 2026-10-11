@@ -7,6 +7,7 @@
 # outside the accepted set is refused by the option type.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   rejectedWith,
   bootBase,
@@ -126,6 +127,7 @@
   relocated = hostConfig [
     functioningHost
     {
+      imports = [impermanenceModules];
       # No disk layout is imported, so the wipe is given its device by hand and
       # the two volumes impermanence marks as needed for boot are named.
       fileSystems = {

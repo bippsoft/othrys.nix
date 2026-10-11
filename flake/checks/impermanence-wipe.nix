@@ -21,6 +21,7 @@ pkgs.testers.runNixOSTest {
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
       inputs.impermanence.nixosModules.impermanence
+      inputs.self.nixosModules.impermanence
     ];
 
     # No root image: the first empty disk is /dev/vda and becomes the btrfs

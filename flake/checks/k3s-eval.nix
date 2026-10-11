@@ -8,6 +8,7 @@
 # default the reference showed as null.
 {
   hostConfig,
+  impermanenceModules,
   hostEval,
   mkExpectations,
   rejectedWith,
@@ -74,6 +75,7 @@
   };
   rancherDirs =
     (host {
+      imports = [impermanenceModules];
       fileSystems = {
         "/nix" = {
           device = "/dev/disk/by-label/nix";

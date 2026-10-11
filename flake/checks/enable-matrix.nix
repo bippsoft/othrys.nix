@@ -10,10 +10,11 @@
 # own sit in expectedFailUnnamed.
 # Apps/desktop enables run on a workstation base (user + stylix +
 # hyprland), and everything else runs headless. Every host of the matrix
-# imports the three exports `default` leaves out, each beside the upstream
+# imports the four exports `default` leaves out, each beside the upstream
 # module it writes into, so the walk finds othrys.system.stylix.enable,
 # othrys.system.disko.enable and othrys.system.secrets.enable on the same
-# option tree each host is built from. Hosts with none of the three are read
+# option tree each host is built from, and othrys.system.impermanence.enable
+# fails on its missing device alone. Hosts with none of the four are read
 # by the fixtures in ./default.nix, ./theme-eval.nix and
 # ./exports-optional-eval.nix. Uncatchable errors (type errors like a null slipping
 # into string interpolation) abort the whole check, the loudest possible
@@ -26,6 +27,7 @@
   stylixModules,
   diskoModules,
   secretsModules,
+  impermanenceModules,
   bootCore,
   bootBase,
   functioningHost,
@@ -36,7 +38,7 @@
     inputs.nixpkgs.lib.nixosSystem {
       inherit system;
       specialArgs = {inherit inputs;};
-      modules = upstreamModules ++ [stylixModules diskoModules secretsModules] ++ mods;
+      modules = upstreamModules ++ [stylixModules diskoModules secretsModules impermanenceModules] ++ mods;
     };
 
   # Enumerate every othrys.*.enable option path from a minimal eval. An

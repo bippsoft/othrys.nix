@@ -6,6 +6,7 @@
 # declared and never passed on does too.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   rejectedWith,
   functioningHost,
@@ -17,6 +18,7 @@
   # Every module set the way a host would set it, on a root that is wiped at
   # boot so the persisted directories can be read back.
   configured = host {
+    imports = [impermanenceModules];
     # No disk layout is imported, so the wipe is given its device by hand and
     # the two volumes impermanence marks as needed for boot are named.
     fileSystems = {

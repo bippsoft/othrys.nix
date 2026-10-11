@@ -21,6 +21,7 @@
 # the requirements the enable matrix names by message (./enable-matrix.nix).
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   rejectedWith,
   bootBase,
@@ -203,7 +204,7 @@
   # its device by hand and the two volumes impermanence marks as needed for
   # boot are named.
   secretsWithoutHostKey = headless {
-    imports = [secretsModules];
+    imports = [secretsModules impermanenceModules];
     fileSystems = {
       "/nix" = {
         device = "/dev/disk/by-label/nix";

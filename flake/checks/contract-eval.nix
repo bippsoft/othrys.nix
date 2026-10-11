@@ -3,13 +3,15 @@
 # contract-guards searches the source text for the same clauses, and a search
 # reads spelling. An argument set written on one line passes its `username,`
 # pattern, a specialArgs set written across several lines passes its
-# single-line pattern, and a write to home-manager.users built from a
-# variable is not a string the search can find. Here the argument names come
-# from builtins.functionArgs, the writers of home-manager.users from the
+# single-line pattern, and a write to home-manager.users or to
+# environment.persistence built from a variable is not a string the search
+# can find. Here the argument names come from builtins.functionArgs, the
+# writers of home-manager.users and of environment.persistence from the
 # locations the module system records for each definition, and the
 # specialArgs from the evaluation that received them.
 {
   inputs,
+  impermanenceModules,
   hostEval,
   mkExpectations,
   templateHost,
@@ -54,11 +56,53 @@
   inTree = file: lib.hasPrefix "${root}/" file;
   strayWriters = evaluation: builtins.filter (file: inTree file && file != usersModule) (writersOf evaluation);
 
-  managedApps = hostEval [functioningHost appDesktopModules];
-  managedServer = hostEval [functioningHost serverModules];
+  # Both managed hosts wipe their root, so the same two evaluations show who
+  # writes environment.persistence. No disk layout is imported. The device is
+  # named by hand, and the secrets module, which both fixtures enable, asks
+  # for the persisted ssh host key and a running sshd.
+  wiped = {
+    imports = [impermanenceModules];
+    fileSystems = {
+      "/nix" = {
+        device = "/dev/disk/by-label/nix";
+        fsType = "btrfs";
+      };
+      "/persist" = {
+        device = "/dev/disk/by-label/persist";
+        fsType = "btrfs";
+      };
+    };
+    othrys = {
+      system = {
+        impermanence = {
+          enable = true;
+          device = "/dev/disk/by-partlabel/root";
+        };
+        persistence.enable = true;
+      };
+      services.ssh = {
+        enable = true;
+        server.enable = true;
+      };
+    };
+  };
+
+  managedApps = hostEval [functioningHost appDesktopModules wiped];
+  managedServer = hostEval [functioningHost serverModules wiped];
   accountOnly = hostEval [accountNoHomeManager appDesktopModules];
 
   strays = lib.unique (lib.concatMap strayWriters [managedApps managedServer accountOnly]);
+
+  # Clause 2, persistence half. Every module names its persistent paths in
+  # othrys.internal.persist, and the impermanence adapter is the one file
+  # that hands them to the impermanence module. A module behind its own
+  # enable is a definition on one of the two hosts above. A file outside this
+  # repository is the host's own configuration and is not held to the rule.
+  adapterModule = "${root}/modules/system/impermanence.nix";
+  persistWritersOf = evaluation: map (definition: toString definition.file) evaluation.options.environment.persistence.definitionsWithLocations;
+  strayPersistWriters = evaluation: builtins.filter (file: inTree file && file != adapterModule) (persistWritersOf evaluation);
+  persistStrays = lib.unique (lib.concatMap strayPersistWriters [managedApps managedServer]);
+  registryKeys = evaluation: builtins.attrNames evaluation.config.othrys.internal.persist;
 
   # Clause 4. nixosSystem adds modulesPath to whatever it is handed, so that
   # name is set aside and the rest has to be `inputs` alone or nothing.
@@ -66,7 +110,11 @@
   handed = evaluation: lib.subtractLists ["modulesPath"] (builtins.attrNames evaluation._module.specialArgs);
   allowed = evaluation: builtins.elem (handed evaluation) [[] ["inputs"]];
 
-  named = lib.genAttrs (identityArgs ++ map (file: "${relative file} writes home-manager.users") strays) (_: false);
+  named = lib.genAttrs (
+    identityArgs
+    ++ map (file: "${relative file} writes home-manager.users") strays
+    ++ map (file: "${relative file} writes environment.persistence") persistStrays
+  ) (_: false);
 in
   mkExpectations "othrys-eval-contract" (
     named
@@ -76,6 +124,11 @@ in
       "users.nix is recorded as a writer of home-manager.users on a managed host" = builtins.elem usersModule (writersOf managedApps);
       "nothing else in this repository writes home-manager.users" = strays == [];
       "no file in this repository writes home-manager.users on an account-only host" = builtins.filter inTree (writersOf accountOnly) == [];
+      "the adapter is recorded as a writer of environment.persistence on the app host" = builtins.elem adapterModule (persistWritersOf managedApps);
+      "the adapter is recorded as a writer of environment.persistence on the server host" = builtins.elem adapterModule (persistWritersOf managedServer);
+      "nothing else in this repository writes environment.persistence" = persistStrays == [];
+      "the app and desktop modules reach the adapter through the registry" = builtins.all (key: builtins.elem key (registryKeys managedApps)) ["apps.gh" "apps.gaming.steam" "system.persistence"];
+      "the server modules reach the adapter through the registry" = builtins.all (key: builtins.elem key (registryKeys managedServer)) ["services.tailscale" "services.grafana" "services.containerization.docker"];
       "the check fixtures hand a host inputs or nothing" = allowed managedApps;
       "the template hands its host inputs or nothing" = allowed templateHost;
     }

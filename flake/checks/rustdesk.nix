@@ -4,6 +4,7 @@
 # never writes to, and nothing but a reboot of a real host showed it.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   functioningHost,
 }: let
@@ -11,6 +12,7 @@
     hostConfig [
       functioningHost
       {
+        imports = [impermanenceModules];
         # No disk layout is imported, so the wipe is given its device by hand and
         # the two volumes impermanence marks as needed for boot are named.
         fileSystems = {

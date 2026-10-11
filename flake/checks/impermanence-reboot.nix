@@ -21,6 +21,7 @@ pkgs.testers.runNixOSTest {
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
       inputs.impermanence.nixosModules.impermanence
+      inputs.self.nixosModules.impermanence
     ];
 
     # A null disk image makes the root a tmpfs, which is the wipe's effect

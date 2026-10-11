@@ -7,16 +7,27 @@
     pkgs,
     ...
   }: let
-    # The othrys tree plus the upstream modules a real consumer imports (these
-    # declare the home-manager and impermanence option namespaces othrys
-    # modules write into). Stylix, disko and sops-nix are not among them, so
+    # The othrys tree plus the one upstream module a real consumer has to
+    # import, which declares the home-manager option namespace othrys writes
+    # into. Stylix, disko, sops-nix and impermanence are not among them, so
     # every fixture built from this list alone shows that `default` evaluates
-    # on a host that imports none of the three.
+    # on a host that imports none of the four.
     upstreamModules = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
-      inputs.impermanence.nixosModules.impermanence
     ];
+
+    # The impermanence module and the othrys adapter that hands it the
+    # persistence registry, which a consumer imports together or not at all.
+    # A fixture that sets othrys.system.impermanence.enable lists this module
+    # among its own, and so does one that reads environment.persistence with
+    # impermanence off.
+    impermanenceModules = {
+      imports = [
+        inputs.impermanence.nixosModules.impermanence
+        inputs.self.nixosModules.impermanence
+      ];
+    };
 
     # The Stylix module and the othrys adapter, which a consumer imports
     # together or not at all. A fixture that wants Stylix lists this module
@@ -301,7 +312,7 @@
     # specialArgs set written across several passes it. eval-contract
     # (./contract-eval.nix) reads clauses 1, 2 and 4 back from evaluation, and
     # the two run side by side, since the greps also cover flake/ and the
-    # account and persistence halves of clause 2.
+    # account half of clause 2.
     contractGuards = pkgs.writeShellApplication {
       name = "contract-guards";
       runtimeInputs = [pkgs.gnugrep pkgs.findutils pkgs.coreutils];
@@ -342,27 +353,18 @@
         [ ''${#account_unguarded[@]} -eq 0 ] ||
           report "modules writing users.users without an othrys.system.users.enable guard:" "''${account_unguarded[@]}"
 
-        # Clause 2, persistence half. impermanence reads users.users.<name>.home
-        # for every entry under `users`, so a per-user persistence write is an
-        # account write and carries usersEnabled beside impermanenceEnabled,
-        # on the write itself. An environment.persistence block whose mkIf
-        # names no usersEnabled is followed to its closing brace, and a
-        # `users.` line inside it is the unguarded form. System paths never
-        # write `users.`, so a block of those passes whatever its guard.
-        persist_unguarded=()
-        while IFS= read -r f; do
-          while IFS= read -r hit; do
-            persist_unguarded+=("$f:$hit")
-          done < <(awk '
-            /environment\.persistence\./ && /mkIf/ && !/usersEnabled/ {
-              start = NR; match($0, /^ */); indent = RLENGTH; next
-            }
-            start && /^ *users\./ { print start ": per-user persistence guarded on impermanence alone"; start = 0; next }
-            start && /^ *}/ { match($0, /^ */); if (RLENGTH <= indent) start = 0 }
-          ' "$f")
-        done < <(grep -rl --include='*.nix' 'environment\.persistence' modules | sort)
-        [ ''${#persist_unguarded[@]} -eq 0 ] ||
-          report "per-user persistence must be guarded on usersEnabled as well as impermanenceEnabled:" "''${persist_unguarded[@]}"
+        # Clause 2, persistence half. Stated as a prohibition as well: modules
+        # name what they persist in othrys.internal.persist, and
+        # nixosModules.impermanence applies the impermanence and account
+        # guards once. environment.persistence is declared by the impermanence
+        # module, which `default` does not import, so a write from any other
+        # file fails on every host without that module.
+        persist_writes=$(grep -rn --include='*.nix' 'environment\.persistence' modules \
+          | grep -v '^modules/system/impermanence\.nix:' \
+          | grep -vE '^[^:]+:[0-9]+: *#' || true)
+        [ -z "$persist_writes" ] || report \
+          "only modules/system/impermanence.nix may name environment.persistence; declare persistent paths in othrys.internal.persist:" \
+          "$persist_writes"
 
         # Clause 1. No module takes a `username` argument. Identity is read from
         # othrys.system.user.name, which has no default.
@@ -547,12 +549,12 @@
     hostConfig = hostModules: (hostEval hostModules).config;
 
     # The default template, instantiated with its othrys input pointed at this
-    # flake and only the inputs a consumer would have. disko and sops-nix are
-    # not among them, since the template declares neither.
+    # flake and only the inputs a consumer would have. disko, sops-nix and
+    # impermanence are not among them, since the template declares none.
     templateHost =
       ((import ../../templates/default/flake.nix).outputs {
         othrys = inputs.self;
-        inherit (inputs) nixpkgs home-manager impermanence;
+        inherit (inputs) nixpkgs home-manager;
       }).nixosConfigurations.myhost;
 
     # Files under modules/ that are not modules. Each is a plain function or
@@ -910,19 +912,19 @@
           "a host that does not hibernate is accepted" = !rejectedWith needle hardenedHost;
         };
 
-      eval-impermanence = import ./impermanence-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase diskoModules;};
+      eval-impermanence = import ./impermanence-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase diskoModules;};
 
-      # A host with no disko, sops-nix or Stylix module, and a host that
-      # imports each of the two exports (see ./exports-optional-eval.nix).
+      # A host with no disko, sops-nix, Stylix or impermanence module, and a
+      # host that imports each export (see ./exports-optional-eval.nix).
       eval-optional-exports = import ./exports-optional-eval.nix {
-        inherit hostEval mkExpectations rejectedWith bootBase functioningHost diskoModules secretsModules;
+        inherit impermanenceModules hostEval mkExpectations rejectedWith bootBase functioningHost diskoModules secretsModules;
       };
 
       # What the app and desktop modules persist, read back on an impermanence
       # host without a managed account and on one with (see ./persistence-eval.nix).
-      eval-persistence = import ./persistence-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost appDesktopModules;};
+      eval-persistence = import ./persistence-eval.nix {inherit impermanenceModules hostConfig mkExpectations bootBase functioningHost appDesktopModules;};
       # What the service modules persist under impermanence (see ./service-state-eval.nix).
-      eval-service-state = import ./service-state-eval.nix {inherit hostConfig mkExpectations bootBase;};
+      eval-service-state = import ./service-state-eval.nix {inherit impermanenceModules hostConfig mkExpectations bootBase;};
 
       eval-lock = import ./lock.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-login = import ./login.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
@@ -937,7 +939,7 @@
       # module refuses (see ./keyring-eval.nix).
       eval-keyring = import ./keyring-eval.nix {
         inherit (inputs.nixpkgs) lib;
-        inherit hostConfig mkExpectations rejectedWith bootBase functioningHost accountNoHomeManager;
+        inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost accountNoHomeManager;
       };
 
       # The theme interface with and without the Stylix adapter (see
@@ -956,12 +958,12 @@
 
       # Every conflict and dependency assertion that takes two modules or
       # two options to fire (see ./pairs.nix).
-      eval-pairs = import ./pairs.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost secretsModules;};
+      eval-pairs = import ./pairs.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost secretsModules;};
 
       # Three clauses of the consumer contract, read back from evaluation
       # (see ./contract-eval.nix).
       eval-contract = import ./contract-eval.nix {
-        inherit inputs hostEval mkExpectations templateHost moduleHelpers;
+        inherit impermanenceModules inputs hostEval mkExpectations templateHost moduleHelpers;
         inherit functioningHost accountNoHomeManager appDesktopModules serverModules;
       };
 
@@ -1132,16 +1134,16 @@
       # Start-up defaults of Suricata and CrowdSec (see ./router-services.nix).
       eval-router-services = import ./router-services.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
       eval-router = import ./router-eval.nix {inherit hostConfig hostEval mkExpectations rejectedWith bootBase;};
-      eval-headscale = import ./headscale-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
+      eval-headscale = import ./headscale-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase;};
       eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
-      eval-exposure = import ./exposure-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost;};
-      eval-claude-code = import ./claude-code-eval.nix {inherit hostConfig mkExpectations functioningHost bootBase inputs;};
+      eval-exposure = import ./exposure-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost;};
+      eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations functioningHost bootBase inputs;};
       # What the gh module renders, wraps and pre-approves (see ./gh-eval.nix).
       eval-gh = import ./gh-eval.nix {
         inherit (inputs.nixpkgs) lib;
         inherit hostConfig mkExpectations functioningHost bootBase;
       };
-      eval-k3s = import ./k3s-eval.nix {inherit hostConfig hostEval mkExpectations rejectedWith bootBase;};
+      eval-k3s = import ./k3s-eval.nix {inherit impermanenceModules hostConfig hostEval mkExpectations rejectedWith bootBase;};
       eval-pam = import ./pam-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-containers = import ./containers-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
       eval-nix = import ./nix-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
@@ -1161,17 +1163,17 @@
       eval-hardware = import ./hardware-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost diskoModules inputs;};
 
       # What the smaller service modules pass upstream and refuse (see ./services-eval.nix).
-      eval-services = import ./services-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost inputs;};
+      eval-services = import ./services-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost inputs;};
       eval-auto-upgrade = import ./auto-upgrade-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
 
       # What the option types and the named assertions refuse (see ./types-eval.nix).
-      eval-types = import ./types-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
+      eval-types = import ./types-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
 
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
 
       # What the RustDesk module persists and launches (see ./rustdesk.nix).
-      eval-rustdesk = import ./rustdesk.nix {inherit hostConfig mkExpectations functioningHost;};
+      eval-rustdesk = import ./rustdesk.nix {inherit impermanenceModules hostConfig mkExpectations functioningHost;};
 
       # The SSH known hosts and client defaults (see ./ssh.nix).
       eval-ssh = import ./ssh.nix {inherit hostConfig mkExpectations functioningHost;};
@@ -1190,7 +1192,7 @@
 
       # EXTENDED. Enable-with-defaults matrix (see ./enable-matrix.nix).
       enable-matrix = import ./enable-matrix.nix {
-        inherit pkgs inputs system upstreamModules stylixModules diskoModules secretsModules bootCore bootBase functioningHost;
+        inherit impermanenceModules pkgs inputs system upstreamModules stylixModules diskoModules secretsModules bootCore bootBase functioningHost;
       };
 
       # EXTENDED. Runtime VM tests, one file each.

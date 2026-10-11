@@ -1,9 +1,11 @@
 # flake/checks/persistence-eval.nix
 # CORE. What the app and desktop modules persist, read back from two evaluated
 # hosts. impermanence reads users.users.<name>.home for every entry under
-# `users`, so a per-user write guarded on impermanence alone fails evaluation
-# on a host that has impermanence and no managed account, and no other
-# fixture has that shape. The managed host reads back the modes of the
+# `users`, so a per-user entry that reached it on a host with impermanence and
+# no managed account would fail evaluation, and no other fixture has that
+# shape. The modules name their paths in othrys.internal.persist and the
+# impermanence adapter leaves the user's out there, which is what the first
+# host shows. The managed host reads back the modes of the
 # directories that hold tokens and keys, the directories that are no longer
 # persisted because Home Manager owns their contents, and the paths that were
 # once left on the ephemeral root. Both hosts carry every app module, so the
@@ -11,12 +13,14 @@
 # read here as well.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   bootBase,
   functioningHost,
   appDesktopModules,
 }: let
   impermanence = {
+    imports = [impermanenceModules];
     # No disk layout is imported, so the wipe is given its device by hand and
     # the two volumes impermanence marks as needed for boot are named.
     fileSystems = {

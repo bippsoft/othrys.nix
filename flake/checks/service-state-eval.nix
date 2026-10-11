@@ -7,6 +7,7 @@
 # the owners are pinned here against what the upstream units declare.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   bootBase,
 }: let
@@ -55,6 +56,7 @@
           stateVersion = "26.05";
         };
       }
+      impermanenceModules
       services
       extra
     ];

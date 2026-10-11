@@ -110,7 +110,6 @@
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
-      inputs.impermanence.nixosModules.impermanence
     ];
 
     # Four VMs boot at once, so each stays small unless a test needs more.

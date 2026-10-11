@@ -12,7 +12,6 @@
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
-      inputs.impermanence.nixosModules.impermanence
     ];
   };
 in

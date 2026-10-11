@@ -5,6 +5,7 @@
 # which fails on its own.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   rejectedWith,
   bootBase,
@@ -99,6 +100,7 @@
     };
   };
   persisted = host {
+    imports = [impermanenceModules];
     fileSystems = {
       "/nix" = {
         device = "/dev/disk/by-label/nix";

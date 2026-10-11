@@ -8,6 +8,7 @@
 # fails evaluation.
 {
   hostConfig,
+  impermanenceModules,
   mkExpectations,
   functioningHost,
   bootBase,
@@ -28,6 +29,7 @@
     bootBase
     aiModules
     {
+      imports = [impermanenceModules];
       fileSystems = {
         "/nix" = {
           device = "/dev/disk/by-label/nix";
