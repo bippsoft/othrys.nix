@@ -8,6 +8,13 @@
 }: let
   cfg = config.othrys.hardware.nvidia;
   primeEnabled = cfg.prime.enable;
+
+  nvidiaModules = [
+    "nvidia"
+    "nvidia_modeset"
+    "nvidia_uvm"
+    "nvidia_drm"
+  ];
 in {
   options.othrys.hardware.nvidia = {
     enable = lib.mkEnableOption "NVIDIA GPU";
@@ -42,6 +49,23 @@ in {
         way the wrong `openModules` does, with `nvidia-smi` unable to
         communicate with the driver and `NVRM` lines in `dmesg` naming the
         branch the card needs.
+      '';
+    };
+
+    earlyLoad = lib.mkOption {
+      type = lib.types.bool;
+      default = !primeEnabled;
+      defaultText = lib.literalExpression "!config.othrys.hardware.nvidia.prime.enable";
+      description = ''
+        Put the NVIDIA kernel modules in the initrd, so the NVIDIA card can
+        draw the disk-unlock prompt and the boot splash. With this off the
+        modules are loaded from the root filesystem once it is mounted.
+
+        Early loading puts the driver and its firmware in every initrd, and
+        the initrd size decides how many generations a boot partition holds.
+
+        A PRIME host defaults to off, since its Intel GPU drives the panel
+        during boot and `i915` stays in the initrd for that.
       '';
     };
 
@@ -115,15 +139,17 @@ in {
       };
 
     boot.initrd.kernelModules =
-      [
-        "nvidia"
-        "nvidia_modeset"
-        "nvidia_uvm"
-        "nvidia_drm"
-      ]
+      lib.optionals cfg.earlyLoad nvidiaModules
       ++ lib.optionals primeEnabled [
         "i915"
       ];
+
+    # nixpkgs loads `nvidia`, `nvidia_modeset` and `nvidia_drm` only on a host
+    # with `services.xserver.enable`, and `nvidia_uvm` only with the open
+    # modules. A Wayland host sets neither, so without early loading the four
+    # are named here and systemd-modules-load reads them from the root
+    # filesystem.
+    boot.kernelModules = lib.optionals (!cfg.earlyLoad) nvidiaModules;
 
     boot.blacklistedKernelModules =
       ["nouveau"]

@@ -49,7 +49,7 @@ Key features:
 - The driver is an option, `package`, defaulting to the stable branch
 - VA-API and VDPAU drivers for hardware video decode
 - 32-bit support for Steam/gaming
-- Kernel modules loaded in initrd to claim DRM device early
+- Kernel modules loaded in the initrd on a host without PRIME, which `earlyLoad` decides
 - Blacklists `nouveau`, and `i915` as well when `blacklistIntel` is set
 
 `blacklistIntel` is off by default. On a desktop whose CPU has an iGPU, the
@@ -57,6 +57,16 @@ Intel driver is harmless beside the NVIDIA one, and blacklisting it takes away
 the motherboard outputs and Quick Sync. Set it on a host where the iGPU must
 never bind. PRIME renders the display on the iGPU, so `blacklistIntel` together
 with `prime.enable` fails evaluation.
+
+`earlyLoad` decides whether the four NVIDIA kernel modules go into the initrd.
+With it on, the NVIDIA card can draw the disk-unlock prompt and the boot splash,
+and every initrd carries the driver and its firmware. With it off, the modules
+are listed in `boot.kernelModules` and loaded from the root filesystem once it
+is mounted. The default is on for a desktop and off with `prime.enable`, since
+the Intel GPU drives a PRIME laptop's panel during boot and `i915` stays in the
+initrd either way. On a PRIME host with the 580 legacy driver the initrd
+measures 207M with early loading and 50M without. With a 1G boot partition and
+a 12M kernel that is four generations against sixteen.
 
 ### Older cards
 
