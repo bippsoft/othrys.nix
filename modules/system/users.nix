@@ -91,7 +91,7 @@ in {
     extraGroups = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [];
-      description = "Additional groups for the user (merged with [\"wheel\"]).";
+      description = "Additional groups for the user, beside `wheel` when the `wheel` option is on.";
     };
 
     wheel = lib.mkOption {

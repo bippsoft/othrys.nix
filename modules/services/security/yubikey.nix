@@ -48,6 +48,10 @@ in {
         U2F key mappings per user. Generated with:
           pamu2fcfg -n -o pam://yubi
 
+        That command prints each credential with a leading colon, which
+        joins it to a user's line in a mappings file. Leave the colon out
+        here, since each list entry is one credential.
+
         Keys are stored in /nix/store (read-only) for security. Any
         non-empty mapping turns pam_u2f on for the services in
         `u2fServices`.

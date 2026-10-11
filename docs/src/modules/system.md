@@ -162,6 +162,7 @@ which cost nothing on an ordinary workstation or server.
 | `fs.protected_fifos`, `fs.protected_regular` | `2` | A FIFO or file in a sticky world-writable directory is not opened across owners |
 | `vm.unprivileged_userfaultfd` | `0` | Only root uses userfaultfd |
 | `dev.tty.ldisc_autoload` | `0` | Opening a tty loads no line discipline module |
+| `dev.tty.legacy_tiocsti` | `0` | A process cannot push input into its terminal |
 | `kernel.perf_event_paranoid` | `2` | Unprivileged perf sees user space only |
 
 The profile also adds three kernel parameters through

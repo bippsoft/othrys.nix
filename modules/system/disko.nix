@@ -207,6 +207,9 @@ in {
                     };
                     content = {
                       type = "swap";
+                      # Without a discard policy swap never trims, whatever
+                      # the LUKS layer allows, so it follows allowDiscards.
+                      discardPolicy = lib.mkIf cfg.luks.allowDiscards "both";
                     };
                   };
               };

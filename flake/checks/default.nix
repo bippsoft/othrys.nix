@@ -842,6 +842,7 @@
           "fs.protected_regular" = 2;
           "vm.unprivileged_userfaultfd" = 0;
           "dev.tty.ldisc_autoload" = 0;
+          "dev.tty.legacy_tiocsti" = 0;
           "kernel.perf_event_paranoid" = 2;
         };
         sandbox = (import ../../modules/lib/sandbox.nix).baseline;

@@ -64,6 +64,11 @@ repository can reduce that set.
   `FLAKE_UPDATE_TOKEN` can push branches and open pull requests here. Neither
   can write to `main`, which is protected and needs passing checks.
 
+The registry resolves `nixpkgs` to the host's own input. Channels are off on
+a host built from a flake, and the global flake registry is not fetched unless
+`othrys.system.nix.globalRegistry` is set, so an indirect name such as
+`home-manager` resolves only when the host declares it.
+
 ## Authentication
 
 The YubiKey module makes the key a second factor by default. pam_u2f is

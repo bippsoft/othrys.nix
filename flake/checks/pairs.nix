@@ -48,6 +48,15 @@
     };
   };
 
+  # The default, rootless Docker also installs a `docker` command, with
+  # virtualisation.docker.enable left off.
+  rootlessDockerBesidePodman = workstation {
+    othrys.services.containerization = {
+      docker.enable = true;
+      podman.enable = true;
+    };
+  };
+
   # The NVIDIA container runtime on the default rootless daemon, on a host
   # without the driver. Both of Docker's NVIDIA assertions fire here.
   dockerNvidia = workstation {
@@ -217,6 +226,7 @@
 in
   mkExpectations "othrys-eval-pairs" {
     "podman's docker alias beside a rootful docker daemon is rejected" = rejectedWith "Podman dockerCompat conflicts" dockerBesidePodman;
+    "podman's docker alias beside rootless docker is rejected" = rejectedWith "Podman dockerCompat conflicts" rootlessDockerBesidePodman;
     "the NVIDIA runtime on rootless docker is rejected" = rejectedWith "Docker rootless mode is incompatible" dockerNvidia;
     "the NVIDIA runtime without the driver is rejected" = rejectedWith "Docker NVIDIA support requires" dockerNvidia;
     "idle beside noctalia is rejected" = rejectedWith "othrys.desktop.idle conflicts with othrys.desktop.noctalia" idleBesideNoctalia;

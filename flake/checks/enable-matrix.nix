@@ -73,13 +73,23 @@
 
   isDesktopPath = p: builtins.elem (builtins.elemAt p 1) ["apps" "desktop"];
 
+  # The enables above a nested one, such as othrys.services.ssh.enable above
+  # othrys.services.ssh.server.enable. A nested enable sits under its parent's
+  # mkIf, so flipping it with the parent off evaluates nothing of it. Each
+  # parent is switched on with it, unless the parent is itself expected to
+  # fail on its defaults. Those children are read by the module's own check,
+  # where the parent is given what it requires.
+  parentEnables = path:
+    builtins.filter (p: builtins.elem p enablePaths && !isExpected (lib.concatStringsSep "." p))
+    (lib.genList (n: lib.take (n + 2) path ++ ["enable"]) (lib.max 0 (builtins.length path - 3)));
+
   evalOf = path:
     mkSys ((
         if isDesktopPath path
         then desktopBase
         else headlessBase
       )
-      ++ [(lib.setAttrByPath path true)]);
+      ++ map (p: lib.setAttrByPath p true) ([path] ++ parentEnables path));
 
   evaluates = sys: (builtins.tryEval (sys.config.system.build.toplevel.drvPath != null)).success;
 
@@ -105,7 +115,12 @@
     "othrys.apps.gaming.r2modman.enable" = "othrys.apps.gaming.r2modman requires othrys.apps.gaming.steam.enable";
     "othrys.apps.idea.enable" = "othrys.apps.idea: requires othrys.apps.languages.java.enable";
     "othrys.desktop.nightLight.enable" = "othrys.desktop.nightLight needs a location";
-    "othrys.hardware.nvidia.prime.enable" = "PRIME offload needs the NVIDIA driver";
+    # Its parent, the NVIDIA module, is on with it, so the bus ids are what
+    # is missing.
+    "othrys.hardware.nvidia.prime.enable" = "set intelBusId and nvidiaBusId";
+    "othrys.apps.vscode.neovimIntegration.enable" = "neovimIntegration.enable requires othrys.apps.nixvim.enable";
+    "othrys.services.containerization.docker.nvidia.enable" = "Docker NVIDIA support requires";
+    "othrys.services.traefik.acme.enable" = "acme.enable requires acme.email and acme.dnsProvider";
     "othrys.services.alerting.enable" = "othrys.services.alerting: no datasource";
     "othrys.services.ddns.enable" = "othrys.services.ddns: set provider, hostnames, and credentialsFile";
     "othrys.services.grafana.enable" = "othrys.services.grafana: set secretKeyFile";
@@ -114,7 +129,6 @@
     "othrys.services.headscale.enable" = "requires baseDomain";
     "othrys.services.kea.enable" = "othrys.services.kea: dhcp4.interfaces must list at least one interface";
     "othrys.services.notify.enable" = "othrys.services.notify: set url";
-    "othrys.services.scrutiny.collector.enable" = "a collector-only host must set collector.endpoint";
     "othrys.system.autoUpgrade.enable" = "othrys.system.autoUpgrade: set exactly one upgrade source";
     "othrys.system.nix.cachix.enable" = "othrys.system.nix.cachix: set name and publicKey";
     "othrys.system.users.enable" = "othrys.system.users: set passwordFile or initialHashedPassword";

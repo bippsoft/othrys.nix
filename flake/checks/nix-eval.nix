@@ -49,6 +49,8 @@ in
     "an enabled cachix with empty values is rejected" = rejectedWith "set name and publicKey" cachixEmpty;
     "the registry pins nixpkgs to the host's input" = plain.nix.registry.nixpkgs.flake == inputs.nixpkgs;
     "NIX_PATH follows the registry" = builtins.elem "nixpkgs=flake:nixpkgs" plain.nix.nixPath;
+    "channels are off on a pinned host" = !plain.nix.channel.enable;
+    "the global registry is not fetched by default" = plain.nix.settings.flake-registry == "";
     "the primary user is in wheel by default" = builtins.elem "wheel" withUser.users.users.alice.extraGroups;
     "a host can keep its primary user out of wheel" = !builtins.elem "wheel" nonAdmin.users.users.alice.extraGroups;
   }

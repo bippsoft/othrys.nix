@@ -121,6 +121,18 @@ in {
       };
     };
 
+    globalRegistry = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Let Nix fetch the global flake registry, which resolves names such
+        as `home-manager` or `flake-utils` to whatever the registry's
+        maintainers point them at that day. Off, only the entries the host
+        declares resolve, among them `nixpkgs`, pinned to the host's own
+        input. A full reference such as `github:owner/repo` is unaffected.
+      '';
+    };
+
     communityCache = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -260,6 +272,13 @@ in {
     # instead of whatever the global registry fetches.
     nix.registry.nixpkgs.flake = lib.mkIf (pinnedNixpkgs != null) (lib.mkDefault pinnedNixpkgs);
     nix.nixPath = lib.mkIf (pinnedNixpkgs != null) ["nixpkgs=flake:nixpkgs"];
+
+    # Channels are a second, unpinned source of nixpkgs, and nothing on a
+    # flake host reads them once NIX_PATH names the registry. The global
+    # registry is fetched from the network for every name the host does not
+    # declare, so it is off unless a host asks for it.
+    nix.channel.enable = lib.mkIf (pinnedNixpkgs != null) (lib.mkDefault false);
+    nix.settings.flake-registry = lib.mkIf (!cfg.globalRegistry) (lib.mkDefault "");
 
     programs.nh = lib.mkIf cfg.nh.enable {
       enable = true;

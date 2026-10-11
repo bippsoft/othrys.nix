@@ -76,8 +76,10 @@ in {
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = cfg.dockerCompat -> !config.virtualisation.docker.enable;
-        message = "Podman dockerCompat conflicts with virtualisation.docker.enable. Disable one of them.";
+        # Rootless Docker leaves virtualisation.docker.enable off and still
+        # installs a `docker` command, so the othrys module is read as well.
+        assertion = cfg.dockerCompat -> !(config.virtualisation.docker.enable || config.othrys.services.containerization.docker.enable);
+        message = "Podman dockerCompat conflicts with Docker, since both provide a `docker` command. Disable one of them, or set othrys.services.containerization.podman.dockerCompat = false.";
       }
     ];
 
