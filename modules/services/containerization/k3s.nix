@@ -8,8 +8,6 @@
 }: let
   othrysTypes = import ../../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.containerization.k3s;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   isServer = cfg.role == "server";
 
   # Both are server flags, and k3s refuses to start an agent that is given
@@ -230,7 +228,7 @@ in {
     ]);
 
     # Cluster state must survive reboots under impermanence.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.containerization.k3s" = {
       directories = [
         {
           directory = "/var/lib/rancher/k3s";

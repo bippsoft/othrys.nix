@@ -6,19 +6,15 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.picard;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.apps.picard = {
     enable = lib.mkEnableOption "MusicBrainz Picard music tagger";
   };
 
   config = lib.mkIf cfg.enable {
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.picard" = {
+      user.directories = [
         ".config/MusicBrainz"
       ];
     };

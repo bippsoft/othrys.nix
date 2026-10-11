@@ -17,8 +17,6 @@
   monitoringCfg = config.othrys.services.monitoring;
   vmCfg = config.othrys.services.victoriametrics;
   vlCfg = config.othrys.services.victorialogs;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   loopback = cfg.listenAddress == "127.0.0.1" || cfg.listenAddress == "::1" || cfg.listenAddress == "localhost";
   # Opening the port on a loopback listener publishes nothing, but a consumer
@@ -122,7 +120,7 @@ in {
 
     warnings = lib.optional (!exposed && cfg.adminPasswordFile == null) "othrys.services.grafana: no adminPasswordFile is set, so Grafana serves the stock admin/admin credential on ${cfg.listenAddress}:${toString cfg.port}. Set one before putting a proxy in front.";
 
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.grafana" = {
       directories = [
         {
           directory = "/var/lib/grafana";

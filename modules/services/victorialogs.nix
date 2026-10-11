@@ -11,8 +11,6 @@
 }: let
   inherit (import ../lib/net.nix {inherit lib;}) local;
   cfg = config.othrys.services.victorialogs;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   # ANCHOR: victorialogs-options
   options.othrys.services.victorialogs = {
@@ -68,7 +66,7 @@ in {
     # /var/lib/systemd/journal-upload is the symlink to it. The persisted
     # journal survives a reboot, and with the cursor gone the uploader starts
     # again from the journal's first entry and sends every line a second time.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.victorialogs" = {
       directories =
         [
           {

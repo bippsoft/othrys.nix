@@ -17,8 +17,6 @@
   cfg = config.othrys.system.autoUpgrade;
   sandbox = import ../lib/sandbox.nix;
   notifyEnabled = config.othrys.services.notify.enable;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   verifyUnit = "othrys-auto-upgrade-verify";
   stateDir = "/var/lib/${verifyUnit}";
@@ -396,7 +394,7 @@ in {
 
       # The last verified commit is what the rollback rule compares against,
       # so it has to survive the root wipe.
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      othrys.internal.persist."system.autoUpgrade" = {
         directories = [
           {
             directory = stateDir;

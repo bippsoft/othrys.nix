@@ -6,11 +6,8 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.system.shell.zsh;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   # A toggleable group of related aliases. Consumers disable groups they
   # don't want rather than inheriting one fixed workflow.
@@ -65,8 +62,8 @@ in {
     # HISTFILE, and a rename onto a bind-mounted file fails, so a persisted
     # file would never take a save. The direnv allow database belongs to the
     # development module, which owns direnv.
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username} = {
+    othrys.internal.persist."system.shell.zsh" = {
+      user = {
         directories = [
           ".local/share/zoxide"
           ".local/share/zsh"

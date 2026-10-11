@@ -18,7 +18,7 @@ All external dependencies are declared in `flake.nix`:
 | `niri` | niri-flake, the typed `programs.niri.settings` module the Niri compositor module imports |
 | `disko` | Declarative disk partitioning, written into by the optional `nixosModules.disko` export |
 | `nix-index-database` | Prebuilt database for `comma` and `nix-locate`, as the Home Manager module `othrys.apps.comma` imports |
-| `impermanence` | Opt-in state persistence |
+| `impermanence` | Opt-in state persistence, written into by the optional `nixosModules.impermanence` export |
 | `nixvim` | Neovim configuration via Nix modules, as the Home Manager module `othrys.apps.nixvim` imports |
 | `stylix` | System-wide theming, read by the optional Stylix adapter and the checks |
 | `git-hooks` | Pre-commit hooks (treefmt, Statix, Deadnix, commitizen, gitleaks and the three repository hooks) |
@@ -30,7 +30,7 @@ The private `secrets` input is declared only in the consuming fleet flake, never
 
 ## What a Consumer Declares
 
-A consuming flake declares `othrys`, `nixpkgs` and the four inputs whose modules it imports itself, which are `home-manager`, `disko`, `sops-nix` and `impermanence`. Each is typically written as `follows = "othrys/<name>"`, so hosts build against the exact versions this library is locked to (see [Host Configuration](./host-configuration.md)).
+A consuming flake declares `othrys`, `nixpkgs` and the inputs whose modules it imports itself. `home-manager` is always one of them, and `impermanence`, `disko` and `sops-nix` are for a host that imports the matching othrys export. Each is typically written as `follows = "othrys/<name>"`, so hosts build against the exact versions this library is locked to (see [Host Configuration](./host-configuration.md)).
 
 It declares none of `ashell`, `hyprland`, `nixvim`, `nix-index-database` or `niri`. `flake/modules.nix` hands the first four to the modules from this flake's lock, as a module argument named `othrysInputs`, and imports niri-flake's module directly. An input of one of those names in the consuming flake is not read by any module.
 

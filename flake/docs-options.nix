@@ -17,9 +17,12 @@
       modules = [
         inputs.self.nixosModules.default
         inputs.home-manager.nixosModules.home-manager
+        # The reference covers the four exports `default` leaves out too,
+        # each beside the upstream module it writes into. The impermanence
+        # adapter declares no option of its own. The othrys.system.impermanence
+        # options are declared in `default` and are listed either way.
+        inputs.self.nixosModules.impermanence
         inputs.impermanence.nixosModules.impermanence
-        # The reference covers the three exports `default` leaves out too,
-        # each beside the upstream module it writes into.
         inputs.self.nixosModules.stylix
         inputs.stylix.nixosModules.stylix
         inputs.self.nixosModules.disko

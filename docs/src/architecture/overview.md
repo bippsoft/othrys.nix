@@ -26,8 +26,9 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   ├── auto-upgrade.nix   # Unattended upgrades with signature verification
   │   ├── bootloader.nix     # Bootloader + Secure Boot
   │   ├── disko.nix          # Disk layout, exported on its own
-  │   ├── impermanence.nix   # Ephemeral root wipe
-  │   ├── persistence.nix    # System-critical persistence
+  │   ├── ephemeral-root.nix # Ephemeral root wipe
+  │   ├── impermanence.nix   # Impermanence adapter, a separate export
+  │   ├── persistence.nix    # Persistence registry and the system-critical set
   │   ├── secrets.nix        # sops-nix plumbing, exported on its own
   │   ├── git.nix            # Git configuration
   │   └── shell/             # Shell (Zsh, Bash, Starship)

@@ -29,8 +29,6 @@
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.headscale;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   docs = config.othrys.services.docs;
   scrutiny = config.othrys.services.scrutiny;
   crowdsec = config.othrys.services.security.crowdsec;
@@ -390,7 +388,7 @@ in {
       warnings = lib.optional (cfg.oidc.enable && !oidcRestricted) "othrys.services.headscale: OIDC is on with none of oidc.allowedDomains, allowedUsers or allowedGroups set, so every account at ${cfg.oidc.issuer} can register a node on this tailnet.";
 
       # Node keys, the SQLite database, and generated DERP/noise keys live here.
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      othrys.internal.persist."services.headscale" = {
         directories = [
           {
             directory = "/var/lib/headscale";
@@ -429,7 +427,7 @@ in {
       ];
 
       # Headplane runs as the headscale user, and its state lives here.
-      environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+      othrys.internal.persist."services.headscale" = {
         directories = [
           {
             directory = "/var/lib/headplane";

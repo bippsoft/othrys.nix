@@ -13,11 +13,7 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.hardware.graphics.shaderCache;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   nvidiaEnabled = config.othrys.hardware.nvidia.enable;
 in {
   # ANCHOR: shader-cache-options
@@ -54,8 +50,8 @@ in {
     # (compositor, Xwayland, gamescope, browsers, native GL apps). Mesa dirs
     # are persisted on NVIDIA hosts too, since Xwayland, an iGPU or software
     # fallback still compile through mesa there.
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories =
+    othrys.internal.persist."hardware.graphics.shaderCache" = {
+      user.directories =
         [
           ".cache/mesa_shader_cache"
           ".cache/mesa_shader_cache_db"

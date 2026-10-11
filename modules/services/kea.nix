@@ -13,8 +13,6 @@
   ...
 }: let
   cfg = config.othrys.services.kea;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   mkPool = family: {
     enable = lib.mkOption {
@@ -96,7 +94,7 @@ in {
     # default leasesFile paths resolve through the symlink into this
     # directory, and a host that points leasesFile elsewhere declares that
     # path itself.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.kea" = {
       directories = [
         {
           directory = "/var/lib/private/kea";

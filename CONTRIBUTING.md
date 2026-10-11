@@ -13,14 +13,18 @@ evaluation rather than waiting to surprise somebody.
 1. **No `username` module argument.** Read the primary user from
    `config.othrys.system.user.name`. The option has no default.
 1. **Guard every per-user write.** Account writes behind
-   `othrys.system.users.enable`, Home Manager writes behind
-   `othrys.system.users.homeManaged`, both at the attrset level, never on a leaf.
-1. **`nixosModules.default` writes into upstream namespaces.** Consumers must
-   also import `home-manager` and `impermanence`, even when the matching othrys
-   feature is off. A consumer who wants Stylix imports `nixosModules.stylix`
-   and the Stylix module together. One who wants the disko layout imports
-   `nixosModules.disko` and the disko module, and one who wants the sops
-   plumbing imports `nixosModules.secrets` and the sops-nix module.
+   `othrys.system.users.enable`, at the attrset level, never on a leaf. Home
+   Manager configuration goes to `othrys.internal.homeConfig` and persistent
+   paths go to `othrys.internal.persist`, never to `home-manager.users` or
+   `environment.persistence`. Each registry applies its guard once.
+1. **`nixosModules.default` writes into one upstream namespace.** Consumers
+   must also import `home-manager`, even when no othrys module configures the
+   user. A consumer who wants Stylix imports `nixosModules.stylix` and the
+   Stylix module together. One who wants the disko layout imports
+   `nixosModules.disko` and the disko module, one who wants the sops plumbing
+   imports `nixosModules.secrets` and the sops-nix module, and one who wants an
+   ephemeral root imports `nixosModules.impermanence` and the impermanence
+   module.
 1. **specialArgs carry `inputs` or nothing.** Modules read two names from it,
    `nixpkgs` for the registry pin and the optional `secrets`. Not `username`,
    not `hostname`.
@@ -44,13 +48,25 @@ creation and environment management are also separate concerns, which is why
 there are two guards rather than one: a server may want a login account without
 Home Manager owning its dotfiles.
 
-**The upstream imports are unconditional because `mkIf` does not defer option
+A persistent path in the user's home is an account-level write as well, since
+the impermanence module reads `users.users.<name>.home` to place the bind
+mount. No module spells either of these guards for its own configuration. Home
+Manager configuration is written to `othrys.internal.homeConfig`, which
+`modules/system/users.nix` splices into `home-manager.users` behind
+`othrys.system.users.homeManaged`. Persistent paths are written to
+`othrys.internal.persist`, which `modules/system/impermanence.nix` splices into
+`environment.persistence`, the system paths behind
+`othrys.system.impermanence.enable` and the paths under `user` behind
+`othrys.system.users.enable` as well. Each guard is written in one file, so no
+module can spell it wrongly.
+
+**The upstream import is unconditional because `mkIf` does not defer option
 existence.** Writing into an undeclared option namespace fails at evaluation
 whether or not the write is conditional, so importing home-manager only when a
-Home Manager feature is enabled does not work. Consumers import both.
+Home Manager feature is enabled does not work.
 
-Stylix, disko and sops-nix are the exceptions, and each is one because of where
-the writes live. Every module in `nixosModules.default` reads its colours and
+Stylix, disko, sops-nix and impermanence are the exceptions, and each is one
+because of where the writes live. Every module in `nixosModules.default` reads its colours and
 fonts from `othrys.theme`, and the only file that writes into the `stylix`
 namespace is the adapter, `modules/theme/stylix.nix`. The adapter is exported as
 `nixosModules.stylix` and `default` does not import it, so a host without Stylix
@@ -72,9 +88,20 @@ module that needs a secret takes a runtime file path and names no provider, so a
 host without sops-nix hands those options a path from whatever installs its
 secrets.
 
-Home Manager and impermanence stay unconditional because their writes are spread
-across the tree. Dozens of modules register per-user configuration or declare a
-persisted path, and no single file could carry them out of `default`.
+Impermanence follows it too, although dozens of modules declare a persisted
+path. Each of them writes to `othrys.internal.persist`, an option `default`
+declares itself, and `modules/system/impermanence.nix` is the only file that
+writes into `environment.persistence`. It is exported as
+`nixosModules.impermanence` and imported by neither `default` nor
+`nixosModules.system`. The `othrys.system.impermanence` options and the root
+wipe stay in `default`, in `modules/system/ephemeral-root.nix`, since modules
+across the tree read the enable flag and the persist root. A host that turns
+impermanence on without the export is rejected by an assertion that names it,
+since the root would be wiped and nothing bound back.
+
+Home Manager stays unconditional. `modules/system/users.nix` is the one file
+that writes `home-manager.users`, and it also creates the account, so it cannot
+leave `default`.
 
 **specialArgs stay minimal because they are the one part of the interface the
 module system cannot type.** Every additional specialArg is an undeclared
@@ -103,6 +130,8 @@ All modules follow the `othrys.*` namespace convention:
 1. Guard all config with `config = lib.mkIf cfg.enable { ... };`
 1. Write user configuration to `othrys.internal.homeConfig."{category}.{name}"`,
    never to `home-manager.users`
+1. Write persistent paths to `othrys.internal.persist."{category}.{name}"`,
+   never to `environment.persistence`
 1. Import in `modules/{category}/default.nix`
 1. Enable in a host config with `othrys.{category}.{name}.enable = true;`
 
@@ -118,18 +147,14 @@ All modules follow the `othrys.*` namespace convention:
   ...
 }: let
   cfg = config.othrys.{category}.{name};
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.{category}.{name} = {
     enable = lib.mkEnableOption "Description";
   };
 
   config = lib.mkIf cfg.enable {
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."{category}.{name}" = {
+      user.directories = [
         ".config/{name}"
       ];
     };
@@ -142,7 +167,7 @@ in {
 ```
 
 `modules/apps/cli/gh.nix` follows this template, with one persisted directory
-and one registry entry.
+and one entry in each registry.
 
 There is no `username` module argument. The primary user comes from
 `config.othrys.system.user.name`, and that option has no default, so reading it
@@ -151,15 +176,16 @@ per-user path must therefore sit behind a guard.
 
 Two guards exist, and they are not interchangeable. Account-level writes
 (`users.users.<name>`, `/persist` home directories, wipe-script home recreation)
-go behind `othrys.system.users.enable`, spelled in the module. A per-user
-persistence entry is an account-level write, since impermanence reads
-`users.users.<name>.home` to place the bind mount, so `impermanenceEnabled`
-alone is not a guard for it. Home Manager writes do not spell a guard at all.
-A module contributes to `othrys.internal.homeConfig`, keyed by its own option
-path, and `modules/system/users.nix` splices the whole registry into
-`home-manager.users.<name>` behind `othrys.system.users.homeManaged`. Nothing
-else in `modules/` may write `home-manager.users`, and `contract-guards` in
-`flake/checks/` enforces that as a prohibition.
+go behind `othrys.system.users.enable`, spelled in the module. Home Manager
+writes and persistent paths do not spell a guard at all. A module contributes
+to `othrys.internal.homeConfig`, keyed by its own option path, and
+`modules/system/users.nix` splices the whole registry into
+`home-manager.users.<name>` behind `othrys.system.users.homeManaged`. It
+contributes to `othrys.internal.persist` under the same key, and
+`modules/system/impermanence.nix` splices that registry into
+`environment.persistence`. Nothing else in `modules/` may write
+`home-manager.users` or `environment.persistence`, and `contract-guards` in
+`flake/checks/` enforces both as prohibitions.
 
 The registry exists because the guard belongs at the attrset level rather than
 on a leaf. A leaf-level `mkIf` still materializes the Home Manager user and
@@ -269,33 +295,51 @@ go in the module's `othrys.internal.homeConfig` entry, as MangoHud does.
 
 All persistent state must be declared explicitly. If a module stores state on
 disk, declare the persistence in that module rather than in `persistence.nix`.
+A module names its paths in `othrys.internal.persist`, under its own option
+path, and writes nothing to `environment.persistence`.
 
 ```nix
-environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-  users.${username}.directories = [
+othrys.internal.persist."apps.{app}" = {
+  user.directories = [
     ".config/{app}"
     ".local/share/{app}"
   ];
 };
 ```
 
-A system path carries `impermanenceEnabled` alone, as in
+A system path goes in `directories` or `files`, as in
 `modules/services/traefik.nix`.
 
 ```nix
-environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+othrys.internal.persist."services.{service}" = {
   directories = [
     "/var/lib/{service}"
   ];
 };
 ```
 
-A per-user path carries `usersEnabled` as well, because impermanence
-dereferences the account's home directory for every entry under `users`, and a
-host with impermanence on and `othrys.system.users.enable` off has no such
-account. `contract-guards` rejects the per-user form without the second guard.
-The `eval-persistence` check evaluates that host shape with every app and
-desktop module on.
+The entries keep the forms the impermanence module accepts, which are a string
+or an attribute set with `directory` or `file` and any of `user`, `group` and
+`mode`. Paths under `user` are relative to the primary user's home. A module
+with a second condition wraps its value in `lib.mkIf`, as
+`modules/services/alerting.nix` does, and `lib.mkIf` on one list works as well.
+
+No guard is spelled in the module. `modules/system/impermanence.nix`, exported
+as `nixosModules.impermanence`, reads the registry and is the only file that
+writes `environment.persistence`. It binds the system paths when
+`othrys.system.impermanence.enable` is on and the paths under `user` only when
+`othrys.system.users.enable` is on as well, because impermanence dereferences
+the account's home directory for every entry under `users`, and a host with
+impermanence on and `othrys.system.users.enable` off has no such account.
+`contract-guards` rejects any other file that names `environment.persistence`,
+and `eval-contract` reads the same rule back from the definitions of two
+evaluated hosts. The `eval-persistence` check evaluates the host with no
+managed account with every app and desktop module on.
+
+The option `environment.persistence` exists only on a host that imports the
+impermanence module, which `nixosModules.default` does not require. A module
+that wrote to it directly would fail on every host without that import, with
+impermanence on or off.
 
 Three further rules apply to what goes in the list:
 

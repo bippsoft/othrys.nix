@@ -6,11 +6,7 @@
   config,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.gaming.steam;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   # Default Proton compatibility packages
   defaultCompatPackages = with pkgs; [
@@ -191,8 +187,8 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persistence for Steam library and game saves
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.gaming.steam" = {
+      user.directories = [
         ".local/share/Steam"
         ".steam"
         ".local/share/vulkan"

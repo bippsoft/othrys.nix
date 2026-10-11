@@ -11,11 +11,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.idea;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   # Curated plugin catalogue. Every entry pins one marketplace release.
   #
@@ -159,8 +155,8 @@ in {
     # Config, plugins and the project indexes. The index cache is the expensive
     # one, since without it every boot re-indexes each project from scratch, which is
     # minutes of CPU on anything non-trivial.
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.idea" = {
+      user.directories = [
         ".config/JetBrains"
         ".local/share/JetBrains"
         ".cache/JetBrains"

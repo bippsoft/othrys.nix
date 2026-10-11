@@ -60,30 +60,39 @@ Account-level writes, such as group memberships in
 `users.users.${username}.extraGroups`, stay in the module and are guarded on
 `othrys.system.users.enable` at the attrset level. `CONTRIBUTING.md` carries
 the full reasoning, and the `contract-guards` hook rejects a module that writes
-`home-manager.users`.
+`home-manager.users` or `environment.persistence`.
 
 ## Impermanence Pattern
 
-Modules that store persistent state declare their own persistence. A per-user
-entry carries the users guard beside the impermanence one, since impermanence
-reads the account's home directory to place the bind mount.
+Modules that store persistent state declare their own persistence, in a second
+registry, `othrys.internal.persist`, under the same key as the Home Manager one.
+A path in the primary user's home goes under `user`, relative to the home.
 
 ```nix
-environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-  users.${username}.directories = [
+othrys.internal.persist."apps.{app}" = {
+  user.directories = [
     ".config/{app}"
   ];
 };
 ```
 
-A system path needs no account and carries the impermanence guard alone.
+A system path goes in `directories` or `files`.
 
 ```nix
-environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+othrys.internal.persist."services.{service}" = {
   directories = [
     "/var/lib/{service}"
   ];
 };
 ```
 
-`persistRoot` is `config.othrys.system.impermanence.persistRoot`.
+Neither form spells a guard. `modules/system/impermanence.nix` reads the
+registry and writes it into `environment.persistence` under
+`config.othrys.system.impermanence.persistRoot`. It writes the system paths
+when impermanence is on, and the paths under `user` only when
+`othrys.system.users.enable` is on as well, since impermanence reads the
+account's home directory to place the bind mount.
+
+That file is exported as `nixosModules.impermanence` and is not part of
+`nixosModules.default`, so the tree evaluates on a host that imports no
+impermanence module. See [Impermanence](../system/impermanence.md).

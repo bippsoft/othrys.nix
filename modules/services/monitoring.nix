@@ -7,8 +7,6 @@
 }: let
   inherit (import ../lib/net.nix {inherit lib;}) local;
   cfg = config.othrys.services.monitoring;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   # Both targets are this host's own listeners, so they are scraped at the
   # bound address seen from here (modules/lib/net.nix) rather than at
   # loopback, where nothing listens once listenAddress names one interface.
@@ -64,7 +62,7 @@ in {
     # prometheus account with StateDirectoryMode 0700, so there is no
     # /var/lib/private indirection here. retentionTime describes the window
     # kept on disk, and a wiped root empties it at every boot.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.monitoring" = {
       directories = [
         {
           directory = "/var/lib/${config.services.prometheus.stateDir}";

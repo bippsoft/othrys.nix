@@ -14,8 +14,6 @@
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.tailscale;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   router = config.othrys.services.router;
 in {
   # ANCHOR: tailscale-options
@@ -104,7 +102,7 @@ in {
     };
 
     # Persistence for Tailscale state (node keys, etc.)
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.tailscale" = {
       directories = [
         {
           directory = "/var/lib/tailscale";

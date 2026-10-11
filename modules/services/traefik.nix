@@ -10,8 +10,6 @@
   scrutiny = config.othrys.services.scrutiny;
   headscale = config.othrys.services.headscale;
   crowdsec = config.othrys.services.security.crowdsec;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   acmeStorage =
     if cfg.acme.storage != null
@@ -362,7 +360,7 @@ in {
     };
 
     # Certificates (acme.json) must survive reboots under impermanence.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.traefik" = {
       directories = [
         {
           directory = cfg.dataDir;

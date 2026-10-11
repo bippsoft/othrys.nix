@@ -6,11 +6,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.obs;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   nvidiaEnabled = config.othrys.hardware.nvidia.enable;
 in {
   options.othrys.apps.obs = {
@@ -20,8 +16,8 @@ in {
   config = lib.mkIf cfg.enable {
     # Scenes, profiles and the stream service settings, which carry the stream
     # key in plaintext, so the directory is 0700.
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.obs" = {
+      user.directories = [
         {
           directory = ".config/obs-studio";
           mode = "0700";

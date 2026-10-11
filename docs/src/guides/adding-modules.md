@@ -22,18 +22,14 @@ one level further down, under `modules/apps/cli/` or `modules/apps/gui/`.
   ...
 }: let
   cfg = config.othrys.{category}.{name};
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.{category}.{name} = {
     enable = lib.mkEnableOption "Description of the module";
   };
 
   config = lib.mkIf cfg.enable {
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."{category}.{name}" = {
+      user.directories = [
         ".config/{name}"
       ];
     };
@@ -48,9 +44,11 @@ in {
 This is the template in `CONTRIBUTING.md`, and `modules/apps/cli/gh.nix` is a
 module that follows it.
 
-There is no `username` module argument. Read the primary user from
-`config.othrys.system.user.name`, and put every per-user write behind a guard,
-since the option has no default and a headless host can leave it unset.
+There is no `username` module argument. A module that needs the primary user
+reads `config.othrys.system.user.name`, and puts every account write behind a
+guard on `othrys.system.users.enable`, since the option has no default and a
+headless host can leave it unset. The template needs neither, because both of
+its per-user writes go through a registry.
 
 User configuration goes into `othrys.internal.homeConfig`, under a key that is
 the module's own option path. `modules/system/users.nix` splices every entry
@@ -66,19 +64,25 @@ othrys.internal.homeConfig."services.docs" = lib.mkIf cfg.desktopEntry {
 };
 ```
 
-Persistence has two forms. A per-user entry is an account write, since
-impermanence reads the account's home directory to place it, so the template
-guards it on `impermanenceEnabled && usersEnabled`. A system path needs no
-account and carries `impermanenceEnabled` alone, as in
-`modules/services/traefik.nix`.
+Persistent paths go into `othrys.internal.persist`, under the same key. Paths
+in the primary user's home go under `user`, relative to it, and a system path
+goes in `directories` or `files`, as in `modules/services/traefik.nix`.
 
 ```nix
-environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+othrys.internal.persist."services.{service}" = {
   directories = [
     "/var/lib/{service}"
   ];
 };
 ```
+
+The module spells no guard here either. `modules/system/impermanence.nix`,
+exported as `nixosModules.impermanence`, splices the registry into
+`environment.persistence` when impermanence is on, and leaves the paths under
+`user` out on a host with no managed account. A module never writes
+`environment.persistence` directly. That option exists only on a host that
+imports the impermanence module, so a direct write fails on every other host,
+and the `contract-guards` hook rejects it.
 
 ### 3. Import in Category default.nix
 

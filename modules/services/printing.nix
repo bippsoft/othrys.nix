@@ -7,8 +7,6 @@
   ...
 }: let
   cfg = config.othrys.services.printing;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   # ANCHOR: printing-options
   options.othrys.services.printing = {
@@ -38,7 +36,7 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persistence for printer configuration
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.printing" = {
       directories = [
         {
           directory = "/var/lib/cups";

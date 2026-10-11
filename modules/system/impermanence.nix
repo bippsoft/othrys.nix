@@ -1,249 +1,107 @@
 # modules/system/impermanence.nix
-# Ephemeral root: boot-time BTRFS wipe with an archived snapshot
+# Impermanence adapter, which hands the persistence registry to the impermanence module
 #
-# The module names no partitioning tool. It wipes the btrfs filesystem on
-# othrys.system.impermanence.device, which the disko export
-# (modules/system/disko.nix) fills with its LUKS mapping and a host that
-# partitions another way sets itself.
+# Exported as nixosModules.impermanence and left out of nixosModules.default,
+# so a host imports it together with the impermanence module or imports
+# neither. It is the only file in this tree that writes into the
+# `environment.persistence` option namespace or orders a step against the
+# activation scripts the impermanence module declares.
+#
+# The othrys.system.impermanence options and the root wipe live in
+# ./ephemeral-root.nix, and the registry in ./persistence.nix. Both are part
+# of nixosModules.default, so a module can name what it persists on a host
+# that imports no impermanence module at all.
 {
   config,
   lib,
   pkgs,
-  utils,
   ...
 }: let
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.system.impermanence;
-  # The wipe unit and the recovery tool both interpolate the device, and a
-  # null there aborts the evaluation before any assertion is reported. The
-  # body below is skipped while no device is named, so the assertion is what
-  # the host sees.
-  configured = cfg.enable && cfg.device != null;
-  # systemd names a device unit after the escaped path, so a LUKS name with a
-  # hyphen is `dev-mapper-crypt\x2droot.device`, not `dev-mapper-crypt-root`.
-  deviceUnit = "${utils.escapeSystemdPath cfg.device}.device";
-  # Operator tooling for the archive the wipe script maintains, so an admin
-  # can browse and copy files out of previous roots. Every mount is
-  # READ-ONLY and restore only ever copies out, since archives you cannot
-  # inspect are half a safety net.
-  oldRoots = pkgs.writeShellApplication {
-    name = "old-roots";
-    runtimeInputs = [pkgs.util-linux pkgs.coreutils];
-    text = ''
-      device=${lib.escapeShellArg cfg.device}
-      mnt="/run/old-roots"
+  inherit (cfg) persistRoot;
+  persistenceEnabled = config.othrys.system.persistence.enable;
 
-      ensure_mounted() {
-        mkdir -p "$mnt"
-        mountpoint -q "$mnt" || mount -o ro "$device" "$mnt"
-      }
-
-      case "''${1:-}" in
-        list)
-          ensure_mounted
-          if [ -d "$mnt/old_roots" ]; then
-            ls -1 "$mnt/old_roots"
-          else
-            echo "no archived roots"
-          fi
-          umount "$mnt"
-          ;;
-        mount)
-          ensure_mounted
-          echo "archive mounted read-only; snapshots under $mnt/old_roots"
-          echo "run 'old-roots umount' when done"
-          ;;
-        umount)
-          umount "$mnt"
-          ;;
-        restore)
-          snapshot="''${2:?usage: old-roots restore <snapshot> <path> [dest]}"
-          path="''${3:?usage: old-roots restore <snapshot> <path> [dest]}"
-          dest="''${4:-./$(basename "$path").restored}"
-          ensure_mounted
-          src="$mnt/old_roots/$snapshot/$path"
-          if [ ! -e "$src" ]; then
-            echo "error: $src does not exist" >&2
-            umount "$mnt"
-            exit 1
-          fi
-          cp -a "$src" "$dest"
-          umount "$mnt"
-          echo "restored to $dest"
-          ;;
-        *)
-          echo "usage: old-roots <list|mount|umount|restore <snapshot> <path> [dest]>"
-          exit 1
-          ;;
-      esac
-    '';
-  };
+  # Every module's contribution, in the order of the registry keys.
+  # attrValues returns them sorted by key, so the order is stable across
+  # evaluations and does not follow the order modules are imported in.
+  registry = config.othrys.internal.persist;
+  collect = pick: lib.concatMap pick (lib.attrValues registry);
+  userDirectories = collect (entry: entry.user.directories);
+  userFiles = collect (entry: entry.user.files);
 in {
-  # ANCHOR: impermanence-options
-  options.othrys.system.impermanence = {
-    enable = lib.mkEnableOption "Impermanence (ephemeral root with opt-in persistence)";
-
-    persistRoot = lib.mkOption {
-      type = lib.types.str;
-      default = "/persist";
-      description = ''
-        Mountpoint of the persistent volume. Every othrys module keys its
-        `environment.persistence` declarations on this path, and the disko
-        layout mounts the persist subvolume here, so one option moves the whole
-        persistence surface. The btrfs subvolume itself is still named
-        `persist` (the boot-wipe script addresses subvolumes, not mounts).
-      '';
-    };
-
-    retentionDays = lib.mkOption {
-      type = lib.types.ints.unsigned;
-      default = 30;
-      description = "Days to keep old root snapshots in /btrfs_tmp/old_roots before deletion.";
-    };
-
-    device = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
-      description = ''
-        Block device holding the btrfs filesystem with the `root` and
-        `persist` subvolumes. The wipe unit waits for this device in the initrd
-        and mounts its top-level subvolume.
-
-        The option has to be set on a host that enables impermanence. With
-        `nixosModules.disko` imported and `othrys.system.disko.enable` on, the
-        layout fills it with its LUKS mapping, `/dev/mapper/<luks.name>`, as a
-        default. A host that partitions any other way names the device here,
-        which is the LUKS mapping for an encrypted root and the partition
-        itself for a plain one.
-      '';
-      example = "/dev/disk/by-partlabel/root";
-    };
-  };
-  # ANCHOR_END: impermanence-options
-
   config = lib.mkMerge [
-    (lib.mkIf cfg.enable {
-      # The wipe needs a btrfs filesystem with `root` and `persist` subvolumes
-      # on the device, and nothing here can see what a device holds. What can
-      # be checked is that a device is named at all. The disko export names its
-      # own, so this fires on a host that enables impermanence with neither
-      # the layout nor a device of its own.
-      assertions = [
-        {
-          assertion = cfg.device != null;
-          message = "othrys.system.impermanence: set device to the block device that holds the btrfs filesystem with the `root` and `persist` subvolumes, or import nixosModules.disko with the disko module and enable othrys.system.disko, which sets it to the LUKS mapping of its layout.";
-        }
-      ];
-    })
+    {
+      # What the assertion in ./ephemeral-root.nix reads. It is true on every
+      # host that imports this file, whether or not impermanence is on.
+      othrys.internal.impermanenceExport = true;
 
-    (lib.mkIf configured {
-      environment.systemPackages = [oldRoots];
+      # ANCHOR: persist-splice
+      # Both guards are applied here, once, and at the attribute-set level.
+      # With impermanence off the persist root is not declared at all. With
+      # no managed account the `users` set stays empty, since the
+      # impermanence module reads users.users.<name>.home for every entry
+      # under it and that account does not exist. A guard on a leaf would
+      # still declare the user and fail there.
+      #
+      # The root is declared once any module has a key in the registry, and
+      # the user once any module names a path in the home. A host on which
+      # no module persists anything therefore keeps an empty
+      # environment.persistence.
+      environment.persistence = lib.mkIf (cfg.enable && registry != {}) {
+        ${persistRoot} = {
+          # Part of the system-critical set, so it follows that switch.
+          hideMounts = lib.mkIf persistenceEnabled true;
 
-      # The wipe is a systemd stage-1 unit. The scripted initrd ignores
-      # boot.initrd.systemd.services without an error, so a host that did not
-      # turn the systemd initrd on for another reason kept its root forever.
-      boot.initrd.systemd.enable = true;
-      # The stage-1 PATH is coreutils, util-linux and btrfs-progs. The prune
-      # loop below needs nothing else, and findutils is here so a later edit
-      # that reaches for `find` keeps working in stage 1 too.
-      boot.initrd.systemd.initrdBin = [pkgs.findutils];
+          directories = collect (entry: entry.directories);
+          files = collect (entry: entry.files);
 
-      fileSystems.${cfg.persistRoot}.neededForBoot = true;
-      fileSystems."/nix".neededForBoot = true;
+          users = lib.mkIf (usersEnabled && (userDirectories != [] || userFiles != [])) {
+            ${username} = {
+              directories = userDirectories;
+              files = userFiles;
+            };
+          };
+        };
+      };
+      # ANCHOR_END: persist-splice
+    }
 
-      # The per-user home dir only exists when othrys manages the user account.
-      # Headless hosts run impermanence with no primary user.
-      systemd.tmpfiles.rules =
-        ["d ${cfg.persistRoot}/home 0755 root root -"]
-        ++ lib.optionals usersEnabled [
-          # The group comes from the account rather than a literal "users", since
-          # a host is free to give its primary user a different primary group.
-          # The path follows the account's home as well, since impermanence
-          # binds each per-user entry from the persist root plus that home.
-          "d ${cfg.persistRoot}${config.users.users.${username}.home} 0700 ${username} ${config.users.users.${username}.group} -"
-        ];
-
-      # ANCHOR: boot-wipe-script
-      boot.initrd.systemd.services.root-wipe = {
-        description = "Wipe root BTRFS subvolume for impermanence.";
-        wantedBy = ["initrd.target"];
-        requires = [deviceUnit];
-        # A resume from hibernation never returns from the resume unit, so this
-        # only runs on a boot that is not a resume. Without the ordering the
-        # wipe could run first and the resumed image would see a root that is no
-        # longer the one it had mounted.
-        after = [deviceUnit "systemd-hibernate-resume.service"];
-        before = ["sysroot.mount"];
-        unitConfig.DefaultDependencies = "no";
-        serviceConfig.Type = "oneshot";
-        script = ''
-          mkdir -p /btrfs_tmp
-          # subvolid=5 names the top-level subvolume. A host whose default
-          # subvolume was changed with `btrfs subvolume set-default` would
-          # otherwise mount that one and find no `root` to move.
-          mount -o subvolid=5 ${lib.escapeShellArg cfg.device} /btrfs_tmp
-          if [[ -e /btrfs_tmp/root ]]; then
-              mkdir -p /btrfs_tmp/old_roots
-              timestamp=$(date --date="@$(stat -c %Y /btrfs_tmp/root)" "+%Y-%m-%d_%H:%M:%S")
-              mv /btrfs_tmp/root "/btrfs_tmp/old_roots/$timestamp"
+    (lib.mkIf (cfg.enable && persistenceEnabled) {
+      # impermanence bind-mounts the persisted /etc/machine-id, and its mount
+      # script refuses a mount point that is already a regular, non-empty file.
+      # At boot the root is fresh and the file is absent, so that never triggers.
+      # On a host that was running before /etc/machine-id joined the persisted
+      # set, the file holds this boot's id, and the first switch failed with "A
+      # file already exists at /etc/machine-id!". This step runs first and turns
+      # that state into the one the mount script accepts. The running id is the
+      # one kept, so the journal and the DHCP identity of this boot carry on. A
+      # persisted file that is missing, empty or a symlink is replaced, and one
+      # that holds a different id is kept beside it. At boot it does nothing.
+      #
+      # The step is ordered between two activation scripts of the impermanence
+      # module, which is why it lives in this file.
+      system.activationScripts.othrys-persist-machine-id = {
+        deps = ["createPersistentStorageDirs"];
+        text = ''
+          machine_id=/etc/machine-id
+          persisted=${lib.escapeShellArg "${persistRoot}/etc/machine-id"}
+          if [ -f "$machine_id" ] && [ ! -L "$machine_id" ] && [ -s "$machine_id" ] \
+            && ! ${pkgs.util-linux}/bin/findmnt "$machine_id" > /dev/null \
+            && [ "$(${pkgs.coreutils}/bin/cat "$machine_id")" != uninitialized ]; then
+            if [ -f "$persisted" ] && [ ! -L "$persisted" ] && [ -s "$persisted" ] \
+              && ! ${pkgs.diffutils}/bin/cmp -s "$machine_id" "$persisted"; then
+              ${pkgs.coreutils}/bin/mv "$persisted" "$persisted.replaced"
+            fi
+            ${pkgs.coreutils}/bin/rm -f "$persisted"
+            ${pkgs.coreutils}/bin/install -D -m 0444 "$machine_id" "$persisted"
+            ${pkgs.util-linux}/bin/mount --bind "$persisted" "$machine_id"
+            echo "persisted the running machine-id to $persisted"
           fi
-
-          # The new root exists before anything that can fail below runs. A
-          # prune that aborted between the move and this line left the host
-          # with no root subvolume, and sysroot.mount dropped it into the
-          # emergency shell.
-          btrfs subvolume create /btrfs_tmp/root
-
-          ${lib.optionalString usersEnabled "mkdir -p ${lib.escapeShellArg "/btrfs_tmp/persist${config.users.users.${username}.home}"}"}
-
-          # `local IFS` keeps the split scoped to this function. Assigned
-          # globally it survived the first call and silently changed how every
-          # later word split behaved, including the retention loop below.
-          delete_subvolume_recursively() {
-              local IFS=$'\n'
-              for i in $(btrfs subvolume list -o "$1" | cut -f 9- -d ' '); do
-                  delete_subvolume_recursively "/btrfs_tmp/$i"
-              done
-              btrfs subvolume delete "$1"
-          }
-
-          # Retention pruning, best-effort. Data-safety invariants:
-          # - The glob lists the entries of old_roots and never old_roots
-          #   itself, so an archive directory whose own mtime has aged past the
-          #   window (a host up longer than retentionDays) is not a candidate.
-          #   With `find` and no `-mindepth 1` it was, and the ENTIRE archive
-          #   would be deleted at once.
-          # - Only delete entries that are actually btrfs subvolumes, and a stray
-          #   file or directory in old_roots is skipped (deleting the unknown is
-          #   never the right move in a boot script) and must not fail the boot.
-          # - A delete that fails is reported and the entry kept. The root above
-          #   already exists, so nothing here can keep the host from booting.
-          #
-          # A glob with nullglob handles an empty archive and an entry name with
-          # whitespace. The names are generated timestamps today, and a boot
-          # script that deletes subvolumes should not depend on that staying
-          # true. `find` is not on the stage-1 PATH, which is why the loop uses
-          # `stat` instead; see initrdBin above.
-          shopt -s nullglob
-          cutoff=$(( $(date +%s) - ${toString cfg.retentionDays} * 86400 ))
-          for i in /btrfs_tmp/old_roots/*; do
-              if [ "$(stat -c %Y "$i")" -ge "$cutoff" ]; then
-                  continue
-              fi
-              if btrfs subvolume show "$i" > /dev/null 2>&1; then
-                  delete_subvolume_recursively "$i" \
-                      || echo "impermanence: could not delete '$i', keeping it" >&2
-              else
-                  echo "impermanence: skipping non-subvolume '$i' in old_roots" >&2
-              fi
-          done
-          shopt -u nullglob
-
-          umount /btrfs_tmp
         '';
       };
-      # ANCHOR_END: boot-wipe-script
+      system.activationScripts.persist-files.deps = ["othrys-persist-machine-id"];
     })
   ];
 }

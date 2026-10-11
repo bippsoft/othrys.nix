@@ -6,11 +6,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.gh;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   othrysTypes = import ../../lib/types.nix {inherit lib;};
   yamlFormat = pkgs.formats.yaml {};
 
@@ -210,11 +206,11 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
+    othrys.internal.persist."apps.gh" = {
       # hosts.yml names the account, and holds the OAuth token when no
       # keyring is running. 0700 so the directory is as private as the file
       # gh writes into it.
-      users.${username}.directories = [
+      user.directories = [
         {
           directory = ".config/gh";
           mode = "0700";

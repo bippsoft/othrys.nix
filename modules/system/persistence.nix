@@ -1,5 +1,10 @@
 # modules/system/persistence.nix
-# System-critical and cross-cutting user persistence for impermanence hosts
+# Persistence registry, with the system-critical and cross-cutting user entries
+#
+# Every module names what it keeps across the root wipe in
+# othrys.internal.persist, declared below. nixosModules.impermanence
+# (./impermanence.nix) reads the registry and is the one file that hands it
+# to the impermanence module.
 #
 # ANCHOR: app-persistence-index
 # App-specific persistence lives in each app's module:
@@ -45,6 +50,69 @@ in {
     enable = lib.mkEnableOption "System-critical persistence declarations";
   };
 
+  # ANCHOR: persist-registry
+  # Every othrys module that keeps state across the root wipe writes here,
+  # keyed by its own option path, and nixosModules.impermanence is the only
+  # file that writes the option the impermanence module declares.
+  #
+  # That option exists only on a host that imports the impermanence module,
+  # and a write into an option nothing declares fails whatever condition
+  # guards it. A module that wrote there directly made every host import the
+  # impermanence module, a host with a persistent root included. This option
+  # is declared by othrys itself, so a write to it evaluates everywhere and
+  # is read only where the export is imported and impermanence is on.
+  #
+  # The export also applies the two guards, once. System paths are bound when
+  # impermanence is on, and the paths under `user` only when
+  # othrys.system.users.enable is on as well, since the impermanence module
+  # resolves them against the home of an account that has to exist. No module
+  # spells either guard, so none can spell it wrongly.
+  #
+  # A module with a second condition wraps its own value in lib.mkIf. The key
+  # then disappears when the condition is false. lib.mkIf on a single list
+  # works as well.
+  #
+  # The value is a typed submodule, unlike othrys.internal.homeConfig, which
+  # is raw. A home-manager contribution carries lib.mkForce and lib.mkDefault
+  # that have to reach home-manager unprocessed. A persistence entry is a
+  # plain path with an optional owner and mode and carries no priority, so
+  # the lists are merged here. That lets two blocks of one module share a
+  # key, lets lib.mkIf sit on one list, and reports a misspelt attribute at
+  # the module that wrote it.
+  #
+  # An entry keeps the forms the impermanence module accepts. It is a string,
+  # or an attribute set with `directory` or `file` and any of `user`, `group`
+  # and `mode`. The export passes each entry on unchanged, and the
+  # impermanence module checks the attribute names.
+  options.othrys.internal.persist = let
+    entries = description:
+      lib.mkOption {
+        type = lib.types.listOf (lib.types.either lib.types.str (lib.types.attrsOf lib.types.anything));
+        default = [];
+        inherit description;
+      };
+  in
+    lib.mkOption {
+      type = lib.types.attrsOf (lib.types.submodule {
+        options = {
+          directories = entries "System directories to keep, as absolute paths.";
+          files = entries "System files to keep, as absolute paths.";
+          user = {
+            directories = entries "Directories to keep in the primary user's home, relative to it.";
+            files = entries "Files to keep in the primary user's home, relative to it.";
+          };
+        };
+      });
+      default = {};
+      internal = true;
+      # The sub-options would otherwise be listed in the options reference
+      # under a parent that is not.
+      visible = false;
+      example = lib.literalExpression ''{ "services.tailscale".directories = [ "/var/lib/tailscale" ]; }'';
+      description = "Per-module persistent paths, keyed by option path, handed to the impermanence module by nixosModules.impermanence.";
+    };
+  # ANCHOR_END: persist-registry
+
   config = lib.mkIf (cfg.enable && impermanenceEnabled) {
     # The host keys live on the persist volume directly, at the path sops-nix
     # already reads them from (see ./secrets.nix). Persisting /etc/ssh as a
@@ -62,37 +130,6 @@ in {
         bits = 4096;
       }
     ];
-
-    # impermanence bind-mounts the persisted /etc/machine-id, and its mount
-    # script refuses a mount point that is already a regular, non-empty file.
-    # At boot the root is fresh and the file is absent, so that never triggers.
-    # On a host that was running before /etc/machine-id joined the persisted
-    # set, the file holds this boot's id, and the first switch failed with "A
-    # file already exists at /etc/machine-id!". This step runs first and turns
-    # that state into the one the mount script accepts. The running id is the
-    # one kept, so the journal and the DHCP identity of this boot carry on. A
-    # persisted file that is missing, empty or a symlink is replaced, and one
-    # that holds a different id is kept beside it. At boot it does nothing.
-    system.activationScripts.othrys-persist-machine-id = {
-      deps = ["createPersistentStorageDirs"];
-      text = ''
-        machine_id=/etc/machine-id
-        persisted=${lib.escapeShellArg "${persistRoot}/etc/machine-id"}
-        if [ -f "$machine_id" ] && [ ! -L "$machine_id" ] && [ -s "$machine_id" ] \
-          && ! ${pkgs.util-linux}/bin/findmnt "$machine_id" > /dev/null \
-          && [ "$(${pkgs.coreutils}/bin/cat "$machine_id")" != uninitialized ]; then
-          if [ -f "$persisted" ] && [ ! -L "$persisted" ] && [ -s "$persisted" ] \
-            && ! ${pkgs.diffutils}/bin/cmp -s "$machine_id" "$persisted"; then
-            ${pkgs.coreutils}/bin/mv "$persisted" "$persisted.replaced"
-          fi
-          ${pkgs.coreutils}/bin/rm -f "$persisted"
-          ${pkgs.coreutils}/bin/install -D -m 0444 "$machine_id" "$persisted"
-          ${pkgs.util-linux}/bin/mount --bind "$persisted" "$machine_id"
-          echo "persisted the running machine-id to $persisted"
-        fi
-      '';
-    };
-    system.activationScripts.persist-files.deps = ["othrys-persist-machine-id"];
 
     # /nix/var used to be in the persisted set. The nix subvolume survives the
     # wipe on its own, so the entry was redundant on every host, and on a
@@ -240,9 +277,7 @@ in {
     };
 
     # ANCHOR: system-persistence
-    environment.persistence.${persistRoot} = {
-      hideMounts = true;
-
+    othrys.internal.persist."system.persistence" = {
       directories = [
         {
           directory = "/var/lib/systemd";
@@ -281,27 +316,25 @@ in {
       # ANCHOR_END: system-persistence
 
       # ANCHOR: user-persistence
-      # Per-user persistence only when othrys manages the user account.
-      # Headless hosts persist system state without a primary user.
-      users = lib.mkIf usersEnabled {
-        ${username} = {
-          directories =
-            (lib.attrNames xdgUserDirs)
-            ++ [
-              "Projects"
-              {
-                directory = ".ssh";
-                mode = "0700";
-              }
-              ".cache/nix"
-              ".local/state/home-manager"
-              ".local/share/applications"
-            ];
-
-          files = [
-            ".bash_history"
+      # Bound only on a host where othrys manages the user account. A
+      # headless host persists system state without a primary user.
+      user = {
+        directories =
+          (lib.attrNames xdgUserDirs)
+          ++ [
+            "Projects"
+            {
+              directory = ".ssh";
+              mode = "0700";
+            }
+            ".cache/nix"
+            ".local/state/home-manager"
+            ".local/share/applications"
           ];
-        };
+
+        files = [
+          ".bash_history"
+        ];
       };
       # ANCHOR_END: user-persistence
     };

@@ -10,8 +10,6 @@
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.hardware.wireless.wifi;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   networkingCfg = config.othrys.system.networking;
 
   # The variable NetworkManager substitutes the passphrase from, named after
@@ -104,7 +102,7 @@ in {
     # persisted, because NixOS writes NetworkManager.conf and conf.d there as
     # store symlinks at activation, and a bind mount over the directory would
     # hide every one of them.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."hardware.wireless.wifi" = {
       directories = [
         {
           directory = "/etc/NetworkManager/system-connections";

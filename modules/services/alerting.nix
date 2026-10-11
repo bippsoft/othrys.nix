@@ -20,8 +20,6 @@
   monitoringCfg = config.othrys.services.monitoring;
   vmCfg = config.othrys.services.victoriametrics;
   notifyCfg = config.othrys.services.notify;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   internalDelivery = notifyCfg.enable && cfg.notifierUrls == [];
   alertmanagerPort = 9093;
@@ -171,7 +169,7 @@ in {
     # (the victoriametrics pattern). Only the internal chain runs an
     # alertmanager here, and a host that names its own notifiers has nothing
     # of its own to keep.
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && internalDelivery) {
+    othrys.internal.persist."services.alerting" = lib.mkIf internalDelivery {
       directories = [
         {
           directory = "/var/lib/private/alertmanager";

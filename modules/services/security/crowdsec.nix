@@ -35,9 +35,6 @@
   bouncer = config.services.crowdsec-firewall-bouncer.settings;
   forwardHook = cfg.firewallBouncer.enable && routerEnabled && bouncer.mode == "nftables";
 
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
-
   stateDir = "/var/lib/crowdsec/state";
 
   # A chain in the bouncer's own table, where its set lives, hooked on forward
@@ -152,7 +149,7 @@ in {
     # refuses to start when that record exists and the key file does not,
     # with "Bouncer registered but API key is not present". Persisting one
     # without the other leaves the bouncer failed from the second boot on.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.security.crowdsec" = {
       directories =
         [
           {

@@ -30,8 +30,6 @@
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.scrutiny;
   notifyCfg = config.othrys.services.notify;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   # Anything between the scheme and an `@` ahead of the first slash, which
   # is a user, a user and password, or a token.
@@ -199,7 +197,7 @@ in {
     # Scrutiny's device DB + the InfluxDB time series. The upstream unit runs
     # with DynamicUser + StateDirectory, so the real directory is under
     # /var/lib/private and /var/lib/scrutiny is systemd's symlink to it.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.scrutiny" = {
       directories =
         lib.optionals cfg.enable
         [

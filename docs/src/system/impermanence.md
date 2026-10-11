@@ -2,6 +2,37 @@
 
 The root filesystem is wiped on every boot. Only explicitly declared state persists.
 
+## Importing
+
+The feature has two halves. The `othrys.system.impermanence` options and the
+root wipe are part of `nixosModules.default`. The bind mounts that carry state
+across the wipe come from the
+[impermanence](https://github.com/nix-community/impermanence) module, and
+`nixosModules.default` neither imports it nor writes into its options. A host
+with a persistent root imports nothing for this page.
+
+A host with an ephemeral root imports the othrys adapter together with the
+impermanence module:
+
+```nix
+modules = [
+  inputs.othrys.nixosModules.default
+  inputs.home-manager.nixosModules.home-manager
+
+  inputs.othrys.nixosModules.impermanence
+  inputs.impermanence.nixosModules.impermanence
+];
+```
+
+with `impermanence.follows = "othrys/impermanence";` among the flake inputs.
+
+`nixosModules.impermanence` is `modules/system/impermanence.nix`, the only file
+in the tree that writes `environment.persistence`. Enabling
+`othrys.system.impermanence` without it fails an assertion that names the
+export, since the root would be wiped on every boot and nothing bound back. The
+adapter without the impermanence module fails at evaluation, because the option
+it writes does not exist.
+
 ## How It Works
 
 1. BTRFS root subvolume is mounted as `/`
@@ -47,7 +78,7 @@ the option.
 ## Options
 
 ```nix
-{{#include ../../../modules/system/impermanence.nix:impermanence-options}}
+{{#include ../../../modules/system/ephemeral-root.nix:impermanence-options}}
 ```
 
 ## Boot Wipe Script
@@ -55,8 +86,42 @@ the option.
 Runs during early boot (initrd), after resume from hibernation but before root is mounted:
 
 ```bash
-{{#include ../../../modules/system/impermanence.nix:boot-wipe-script}}
+{{#include ../../../modules/system/ephemeral-root.nix:boot-wipe-script}}
 ```
+
+## The Persistence Registry
+
+A module declares what it keeps across the wipe in `othrys.internal.persist`,
+under a key that is its own option path. It does not write
+`environment.persistence`.
+
+```nix
+{{#include ../../../modules/system/persistence.nix:persist-registry}}
+```
+
+Each value holds `directories` and `files` for system paths, and
+`user.directories` and `user.files` for paths in the primary user's home. An
+entry is a string, or an attribute set with `directory` or `file` and any of
+`user`, `group` and `mode`, which are the forms the impermanence module accepts.
+
+The adapter reads the whole registry and writes it under
+`othrys.system.impermanence.persistRoot`:
+
+```nix
+{{#include ../../../modules/system/impermanence.nix:persist-splice}}
+```
+
+Both guards live there. With impermanence off nothing is declared. With no
+managed account the paths under `user` are left out, since the impermanence
+module reads `users.users.<name>.home` to place each bind mount and that
+account does not exist. A host of that shape, with every app and desktop module
+on, is what the `eval-persistence` check evaluates. `contract-guards` rejects
+any other file that names `environment.persistence`, and `eval-contract` reads
+the writers back from two evaluated hosts.
+
+A host adds paths of its own either way. It writes a key of its own in
+`othrys.internal.persist`, or it writes `environment.persistence` directly,
+which merges with what the adapter declares.
 
 ## System Persistence
 
@@ -72,8 +137,8 @@ produces a new id.
 
 A host that was already running when it first switches onto this gets its
 current id kept. impermanence refuses to mount over a machine-id file that
-already holds an id, so an activation step copies the running id into the
-persist root and bind-mounts it before impermanence looks. A persisted file that
+already holds an id, so an activation step in the adapter copies the running id
+into the persist root and bind-mounts it before impermanence looks. A persisted file that
 is missing, empty or a leftover symlink is replaced, and one holding a different
 id is kept beside it as `machine-id.replaced`. At boot the step does nothing.
 
@@ -106,13 +171,9 @@ Cross-cutting user directories (XDG, SSH, Projects):
 {{#include ../../../modules/system/persistence.nix:user-persistence}}
 ```
 
-Every entry under `users` is guarded on `othrys.system.users.enable` as well as
-on impermanence, here and in each app module. impermanence reads
-`users.users.<name>.home` to place the bind mount, so an entry written on a
-host with impermanence on and no managed account fails evaluation rather than
-being skipped. A host of that shape, with every app and desktop module on, is
-what the `eval-persistence` check evaluates, and `contract-guards` rejects a
-per-user entry that carries the impermanence guard alone.
+Every entry under `user` is bound only when `othrys.system.users.enable` is on
+as well as impermanence, here and for each app module. The adapter applies
+that guard, as described above, and no module spells it.
 
 Directories that hold a token, a key or a session are persisted at mode
 `0700`. A file a program saves by renaming a temporary over it, such as zsh

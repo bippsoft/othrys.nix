@@ -6,14 +6,10 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.floorp;
   theme = config.othrys.theme;
   inherit (theme) palette;
   themed = palette != null;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   dark = theme.polarity == "dark";
 
   # Each extension is fetched at build time by hash and installed from the
@@ -163,8 +159,8 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persistence for browser profile data
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.floorp" = {
+      user.directories = [
         ".floorp"
       ];
     };

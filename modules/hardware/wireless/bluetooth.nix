@@ -6,8 +6,6 @@
   ...
 }: let
   cfg = config.othrys.hardware.wireless.bluetooth;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.hardware.wireless.bluetooth = {
     enable = lib.mkEnableOption "Bluetooth support";
@@ -24,7 +22,7 @@ in {
   config = lib.mkIf cfg.enable {
     # Pairings. The tree holds the link keys of every paired device, and
     # bluetoothd creates it 0700, so the persisted directory matches.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."hardware.wireless.bluetooth" = {
       directories = [
         {
           directory = "/var/lib/bluetooth";

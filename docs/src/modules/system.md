@@ -20,8 +20,8 @@ under **System Infrastructure**, and the rest are summarized here.
 | Hardening | `othrys.system.hardening` | Opt-in kernel and sysctl hardening profile, with the costly switches kept separate |
 | Networking | `othrys.system.networking` | systemd-networkd: per-interface DHCP/static + bridges/VLANs (router topology) |
 | Git | `othrys.system.git` | Git identity and aliases (home-manager) |
-| Persistence | `othrys.system.persistence` | System/user state declarations for impermanence |
-| Impermanence | `othrys.system.impermanence` | Root wipe on boot and the `old-roots` recovery tool, see [Impermanence](../system/impermanence.md) |
+| Persistence | `othrys.system.persistence` | The persistence registry, and the system/user state declarations for impermanence |
+| Impermanence | `othrys.system.impermanence` | Root wipe on boot and the `old-roots` recovery tool. The bind mounts come from `nixosModules.impermanence`, which is not part of `default`, see [Impermanence](../system/impermanence.md) |
 | Disko | `othrys.system.disko` | Disk layout with LUKS and BTRFS subvolumes, exported as `nixosModules.disko` and not part of `default`, see [Disko](../system/disko.md) |
 | Bootloader | `othrys.system.bootloader` | Limine, systemd-boot or GRUB, with optional Secure Boot, see [Bootloader & Secure Boot](../system/bootloader.md) |
 | Secrets | `othrys.system.secrets` | sops-nix wiring and the manual-editing age identity, exported as `nixosModules.secrets` and not part of `default`, see [Secrets Management](../system/secrets.md) |

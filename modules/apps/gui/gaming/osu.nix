@@ -6,11 +6,7 @@
   config,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.gaming.osu;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   osuWrapped = pkgs.symlinkJoin {
     name = "osu-lazer-wrapped";
@@ -67,8 +63,8 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persistence for osu! songs, skins, replays, scores and tablet settings
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.gaming.osu" = {
+      user.directories = [
         ".local/share/osu"
         ".config/OpenTabletDriver"
       ];

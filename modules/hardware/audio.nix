@@ -6,11 +6,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.hardware.audio;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.hardware.audio = {
     enable = lib.mkEnableOption "PipeWire audio stack";
@@ -40,8 +36,8 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persistence for audio configuration and state
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."hardware.audio" = {
+      user.directories = [
         ".config/pulse"
         ".local/state/wireplumber"
       ];

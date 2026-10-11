@@ -6,11 +6,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.yazi;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.apps.yazi = {
     enable = lib.mkEnableOption "Yazi terminal file manager";
@@ -18,8 +14,8 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persist yazi state (file operation history, last directory, etc.)
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.yazi" = {
+      user.directories = [
         ".local/state/yazi"
       ];
     };

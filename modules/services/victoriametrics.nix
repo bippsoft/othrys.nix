@@ -12,8 +12,6 @@
 }: let
   inherit (import ../lib/net.nix {inherit lib;}) local;
   cfg = config.othrys.services.victoriametrics;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   monitoringCfg = config.othrys.services.monitoring;
 
   # The node exporter binds the monitoring module's listenAddress, so it is
@@ -95,7 +93,7 @@ in {
     # TSDB storage. The upstream unit runs with DynamicUser + StateDirectory,
     # so the real data lives under /var/lib/private (see ollama for the same
     # pattern).
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.victoriametrics" = {
       directories = [
         {
           directory = "/var/lib/private/victoriametrics";

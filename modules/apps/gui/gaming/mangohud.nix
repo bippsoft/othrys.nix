@@ -6,11 +6,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.gaming.mangohud;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   inherit (config.othrys.theme) palette;
 in {
@@ -39,8 +35,8 @@ in {
 
   config = lib.mkIf cfg.enable {
     # Persistence for MangoHud configuration
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.gaming.mangohud" = {
+      user.directories = [
         ".config/MangoHud"
         ".local/share/MangoHud"
       ];

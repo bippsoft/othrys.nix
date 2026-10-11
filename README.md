@@ -47,7 +47,6 @@ The same shape written out by hand, with a desktop enabled:
 
     # Follow the inputs whose modules you import below.
     home-manager.follows = "othrys/home-manager";
-    impermanence.follows = "othrys/impermanence";
   };
 
   outputs = inputs: {
@@ -57,10 +56,9 @@ The same shape written out by hand, with a desktop enabled:
       modules = [
         inputs.othrys.nixosModules.default
 
-        # Required. othrys writes into these option namespaces, so they must be
-        # imported even when the matching othrys feature is off.
+        # Required. othrys writes into this option namespace, so it must be
+        # imported even when no othrys module configures the user.
         inputs.home-manager.nixosModules.home-manager
-        inputs.impermanence.nixosModules.impermanence
 
         {
           othrys.system.user.name = "alice";
@@ -123,25 +121,29 @@ library has no business guessing it.
 writes require `othrys.system.users.enable`, and Home Manager writes require
 `othrys.system.users.homeManaged`. The guards wrap whole attrsets rather than
 leaves, since a leaf-level `mkIf` still materializes the Home Manager user and
-trips NixOS's user assertions on a headless host.
+trips NixOS's user assertions on a headless host. Modules write Home Manager
+configuration and persistent paths to two registries, and one file per registry
+applies the guard.
 
-**Two upstream module imports are unconditional.** `nixosModules.default`
-writes into option namespaces owned by home-manager and impermanence, and
-writing to an undeclared namespace fails evaluation regardless of `mkIf`. Import
-both even when the matching othrys feature is off.
+**One upstream module import is unconditional.** `nixosModules.default` writes
+into the option namespace owned by home-manager, and writing to an undeclared
+namespace fails evaluation regardless of `mkIf`. Import it even when no othrys
+module configures the user.
 
-**Stylix, disko and sops-nix are optional.** Each has one othrys module that
-writes into its namespace, and that module is a separate export `default` leaves
-out. A host imports the export and the upstream module together, and every other
-host imports neither.
+**Stylix, disko, sops-nix and impermanence are optional.** Each has one othrys
+module that writes into its namespace, and that module is a separate export
+`default` leaves out. A host imports the export and the upstream module
+together, and every other host imports neither.
 
 | Wanted | othrys export | Upstream module |
 |---|---|---|
 | Stylix theming | `nixosModules.stylix` | `inputs.stylix.nixosModules.stylix` |
 | The LUKS and BTRFS disk layout, `othrys.system.disko` | `nixosModules.disko` | `inputs.disko.nixosModules.disko` |
 | The sops-nix plumbing, `othrys.system.secrets` | `nixosModules.secrets` | `inputs.sops-nix.nixosModules.sops` |
+| An ephemeral root, `othrys.system.impermanence` | `nixosModules.impermanence` | `inputs.impermanence.nixosModules.impermanence` |
 
-Impermanence does not need the disko layout. It wipes the btrfs filesystem on
+Enabling `othrys.system.impermanence` without its export fails an assertion that
+names it. Impermanence does not need the disko layout. It wipes the btrfs filesystem on
 `othrys.system.impermanence.device`, which the disko export fills and a host
 that partitions another way sets itself.
 
@@ -180,13 +182,14 @@ Every option is published in the [generated reference](https://bippsoft.github.i
 built from the module tree so it cannot drift.
 
 Infrastructure modules are also exported individually, so
-`inputs.othrys.nixosModules.impermanence` works if you want one without the tree,
+`inputs.othrys.nixosModules.tailscale` works if you want one without the tree,
 and a check holds the export list to the module tree. An individual module reads
 options that `nixosModules.system` declares, among them the primary user and the
 persist root, so import that beside it, and `nixosModules.desktop` beside a
 desktop or hardware module. App modules are reachable only through `default`.
-`nixosModules.stylix`, `nixosModules.disko` and `nixosModules.secrets` are the
-three exports neither `default` nor a group imports.
+`nixosModules.stylix`, `nixosModules.disko`, `nixosModules.secrets` and
+`nixosModules.impermanence` are the four exports neither `default` nor a group
+imports.
 
 ## Cross-module signals
 
@@ -202,8 +205,8 @@ compositor or app.
 - **`othrys.apps.languages.<lang>`** is the one "this host develops X" signal.
   Editors consume the shared toolchain rather than each installing its own copy of
   the compiler, formatter and LSP.
-- **`othrys.system.impermanence.persistRoot`** is where every module keys its
-  `environment.persistence` declarations. Move it and the whole tree follows.
+- **`othrys.system.impermanence.persistRoot`** is where everything the modules
+  declare as persistent is bound from. Move it and the whole tree follows.
 
 ## Two integrations worth knowing about
 

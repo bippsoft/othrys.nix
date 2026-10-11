@@ -6,21 +6,17 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.signal;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.apps.signal = {
     enable = lib.mkEnableOption "Signal Desktop messenger";
   };
 
   config = lib.mkIf cfg.enable {
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
+    othrys.internal.persist."apps.signal" = {
       # config.json carries the database key, and the directory holds the
       # message database, the attachments and the linked-device identity.
-      users.${username}.directories = [
+      user.directories = [
         {
           directory = ".config/Signal";
           mode = "0700";

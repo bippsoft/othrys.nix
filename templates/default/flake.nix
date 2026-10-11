@@ -5,19 +5,21 @@
     othrys.url = "github:bippsoft/othrys.nix";
     nixpkgs.follows = "othrys/nixpkgs";
 
-    # othrys writes into the option namespaces of these two, so their modules
-    # are imported below even when the matching othrys feature is off.
-    # Following othrys keeps one copy of each in the lock.
+    # othrys writes into the option namespace of home-manager, so its module
+    # is imported below even when no othrys module configures the user.
+    # Following othrys keeps one copy of it in the lock.
     home-manager.follows = "othrys/home-manager";
-    impermanence.follows = "othrys/impermanence";
 
-    # The disk layout and the sops-nix plumbing are separate exports, and this
-    # host uses neither. For the layout, add `disko.follows = "othrys/disko";`
-    # here and import inputs.othrys.nixosModules.disko beside
-    # inputs.disko.nixosModules.disko below. For the plumbing, add
-    # `sops-nix.follows = "othrys/sops-nix";` and import
-    # inputs.othrys.nixosModules.secrets beside
-    # inputs.sops-nix.nixosModules.sops.
+    # The disk layout, the sops-nix plumbing and the impermanence adapter are
+    # separate exports, and this host uses none of them. For the layout, add
+    # `disko.follows = "othrys/disko";` here and import
+    # inputs.othrys.nixosModules.disko beside inputs.disko.nixosModules.disko
+    # below. For the plumbing, add `sops-nix.follows = "othrys/sops-nix";` and
+    # import inputs.othrys.nixosModules.secrets beside
+    # inputs.sops-nix.nixosModules.sops. For an ephemeral root, add
+    # `impermanence.follows = "othrys/impermanence";` and import
+    # inputs.othrys.nixosModules.impermanence beside
+    # inputs.impermanence.nixosModules.impermanence.
   };
 
   outputs = inputs: {
@@ -29,7 +31,6 @@
       modules = [
         inputs.othrys.nixosModules.default
         inputs.home-manager.nixosModules.home-manager
-        inputs.impermanence.nixosModules.impermanence
 
         ./hardware.nix
         ./configuration.nix

@@ -8,8 +8,6 @@
   ...
 }: let
   cfg = config.othrys.system.bootloader;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   # Lanzaboote is an optional import. nixosModules.default does not pull it in,
   # so its option namespace exists only when the consuming flake imports
@@ -147,7 +145,7 @@ in {
         pkgs.sbctl
       ];
 
-      environment.persistence.${persistRoot} = lib.mkIf (cfg.secureBoot && impermanenceEnabled) {
+      othrys.internal.persist."system.bootloader" = lib.mkIf cfg.secureBoot {
         directories = [
           {
             directory = "/var/lib/sbctl";

@@ -20,9 +20,9 @@ inputs = {
   # versions the module library is locked and tested to.
   nixpkgs.follows = "othrys/nixpkgs";
   home-manager.follows = "othrys/home-manager";
-  impermanence.follows = "othrys/impermanence";
 
   # Optional, for the hosts that import the matching othrys export.
+  impermanence.follows = "othrys/impermanence";
   disko.follows = "othrys/disko";
   sops-nix.follows = "othrys/sops-nix";
 };
@@ -39,10 +39,11 @@ inputs.nixpkgs.lib.nixosSystem {
     inputs.othrys.nixosModules.default
 
     # Required on every host.
-    inputs.impermanence.nixosModules.impermanence
     inputs.home-manager.nixosModules.home-manager
 
     # Optional, each othrys export beside the upstream module it configures.
+    inputs.othrys.nixosModules.impermanence
+    inputs.impermanence.nixosModules.impermanence
     inputs.othrys.nixosModules.disko
     inputs.disko.nixosModules.disko
     inputs.othrys.nixosModules.secrets
@@ -58,7 +59,9 @@ inputs.nixpkgs.lib.nixosSystem {
 }
 ```
 
-The home-manager and impermanence modules are required on every host, even when the matching othrys feature is off, because `nixosModules.default` writes into their option namespaces. Four more are optional.
+The home-manager module is required on every host, even when no othrys module configures the user, because `nixosModules.default` writes into its option namespace. Five more are optional.
+
+impermanence is needed only on a host with an ephemeral root. Every module names what it persists in `othrys.internal.persist`, an option `nixosModules.default` declares itself, and `modules/system/impermanence.nix` is the only file that writes into `environment.persistence`. It is the separate export `nixosModules.impermanence`, which a host imports together with `inputs.impermanence.nixosModules.impermanence`. A host with a persistent root imports neither. A host that sets `othrys.system.impermanence.enable` without the export fails an assertion that names it. See [Impermanence](../system/impermanence.md).
 
 disko is needed only on a host that wants the othrys disk layout. `modules/system/disko.nix` is the only file that writes into the `disko` namespace, and it is the separate export `nixosModules.disko`, which a host imports together with `inputs.disko.nixosModules.disko`. A host that partitions another way imports neither and, if it enables impermanence, sets `othrys.system.impermanence.device` itself. See [Disko](../system/disko.md) and [Impermanence](../system/impermanence.md).
 

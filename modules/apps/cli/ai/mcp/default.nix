@@ -15,7 +15,7 @@
   storeBullet = "- **No modifying /nix/store**: It's read-only and immutable\n";
   impermanenceBullet =
     lib.optionalString config.othrys.system.impermanence.enable
-    "- **No persistent writes outside $HOME**: the root filesystem is wiped on every boot, and only paths declared under `environment.persistence` survive it\n";
+    "- **No persistent writes outside $HOME**: the root filesystem is wiped on every boot, and only paths the host declares as persistent survive it\n";
   # The data bullet is rendered the same way. Only a host that wipes its root
   # has to keep data in the home directory, so the reason is added there and
   # every other host reads the plain suggestion.

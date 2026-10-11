@@ -8,10 +8,11 @@
 # (modules/apps/**) are personal-workflow-shaped and reachable only via
 # `default`.
 #
-# `default` leaves three exports out, since each writes into the option
+# `default` leaves four exports out, since each writes into the option
 # namespace of an upstream flake that a host may not use. `stylix` is the
-# adapter between othrys.theme and Stylix, `disko` is the disk layout and
-# `secrets` is the sops-nix plumbing. A host imports each together with the
+# adapter between othrys.theme and Stylix, `disko` is the disk layout,
+# `secrets` is the sops-nix plumbing and `impermanence` hands the persistence
+# registry to the impermanence module. A host imports each together with the
 # upstream module it configures, or imports neither.
 #
 # Rule when adding a module. If it lives outside modules/apps/, add an
@@ -22,7 +23,8 @@
 # An individual export is one file, and most of them read options declared
 # in other files. The primary user and the home-manager registry come from
 # system/user.nix and system/users.nix, the persist root from
-# system/impermanence.nix, the default editor from system/shell, the
+# system/ephemeral-root.nix, the persistence registry from
+# system/persistence.nix, the default editor from system/shell, the
 # graphical signal from desktop/default.nix and the notification hook from
 # services/notify.nix. The palette and fonts come from theme/default.nix.
 # Import `system` beside any individual export, `theme` beside one that draws
@@ -32,16 +34,15 @@
 # `nix`, `secrets`, `hyprland` and `ashell`. Their files take the
 # `othrysInputs` or `inputs` module argument, and the wrapper supplies it.
 #
-# Several modules write into option namespaces owned by upstream flakes
-# (home-manager, impermanence). A consumer of `default` must also import
-# those flakes' nixosModules, see
-# docs/src/architecture/host-configuration.md. This holds even when the
-# corresponding othrys feature is disabled.
+# `default` writes into one option namespace owned by an upstream flake,
+# which is home-manager. A consumer of `default` must also import that
+# flake's nixosModule, see docs/src/architecture/host-configuration.md. This
+# holds even when no othrys module configures the user.
 #
 # Usage from another flake:
 #   inputs.othrys.nixosModules.default
 #   inputs.othrys.nixosModules.system
-#   inputs.othrys.nixosModules.impermanence
+#   inputs.othrys.nixosModules.tailscale
 {inputs, ...}: let
   # What the modules take from this flake's own lock, as module arguments.
   # A module can only reach flake inputs through an argument, and reading them
@@ -108,6 +109,13 @@ in {
     disko = ../modules/system/disko.nix;
     secrets = withArgs ../modules/system/secrets.nix;
 
+    # The impermanence adapter, left out of `default` and `system` on the same
+    # terms. A host with an ephemeral root imports this and the impermanence
+    # module together. The options it reads and the root wipe are in
+    # `ephemeral-root`, and the registry it reads is in `persistence`, both
+    # part of `system`.
+    impermanence = ../modules/system/impermanence.nix;
+
     # System fundamentals
     locale = ../modules/system/locale.nix;
     user = ../modules/system/user.nix;
@@ -116,7 +124,7 @@ in {
     kernel = ../modules/system/kernel.nix;
     hardening = ../modules/system/hardening.nix;
     networking = ../modules/system/networking.nix;
-    impermanence = ../modules/system/impermanence.nix;
+    ephemeral-root = ../modules/system/ephemeral-root.nix;
     persistence = ../modules/system/persistence.nix;
     bootloader = ../modules/system/bootloader.nix;
     git = ../modules/system/git.nix;

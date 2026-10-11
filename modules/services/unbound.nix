@@ -11,8 +11,6 @@
   ...
 }: let
   cfg = config.othrys.services.unbound;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   rpzType = lib.types.submodule {
     options = {
@@ -158,7 +156,7 @@ in {
     # The state directory holds the root trust anchor that unbound-anchor
     # primes and the RPZ zonefiles named above. Upstream runs the daemon as
     # its own account with StateDirectory=unbound at the default 0755.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.unbound" = {
       directories = [
         {
           directory = config.services.unbound.stateDir;

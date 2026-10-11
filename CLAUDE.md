@@ -18,14 +18,18 @@ Changing any of these breaks consuming flakes.
 1. **No `username` module argument.** Read the primary user from
    `config.othrys.system.user.name`. The option has no default.
 1. **Guard every per-user write.** Account writes behind
-   `othrys.system.users.enable`, Home Manager writes behind
-   `othrys.system.users.homeManaged`, both at the attrset level, never on a leaf.
-1. **`nixosModules.default` writes into upstream namespaces.** Consumers must
-   also import `home-manager` and `impermanence`, even when the matching othrys
-   feature is off. A consumer who wants Stylix imports `nixosModules.stylix`
-   and the Stylix module together. One who wants the disko layout imports
-   `nixosModules.disko` and the disko module, and one who wants the sops
-   plumbing imports `nixosModules.secrets` and the sops-nix module.
+   `othrys.system.users.enable`, at the attrset level, never on a leaf. Home
+   Manager configuration goes to `othrys.internal.homeConfig` and persistent
+   paths go to `othrys.internal.persist`, never to `home-manager.users` or
+   `environment.persistence`. Each registry applies its guard once.
+1. **`nixosModules.default` writes into one upstream namespace.** Consumers
+   must also import `home-manager`, even when no othrys module configures the
+   user. A consumer who wants Stylix imports `nixosModules.stylix` and the
+   Stylix module together. One who wants the disko layout imports
+   `nixosModules.disko` and the disko module, one who wants the sops plumbing
+   imports `nixosModules.secrets` and the sops-nix module, and one who wants an
+   ephemeral root imports `nixosModules.impermanence` and the impermanence
+   module.
 1. **specialArgs carry `inputs` or nothing.** Modules read two names from it,
    `nixpkgs` for the registry pin and the optional `secrets`. Not `username`,
    not `hostname`.

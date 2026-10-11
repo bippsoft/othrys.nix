@@ -24,8 +24,6 @@
 }: let
   cfg = config.othrys.services.suricata;
   router = config.othrys.services.router;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   sandbox = import ../lib/sandbox.nix;
   notifyEnabled = config.othrys.services.notify.enable;
 
@@ -268,7 +266,7 @@ in {
     # tmpfiles put it and never moves under /var/lib/private. On a wiped root
     # the engine starts with an empty ruleset until the first update
     # succeeds, and an update that fails offline leaves it that way.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.suricata" = {
       directories = [
         {
           directory = "/var/lib/suricata";

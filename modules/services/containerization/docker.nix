@@ -9,8 +9,6 @@
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.services.containerization.docker;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   nvidiaEnabled = config.othrys.hardware.nvidia.enable;
   routerEnabled = config.othrys.services.router.enable;
   # Docker's own iptables rules sit ahead of the router's chain, so a
@@ -138,7 +136,7 @@ in {
       }
     ];
 
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.containerization.docker" = {
       # System-level Docker data (when not rootless)
       directories = lib.mkIf (!cfg.rootless.enable) [
         {
@@ -149,14 +147,12 @@ in {
         }
       ];
 
-      # User-level Docker data (for rootless mode), only when othrys manages
-      # the user account.
-      users = lib.mkIf (usersEnabled && cfg.rootless.enable) {
-        ${username}.directories = [
-          ".local/share/docker"
-          ".docker"
-        ];
-      };
+      # User-level Docker data (for rootless mode). The registry drops it on a
+      # host where othrys manages no user account.
+      user.directories = lib.mkIf cfg.rootless.enable [
+        ".local/share/docker"
+        ".docker"
+      ];
     };
 
     hardware.nvidia-container-toolkit.enable = cfg.nvidia.enable;

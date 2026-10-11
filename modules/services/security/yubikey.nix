@@ -6,11 +6,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.services.security.yubikey;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   # Generate sshcontrol file content
   sshcontrolContent = lib.concatStringsSep "\n" cfg.sshKeygrips;
@@ -204,8 +200,8 @@ in {
       yubikey-personalization
     ];
 
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."services.security.yubikey" = {
+      user.directories = [
         {
           directory = ".gnupg";
           mode = "0700";

@@ -12,8 +12,6 @@
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.services.ntfy;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   loopback = cfg.listenAddress == "127.0.0.1" || cfg.listenAddress == "::1" || cfg.listenAddress == "localhost";
 in {
   # ANCHOR: ntfy-options
@@ -106,7 +104,7 @@ in {
     # DynamicUser + StateDirectory, so the real directory is under
     # /var/lib/private and /var/lib/ntfy-sh is systemd's symlink to it; a
     # bind mount at the symlink's path fought systemd's migration.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.ntfy" = {
       directories = [
         {
           directory = "/var/lib/private/ntfy-sh";

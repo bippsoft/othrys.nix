@@ -7,8 +7,6 @@
   ...
 }: let
   cfg = config.othrys.apps.ai.ollama;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   packageMap = {
     cuda = pkgs.ollama-cuda;
@@ -41,7 +39,7 @@ in {
       inherit (cfg) loadModels;
     };
 
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."apps.ai.ollama" = {
       directories = [
         {
           directory = "/var/lib/private/ollama";

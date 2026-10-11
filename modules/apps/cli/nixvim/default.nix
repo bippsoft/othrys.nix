@@ -7,11 +7,7 @@
   othrysInputs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.nixvim;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   # A toggleable plugin group. Consumers disable groups they don't want
   # rather than inheriting one fixed editor (the zsh aliasPresets pattern).
@@ -73,8 +69,8 @@ in {
 
     # Undo history and shada live under share, and persistence.nvim writes its
     # sessions under stdpath("state"), so both directories are kept.
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.nixvim" = {
+      user.directories = [
         ".local/share/nvim"
         ".local/state/nvim"
       ];

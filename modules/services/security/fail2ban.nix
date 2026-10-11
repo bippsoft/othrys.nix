@@ -6,8 +6,6 @@
   ...
 }: let
   cfg = config.othrys.services.security.fail2ban;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   # ANCHOR: fail2ban-options
   options.othrys.services.security.fail2ban = {
@@ -58,7 +56,7 @@ in {
     # runs as root with StateDirectory=fail2ban at mode 0750, the mode
     # upstream sets, and a wiped database starts every repeat offender back
     # at the base bantime.
-    environment.persistence.${persistRoot} = lib.mkIf impermanenceEnabled {
+    othrys.internal.persist."services.security.fail2ban" = {
       directories = [
         {
           directory = "/var/lib/fail2ban";

@@ -6,11 +6,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.discord;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   options.othrys.apps.discord = {
     enable = lib.mkEnableOption "Discord official client";
@@ -27,8 +23,8 @@ in {
     ];
 
     # The Electron local storage under this directory holds the session token.
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."apps.discord" = {
+      user.directories = [
         {
           directory = ".config/discord";
           mode = "0700";

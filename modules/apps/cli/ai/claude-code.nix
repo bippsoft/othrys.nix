@@ -5,12 +5,8 @@
   lib,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.apps.ai.claude-code;
   mcpCfg = config.othrys.apps.ai.mcp;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 
   # Type for file content that can be inline string or path
   fileContentType = lib.types.either lib.types.str lib.types.path;
@@ -86,8 +82,8 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username} = {
+    othrys.internal.persist."apps.ai.claude-code" = {
+      user = {
         # .claude holds the OAuth credentials beside the sessions, so the
         # directory is 0700.
         directories = [

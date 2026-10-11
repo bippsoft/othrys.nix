@@ -8,10 +8,7 @@
 }: let
   cfg = config.othrys.desktop.keyring;
   username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   homeManaged = config.othrys.system.users.homeManaged;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
   niriEnabled = config.othrys.desktop.compositors.niri.enable;
 
   gnomeKeyring = cfg.enable && cfg.provider == "gnome-keyring";
@@ -230,8 +227,8 @@ in {
         greetd.enableGnomeKeyring = true;
       };
 
-      environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-        users.${username}.directories = [
+      othrys.internal.persist."desktop.keyring" = {
+        user.directories = [
           {
             directory =
               if pass

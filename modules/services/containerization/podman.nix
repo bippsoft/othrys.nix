@@ -6,11 +6,7 @@
   pkgs,
   ...
 }: let
-  username = config.othrys.system.user.name;
-  usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.services.containerization.podman;
-  impermanenceEnabled = config.othrys.system.impermanence.enable;
-  persistRoot = config.othrys.system.impermanence.persistRoot;
 in {
   # ANCHOR: podman-options
   options.othrys.services.containerization.podman = {
@@ -83,8 +79,8 @@ in {
       }
     ];
 
-    environment.persistence.${persistRoot} = lib.mkIf (impermanenceEnabled && usersEnabled) {
-      users.${username}.directories = [
+    othrys.internal.persist."services.containerization.podman" = {
+      user.directories = [
         ".local/share/containers"
         ".config/containers"
       ];
