@@ -42,7 +42,8 @@ tier reports early while the whole suite still gates what lands:
 | `eval-host-headless`, `eval-host-server`, `eval-host-anonymous`, `eval-host-server-account` | The four server-contract host shapes |
 | `eval-host-app-no-hm`, `eval-host-app-no-hm-full` | A slice of the app and desktop modules, and all of them, each on a host with an account that Home Manager does not manage |
 | `eval-pairs` | Every conflict or requirement between two modules or two options, each matched by a fragment of its assertion message |
-| `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/users.nix` writes `home-manager.users`, and the fixtures and the template pass `inputs` alone |
+| `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/users.nix` writes `home-manager.users`, and the fixtures and the template pass `inputs` alone or nothing |
+| `eval-inputs` | A host handed no `specialArgs` enables ashell, Hyprland, nixvim and comma, gets each from this flake's lock, and gets the package it sets through a `package` option |
 | `ci-coverage` | Every check is named by a job in `build.yml`, and every name there is a check |
 | `eval-bootloader` | Every bootloader type with `secureBoot` off and on |
 | `eval-host-hardening`, `eval-host-hardening-hibernate` | The hardening profile's values, and its hibernation assertion |
@@ -145,7 +146,7 @@ job reads the pull request title or any other event text.
 
 | File | Jobs | Purpose |
 |------|------|---------|
-| `build.yml` | **core** | Every PR/push: lint, docs, `docs-includes`, `ci-coverage`, `eval-host-min`, the server-contract and app-contract evals, `eval-pairs`, `eval-contract`, `eval-bootloader`, `impermanence-test` (fast gate) |
+| `build.yml` | **core** | Every PR/push: lint, docs, `docs-includes`, `ci-coverage`, `eval-host-min`, the server-contract and app-contract evals, `eval-pairs`, `eval-contract`, `eval-inputs`, `eval-bootloader`, `impermanence-test` (fast gate) |
 | `build.yml` | **core-aarch64** | Every PR/push: the portable host evaluations for `aarch64-linux` on an ARM runner |
 | `build.yml` | **extended** | Every PR/push: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
 | `build.yml` | **extended-ok** | Every PR/push: one status for the matrix, passing only when every leg succeeded |

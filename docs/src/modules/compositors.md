@@ -20,6 +20,30 @@ Two knock-on effects worth knowing:
 - Home Manager also writes `~/.config/hypr/.luarc.json`, pointing the Lua
   language server at the compositor's own `hl.*` stubs for editor completion.
 
+## Package
+
+The compositor and its portal come from the Hyprland flake this library locks,
+and a consuming flake declares no `hyprland` input. Upstream builds those
+packages against its own nixpkgs, which is what hyprland.cachix.org serves, and
+the module adds that cache to the host's substituters.
+
+`package` and `portalPackage` take another build. Set both from one source,
+since the portal is built against the compositor it ships with.
+
+```nix
+{pkgs, ...}: {
+  othrys.desktop.compositors.hyprland = {
+    package = pkgs.hyprland;
+    portalPackage = pkgs.xdg-desktop-portal-hyprland;
+  };
+}
+```
+
+A consumer who tracks the Hyprland flake at another revision makes this
+library's input follow theirs, with
+`inputs.othrys.inputs.hyprland.follows = "hyprland"`, and leaves the options at
+their defaults.
+
 ## Options
 
 ```nix

@@ -11,10 +11,13 @@
   config,
   lib,
   pkgs,
-  inputs,
+  othrysInputs,
   ...
 }: let
   cfg = config.othrys.desktop.compositors.hyprland;
+  # The Hyprland flake this library locks, handed in by flake/modules.nix.
+  # Read only as the default of the two package options below.
+  locked = othrysInputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system};
   inherit (config.othrys.theme) palette;
 
   hlLua = import ./hyprland-lua.nix {inherit lib;};
@@ -83,6 +86,28 @@ in {
   # ANCHOR: hyprland-options
   options.othrys.desktop.compositors.hyprland = {
     enable = lib.mkEnableOption "Hyprland window manager";
+
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = locked.hyprland;
+      defaultText = lib.literalMD "the `hyprland` package of the Hyprland flake this library locks";
+      example = lib.literalExpression "pkgs.hyprland";
+      description = ''
+        The Hyprland package, used by the NixOS module and by the Home Manager
+        module alike. The default is built by upstream against its own
+        nixpkgs, which is what hyprland.cachix.org serves. Set `portalPackage`
+        from the same source, since the portal is built against the
+        compositor it ships with.
+      '';
+    };
+
+    portalPackage = lib.mkOption {
+      type = lib.types.package;
+      default = locked.xdg-desktop-portal-hyprland;
+      defaultText = lib.literalMD "the `xdg-desktop-portal-hyprland` package of the Hyprland flake this library locks";
+      example = lib.literalExpression "pkgs.xdg-desktop-portal-hyprland";
+      description = "The desktop portal for Hyprland, passed to `programs.hyprland.portalPackage`.";
+    };
 
     monitors = lib.mkOption {
       type = lib.types.listOf (lib.types.submodule {
@@ -333,8 +358,7 @@ in {
     programs.hyprland = {
       enable = true;
       withUWSM = true;
-      package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-      portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+      inherit (cfg) package portalPackage;
     };
 
     # No sandbox baseline. The agent authenticates through polkit's setuid
@@ -363,7 +387,7 @@ in {
       wayland.windowManager.hyprland = {
         enable = true;
 
-        package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+        inherit (cfg) package;
 
         systemd.enable = !config.othrys.desktop.uwsm.enable;
 

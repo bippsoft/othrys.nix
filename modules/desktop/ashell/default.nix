@@ -4,7 +4,7 @@
   config,
   lib,
   pkgs,
-  inputs,
+  othrysInputs,
   ...
 }: let
   cfg = config.othrys.desktop.ashell;
@@ -208,6 +208,15 @@ in {
   options.othrys.desktop.ashell = {
     enable = lib.mkEnableOption "Ashell status bar";
 
+    package = lib.mkOption {
+      type = lib.types.package;
+      # The ashell flake this library locks, handed in by flake/modules.nix.
+      default = othrysInputs.ashell.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      defaultText = lib.literalMD "the default package of the ashell flake this library locks";
+      example = lib.literalExpression "pkgs.ashell";
+      description = "The ashell package the bar's unit starts and the user's profile installs.";
+    };
+
     weatherLocation = lib.mkOption {
       type = lib.types.nullOr (lib.types.either
         # A city name holds neither a brace nor an equals sign, and the raw
@@ -388,7 +397,7 @@ in {
         after = ["graphical-session.target"];
         unitConfig.ConditionEnvironment = "WAYLAND_DISPLAY";
         serviceConfig = {
-          ExecStart = "${inputs.ashell.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/ashell";
+          ExecStart = "${cfg.package}/bin/ashell";
           Environment = "WGPU_BACKEND=vulkan";
           Slice = "session.slice";
           TimeoutStopSec = "5s";
@@ -400,7 +409,7 @@ in {
       othrys.internal.homeConfig."desktop.ashell" = {
         home.packages =
           [
-            inputs.ashell.packages.${pkgs.stdenv.hostPlatform.system}.default
+            cfg.package
             pkgs.wofi
             pkgs.rofimoji
             pkgs.wtype

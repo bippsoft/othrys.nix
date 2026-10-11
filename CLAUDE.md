@@ -26,7 +26,9 @@ Changing any of these breaks consuming flakes.
    and the Stylix module together. One who wants the disko layout imports
    `nixosModules.disko` and the disko module, and one who wants the sops
    plumbing imports `nixosModules.secrets` and the sops-nix module.
-1. **specialArgs carry `inputs` only.** Not `username`, not `hostname`.
+1. **specialArgs carry `inputs` or nothing.** Modules read two names from it,
+   `nixpkgs` for the registry pin and the optional `secrets`. Not `username`,
+   not `hostname`.
 
 <!-- ANCHOR_END: consumer-contract -->
 

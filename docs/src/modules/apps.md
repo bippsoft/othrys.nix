@@ -20,6 +20,22 @@ No desktop environment required, so these are usable on servers and headless sys
 The assistant modules under `modules/apps/cli/ai/` are listed on the
 [AI Assistants](./ai.md) page.
 
+Nixvim and Comma each import a Home Manager module from a flake this library
+locks, `nixvim` and `nix-index-database`. A consuming flake declares neither
+input. There is no package option for either, since the module builds what it
+installs, so a consumer who wants another revision makes this library's input
+follow their own.
+
+```nix
+inputs = {
+  nixvim.url = "github:nix-community/nixvim";
+  othrys.inputs.nixvim.follows = "nixvim";
+};
+```
+
+Nixvim builds its plugins from the nixpkgs the host's own package set was
+built from, whichever revision of the module is in use.
+
 ## GUI Applications (`modules/apps/gui/`)
 
 Require a desktop environment.

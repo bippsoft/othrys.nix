@@ -2,7 +2,7 @@
 # Shared option types for the othrys module tree
 #
 # Imported directly by the modules that need them rather than threaded through
-# specialArgs, which the consumer contract keeps to `inputs` alone.
+# specialArgs, which the consumer contract keeps to `inputs` or nothing.
 {lib}: {
   # A runtime path to credential material, produced by a secrets provider at
   # boot and read by a service at start.

@@ -3,7 +3,8 @@
 {
   config,
   lib,
-  inputs,
+  pkgs,
+  othrysInputs,
   ...
 }: let
   username = config.othrys.system.user.name;
@@ -80,8 +81,13 @@ in {
     };
 
     othrys.internal.homeConfig."apps.nixvim" = {
+      # nixvim's module comes from the nixvim flake this library locks,
+      # handed in by flake/modules.nix. There is no package option to set
+      # here, since the module builds the editor itself. A consumer who wants
+      # another revision makes this library's input follow their own, with
+      # `inputs.othrys.inputs.nixvim.follows = "nixvim"`.
       imports = [
-        inputs.nixvim.homeModules.nixvim
+        othrysInputs.nixvim.homeModules.nixvim
 
         # Core configuration
         ./globals.nix
@@ -102,7 +108,10 @@ in {
         # nixvim pins its own nixpkgs, but flake.nix makes it follow ours so
         # the fleet builds against one nixpkgs. Upstream warns when a follows
         # overrides that default, so state the choice explicitly to silence it.
-        nixpkgs.source = inputs.nixpkgs;
+        # nixvim imports this path and reads nothing else from it, so the
+        # source of the host's own package set serves, and no flake input
+        # has to reach this module.
+        nixpkgs.source = pkgs.path;
         # EDITOR is owned by othrys.system.defaultEditor, set below, rather
         # than exported here a second time.
         viAlias = true;

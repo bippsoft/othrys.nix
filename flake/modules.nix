@@ -28,6 +28,10 @@
 # Import `system` beside any individual export, `theme` beside one that draws
 # colour, and `desktop` beside a desktop or hardware one, or use `default`.
 #
+# Six exports are wrapped in `withArgs` below, which are `system`, `desktop`,
+# `nix`, `secrets`, `hyprland` and `ashell`. Their files take the
+# `othrysInputs` or `inputs` module argument, and the wrapper supplies it.
+#
 # Several modules write into option namespaces owned by upstream flakes
 # (home-manager, impermanence). A consumer of `default` must also import
 # those flakes' nixosModules, see
@@ -38,19 +42,49 @@
 #   inputs.othrys.nixosModules.default
 #   inputs.othrys.nixosModules.system
 #   inputs.othrys.nixosModules.impermanence
-{inputs, ...}: {
+{inputs, ...}: let
+  # What the modules take from this flake's own lock, as module arguments.
+  # A module can only reach flake inputs through an argument, and reading them
+  # from the consumer's `inputs` made every consuming flake declare an input
+  # named `ashell`, `hyprland`, `nixvim` and `nix-index-database`. Only the
+  # four the modules use are named, so a module cannot grow a dependency on
+  # another input unnoticed.
+  #
+  # `inputs` is given an empty default beside them. modules/system/nix.nix
+  # reads the consumer's `inputs.nixpkgs` and modules/system/secrets.nix the
+  # consumer's optional `inputs.secrets`, both through specialArgs, and a
+  # consumer who passes no specialArgs would otherwise fail on the missing
+  # argument before either `or` fallback is reached. A specialArg of the same
+  # name takes precedence over this default.
+  #
+  # The `key` makes the module system keep one copy when a host imports
+  # several exports that carry this module.
+  args = {
+    key = "othrys.nix/flake/modules.nix#args";
+    _module.args = {
+      othrysInputs = {inherit (inputs) ashell hyprland nixvim nix-index-database;};
+      inputs = inputs.nixpkgs.lib.mkDefault {};
+    };
+  };
+
+  # An individual export whose file, or a file below it, takes `othrysInputs`
+  # or `inputs`. `default` is not on the import path of an individual export,
+  # so the export carries the arguments itself.
+  withArgs = path: {imports = [args path];};
+in {
   flake.nixosModules = {
     # Aggregate of the full module tree. Injects this flake's own source as the
     # `othrysSelf` module arg for modules that build from it (services/docs.nix),
     # so consumers don't need to thread it through specialArgs.
     #
     # niri-flake's module is imported here and not inside the tree. An import
-    # is evaluated on every host, and a module can only reach `inputs` through
-    # the consumer's specialArgs, so importing it from modules/ made every
-    # consumer declare a niri input whether or not they used niri. Here it
-    # comes from this flake's own lock.
+    # is evaluated on every host, and a module argument cannot be read in
+    # `imports`, so importing it from modules/ made every consumer declare a
+    # niri input whether or not they used niri. Here it comes from this
+    # flake's own lock.
     default = {
       imports = [
+        args
         ../modules
         inputs.niri.nixosModules.niri
       ];
@@ -58,9 +92,9 @@
     };
 
     # The option-declaring groups, imported beside an individual export.
-    system = ../modules/system;
+    system = withArgs ../modules/system;
     theme = ../modules/theme;
-    desktop = ../modules/desktop;
+    desktop = withArgs ../modules/desktop;
 
     # The Stylix adapter, which `default` does not import. A host that wants
     # Stylix imports this and the Stylix module together.
@@ -72,13 +106,13 @@
     # `secrets` and the sops-nix module together. Both read options the
     # `system` group declares.
     disko = ../modules/system/disko.nix;
-    secrets = ../modules/system/secrets.nix;
+    secrets = withArgs ../modules/system/secrets.nix;
 
     # System fundamentals
     locale = ../modules/system/locale.nix;
     user = ../modules/system/user.nix;
     users = ../modules/system/users.nix;
-    nix = ../modules/system/nix.nix;
+    nix = withArgs ../modules/system/nix.nix;
     kernel = ../modules/system/kernel.nix;
     hardening = ../modules/system/hardening.nix;
     networking = ../modules/system/networking.nix;
@@ -89,7 +123,7 @@
     auto-upgrade = ../modules/system/auto-upgrade.nix;
 
     # Desktop environment and compositors
-    hyprland = ../modules/desktop/compositors/hyprland.nix;
+    hyprland = withArgs ../modules/desktop/compositors/hyprland.nix;
     niri = ../modules/desktop/compositors/niri.nix;
     uwsm = ../modules/desktop/uwsm.nix;
     login = ../modules/desktop/login.nix;
@@ -97,7 +131,7 @@
     night-light = ../modules/desktop/night-light.nix;
     keyring = ../modules/desktop/keyring.nix;
     wallpaper = ../modules/desktop/wallpaper.nix;
-    ashell = ../modules/desktop/ashell;
+    ashell = withArgs ../modules/desktop/ashell;
 
     # Hardware-specific
     audio = ../modules/hardware/audio.nix;

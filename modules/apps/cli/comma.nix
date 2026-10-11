@@ -4,7 +4,7 @@
   config,
   lib,
   pkgs,
-  inputs,
+  othrysInputs,
   ...
 }: let
   cfg = config.othrys.apps.comma;
@@ -27,9 +27,15 @@ in {
 
     # The imported module turns programs.nix-index on, which is what installs
     # the command-not-found handler in the user's shells.
+    #
+    # It comes from the nix-index-database flake this library locks, handed
+    # in by flake/modules.nix. There is no package option to set here, since
+    # the module carries the database itself. A consumer who wants another
+    # revision makes this library's input follow their own, with
+    # `inputs.othrys.inputs.nix-index-database.follows = "nix-index-database"`.
     othrys.internal.homeConfig."apps.comma" = {
       imports = [
-        inputs.nix-index-database.homeModules.nix-index
+        othrysInputs.nix-index-database.homeModules.nix-index
       ];
 
       programs.nix-index-database.comma.enable = true;

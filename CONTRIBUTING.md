@@ -21,7 +21,9 @@ evaluation rather than waiting to surprise somebody.
    and the Stylix module together. One who wants the disko layout imports
    `nixosModules.disko` and the disko module, and one who wants the sops
    plumbing imports `nixosModules.secrets` and the sops-nix module.
-1. **specialArgs carry `inputs` only.** Not `username`, not `hostname`.
+1. **specialArgs carry `inputs` or nothing.** Modules read two names from it,
+   `nixpkgs` for the registry pin and the optional `secrets`. Not `username`,
+   not `hostname`.
 
 <!-- ANCHOR_END: consumer-contract -->
 
@@ -76,7 +78,20 @@ persisted path, and no single file could carry them out of `default`.
 
 **specialArgs stay minimal because they are the one part of the interface the
 module system cannot type.** Every additional specialArg is an undeclared
-requirement a consumer discovers by hitting an error.
+requirement a consumer discovers by hitting an error. The same holds for a name
+inside `inputs`, so a module reads a flake from the consumer only when the flake
+is the consumer's by nature. That leaves two names. `inputs.nixpkgs` is the
+revision the host is built from, which the registry pin has to match, and
+`inputs.secrets` is the consumer's own data. Both are read with a fallback, so
+a host that passes no specialArgs evaluates.
+
+Every other flake a module builds on comes from this flake's own lock.
+`flake/modules.nix` hands ashell, Hyprland, nixvim and nix-index-database to the
+modules as the `othrysInputs` argument, and imports niri-flake's module itself,
+since a module argument cannot be read in `imports`. A consumer who wants
+another build sets the module's `package` option, or makes this flake's input
+follow their own. The `eval-inputs` check evaluates a host that is handed no
+specialArgs with all four modules on.
 
 ## Module Pattern
 

@@ -20,7 +20,6 @@ inputs = {
   # versions the module library is locked and tested to.
   nixpkgs.follows = "othrys/nixpkgs";
   home-manager.follows = "othrys/home-manager";
-  hyprland.follows = "othrys/hyprland";
   impermanence.follows = "othrys/impermanence";
 
   # Optional, for the hosts that import the matching othrys export.
@@ -85,25 +84,39 @@ Nix repository, which are `treefmt`, `statix`, `deadnix`, `commitizen` and
 
 ## The specialArgs Contract
 
-othrys modules expect one argument via `specialArgs` (and `home-manager.extraSpecialArgs`):
+othrys modules read one argument from `specialArgs`, and a host may leave it out:
 
 | Argument | Type | Used for |
 |----------|------|----------|
-| `inputs` | attrset | Modules that reference flake inputs directly, under the names in the table below |
+| `inputs` | attrset | The two names in the table below, each read with a fallback |
 
-A module reads an input only when its feature is enabled, so a consuming flake
-declares the ones its hosts use, typically as `follows = "othrys/<name>"`.
+| Input | Read by | Without it |
+|-------|---------|------------|
+| `nixpkgs` | `othrys.system.nix`, which pins the flake registry and `NIX_PATH` to it and turns channels off | NixOS pins the registry and `NIX_PATH` to the source `nixpkgs.lib.nixosSystem` was called from, without the revision and hash, and channels stay as NixOS sets them |
+| `secrets` | `othrys.system.secrets`, as the default of `secretFiles` when the input exists | `secretFiles` defaults to an empty set |
 
-| Input | Read by |
-|-------|---------|
-| `hyprland` | `othrys.desktop.compositors.hyprland` |
-| `ashell` | `othrys.desktop.ashell` |
-| `nixvim` | `othrys.apps.nixvim` |
-| `nix-index-database` | `othrys.apps.comma` |
-| `secrets` | `othrys.system.secrets` in the `nixosModules.secrets` export, as the default of `secretFiles` when the input exists |
+Both stay with the consumer because they are the consumer's by nature. The
+registry pin has to name the revision the host is built from, and the secrets
+are the consumer's own data. No Home Manager module here reads `inputs`, so
+`home-manager.extraSpecialArgs` is needed only by a fleet's own modules.
 
-niri needs no input from the consumer. `nixosModules.default` imports
-niri-flake's module from this flake's own lock.
+Every other flake comes from this flake's own lock. `nixosModules.default`
+hands `ashell`, `hyprland`, `nixvim` and `nix-index-database` to the modules as
+the `othrysInputs` module argument, and imports niri-flake's module directly. A
+consuming flake declares none of them, and an input of one of those names is
+not read. [Flake Inputs](./flake-inputs.md#what-a-consumer-declares) describes
+how a consumer substitutes its own.
+
+| Locked input | Module | Override |
+|--------------|--------|----------|
+| `hyprland` | `othrys.desktop.compositors.hyprland` | `package` and `portalPackage` |
+| `ashell` | `othrys.desktop.ashell` | `package` |
+| `nixvim` | `othrys.apps.nixvim` | `inputs.othrys.inputs.nixvim.follows` |
+| `nix-index-database` | `othrys.apps.comma` | `inputs.othrys.inputs.nix-index-database.follows` |
+
+The individual exports `nixosModules.hyprland`, `ashell`, `nix`, `secrets`,
+`system` and `desktop` carry the same arguments, so they work without
+`default`.
 
 There is no `username` or `hostname` specialArg. The primary user is named via
 the `othrys.system.user.name` option, and hosts set `networking.hostName`

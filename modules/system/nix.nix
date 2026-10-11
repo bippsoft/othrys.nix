@@ -11,7 +11,14 @@
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.system.nix;
   # The consumer's nixpkgs, which is what every host is built from, so the
-  # registry and NIX_PATH point at the same revision as the system.
+  # registry and NIX_PATH point at the same revision as the system. It is
+  # read from the consumer's `inputs` and never from this library's lock.
+  # The registry entry is built from the flake, which carries the revision,
+  # the hash and the date that a bare source path does not.
+  #
+  # A host that passes no `inputs` gets null here and is left with what NixOS
+  # does on its own. `nixpkgs.lib.nixosSystem` records the source it was
+  # called from, and NixOS pins the registry and NIX_PATH to that path.
   pinnedNixpkgs = inputs.nixpkgs or null;
   # Whether an externally supplied nixpkgs instance admits unfree packages by
   # an allowlist instead of the blanket switch.

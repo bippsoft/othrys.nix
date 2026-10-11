@@ -90,8 +90,13 @@ The same shape written out by hand, with a desktop enabled:
 }
 ```
 
-`inputs` must reach the modules through `specialArgs`. Several modules
-dereference `inputs.<name>` directly.
+`inputs` reaches the modules through `specialArgs`, and two names are read from
+it. `inputs.nixpkgs` pins the flake registry to the revision the host is built
+from, and `inputs.secrets` is read if you declare one. ashell, Hyprland, nixvim
+and nix-index-database come from this flake's own lock, so the example enables
+Hyprland without declaring a `hyprland` input. To use another build, set the
+module's `package` option, or make this flake's input follow yours with
+`inputs.othrys.inputs.hyprland.follows = "hyprland"`.
 
 Two options in that example are mandatory and have no defaults, and the
 remaining `othrys.*` lines are the host saying what it wants. Passwords arrive

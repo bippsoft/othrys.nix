@@ -23,7 +23,8 @@
   outputs = inputs: {
     nixosConfigurations.myhost = inputs.nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      # Modules read `inputs` from here. Pass nothing else.
+      # othrys reads `inputs.nixpkgs` from here, to pin the flake registry to
+      # the revision this host is built from. Pass nothing else.
       specialArgs = {inherit inputs;};
       modules = [
         inputs.othrys.nixosModules.default
