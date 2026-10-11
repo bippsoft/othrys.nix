@@ -65,7 +65,8 @@
     }).othrys.desktop.ashell.weatherLocation;
 
   # The wallpaper is only ever read as a path here, so any file serves.
-  # hyprpaper is switched on by Stylix, so this host carries the adapter.
+  # Stylix would start hyprpaper for its image on Hyprland, so this host
+  # carries the adapter.
   wallpaper = {
     imports = [stylixModules];
     othrys.system.stylix.enable = true;
@@ -188,7 +189,7 @@ in
     "a host without the keyring leaves the greeter alone" = !greeterUnlocks hyprlandNoKeyring && !greeterUnlocks niriNoKeyring;
     "a headless host has no keyring" = !headless.othrys.desktop.keyring.enable && !keyring headless;
 
-    "hyprland keeps hyprpaper for the Stylix wallpaper" = (home hyprlandWallpaper).services.hyprpaper.enable;
+    "hyprland draws the wallpaper with wpaperd, and Stylix starts no hyprpaper beside it" = (home hyprlandWallpaper).services.wpaperd.enable && !(home hyprlandWallpaper).services.hyprpaper.enable;
 
     "a host with both compositors picks the screen-off command at run time" = let
       script = builtins.readFile (screenOff both);

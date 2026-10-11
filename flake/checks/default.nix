@@ -915,6 +915,13 @@
         inherit hostConfig mkExpectations rejectedWith functioningHost stylixModules;
       };
 
+      # The wallpaper daemon's configuration for each form of
+      # othrys.theme.wallpaper.source (see ./wallpaper-eval.nix).
+      eval-wallpaper = import ./wallpaper-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit hostConfig mkExpectations rejectedWith bootBase functioningHost stylixModules;
+      };
+
       # Every conflict and dependency assertion that takes two modules or
       # two options to fire (see ./pairs.nix).
       eval-pairs = import ./pairs.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost;};
@@ -1154,6 +1161,7 @@
       router-test = import ./router.nix {inherit pkgs inputs;};
       router-ips-test = import ./router-ips.nix {inherit pkgs inputs;};
       auto-upgrade-test = import ./auto-upgrade.nix {inherit pkgs inputs;};
+      wallpaper-test = import ./wallpaper.nix {inherit pkgs inputs;};
 
       # CORE. Pre-commit hooks check (treefmt formats, statix and deadnix lint,
       # comment-hygiene enforces the CONTRIBUTING.md comment conventions).

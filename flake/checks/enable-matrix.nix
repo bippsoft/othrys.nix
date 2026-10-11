@@ -120,6 +120,7 @@
     "othrys.apps.gaming.r2modman.enable" = "othrys.apps.gaming.r2modman requires othrys.apps.gaming.steam.enable";
     "othrys.apps.idea.enable" = "othrys.apps.idea: requires othrys.apps.languages.java.enable";
     "othrys.desktop.nightLight.enable" = "othrys.desktop.nightLight needs a location";
+    "othrys.desktop.wallpaper.enable" = "othrys.desktop.wallpaper: no wallpaper is declared";
     # Its parent, the NVIDIA module, is on with it, so the bus ids are what
     # is missing.
     "othrys.hardware.nvidia.prime.enable" = "set intelBusId and nvidiaBusId";
