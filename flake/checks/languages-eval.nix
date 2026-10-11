@@ -13,7 +13,6 @@
     hostConfig [
       functioningHost
       {
-        othrys.system.stylix.enable = true;
         othrys.desktop.graphical = true;
         othrys.apps.nixvim.enable = true;
         othrys.apps.vscode.enable = true;

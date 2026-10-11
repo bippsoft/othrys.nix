@@ -1,8 +1,8 @@
 # flake/checks/ashell.nix
 # EXTENDED. The ashell bar's generated config.toml, read back for a desktop, for
 # a laptop, and for a host that sets its own indicator list. The fixtures carry
-# Stylix and a compositor, since the bar interpolates both, which puts this
-# beside the desktop evaluations and not in the core tier.
+# a compositor, since the bar reads its session, which puts this beside the
+# desktop evaluations and not in the core tier.
 {
   lib,
   hostConfig,
@@ -13,7 +13,6 @@
     hostConfig [
       functioningHost
       {
-        othrys.system.stylix.enable = true;
         othrys.desktop.compositors.niri.enable = true;
         othrys.desktop.ashell.enable = true;
       }

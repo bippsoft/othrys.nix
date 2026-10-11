@@ -113,12 +113,6 @@
       inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
       inputs.sops-nix.nixosModules.sops
-      {
-        options.stylix = lib.mkOption {
-          type = lib.types.attrs;
-          default = {};
-        };
-      }
     ];
 
     # Four VMs boot at once, so each stays small unless a test needs more.

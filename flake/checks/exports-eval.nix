@@ -1,7 +1,8 @@
 # flake/checks/exports-eval.nix
 # CORE. The export list in flake/modules.nix, held to the module tree. Every
 # infrastructure module file outside modules/apps/ is exported individually,
-# and every export names a file or directory that exists. The list fell two
+# the Stylix adapter under modules/theme/ among them, and every export names
+# a file or directory that exists. The list fell two
 # dozen modules behind the tree once, and nothing noticed, since the
 # aggregate `default` evaluated either way.
 {
@@ -11,7 +12,7 @@
 }: let
   inherit (inputs.nixpkgs) lib;
   root = toString inputs.self;
-  groups = ["system" "desktop" "hardware" "services"];
+  groups = ["system" "theme" "desktop" "hardware" "services"];
   relative = path: lib.removePrefix "${root}/" (toString path);
   isModule = path: let
     rel = relative path;

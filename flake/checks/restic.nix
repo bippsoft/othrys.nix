@@ -38,19 +38,13 @@ in
       name = "othrys-restic-roundtrip";
       node.specialArgs = {inherit inputs;};
 
-      nodes.machine = {lib, ...}: {
+      nodes.machine = {
         imports = [
           inputs.self.nixosModules.default
           inputs.home-manager.nixosModules.home-manager
           inputs.disko.nixosModules.disko
           inputs.impermanence.nixosModules.impermanence
           inputs.sops-nix.nixosModules.sops
-          {
-            options.stylix = lib.mkOption {
-              type = lib.types.attrs;
-              default = {};
-            };
-          }
         ];
 
         environment.etc."restic-pass".text = "test-password";

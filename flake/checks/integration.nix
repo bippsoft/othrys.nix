@@ -14,27 +14,13 @@ pkgs.testers.runNixOSTest {
   # Modules still need `inputs` (some dereference inputs.* in gated code).
   node.specialArgs = {inherit inputs;};
 
-  nodes.machine = {
-    pkgs,
-    lib,
-    ...
-  }: {
+  nodes.machine = {pkgs, ...}: {
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
       inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
       inputs.sops-nix.nixosModules.sops
-      # The real Stylix module adds nixpkgs overlays, which clash with the
-      # test framework's read-only nixpkgs. Stylix theming is eval-tested
-      # in eval-default, and here we only need the `stylix` option namespace to
-      # exist so the (disabled) othrys stylix module still type-checks.
-      {
-        options.stylix = lib.mkOption {
-          type = lib.types.attrs;
-          default = {};
-        };
-      }
     ];
 
     virtualisation.memorySize = 2048;

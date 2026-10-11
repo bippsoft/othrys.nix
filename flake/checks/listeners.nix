@@ -14,22 +14,13 @@ pkgs.testers.runNixOSTest {
   name = "othrys-listeners";
   node.specialArgs = {inherit inputs;};
 
-  nodes.machine = {lib, ...}: {
+  nodes.machine = {
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
       inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
       inputs.sops-nix.nixosModules.sops
-      # The real Stylix module adds nixpkgs overlays, which clash with the
-      # test framework's read-only nixpkgs, so only its option namespace is
-      # declared (see ./integration.nix).
-      {
-        options.stylix = lib.mkOption {
-          type = lib.types.attrs;
-          default = {};
-        };
-      }
     ];
 
     # Two metrics stores, a log store and Grafana run side by side.

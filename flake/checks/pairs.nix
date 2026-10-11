@@ -168,18 +168,8 @@
 
   # Requirements.
 
-  # Five modules that read the Stylix palette, on a host without it.
-  unthemed = workstation {
-    othrys.apps.floorp.enable = true;
-    othrys.apps.gaming.mangohud.enable = true;
-    othrys.desktop.compositors.hyprland.enable = true;
-    othrys.desktop.compositors.niri.enable = true;
-    othrys.system.shell.starship.enable = true;
-  };
-
   # Three desktop modules on a host with no compositor and no graphical flag.
   noSession = workstation {
-    othrys.system.stylix.enable = true;
     othrys.desktop.ashell.enable = true;
     othrys.desktop.idle.enable = true;
     othrys.desktop.nightLight = {
@@ -255,11 +245,6 @@ in
     "the kernel module alone sets boot.kernelPackages" = kernelMerges kernelAlone;
     "a host assignment of boot.kernelPackages beside the kernel module is refused" = !kernelMerges kernelTwice;
 
-    "floorp without stylix is rejected" = rejectedWith "othrys.apps.floorp requires othrys.system.stylix.enable" unthemed;
-    "mangohud without stylix is rejected" = rejectedWith "othrys.apps.gaming.mangohud requires othrys.system.stylix.enable" unthemed;
-    "hyprland without stylix is rejected" = rejectedWith "othrys.desktop.compositors.hyprland requires othrys.system.stylix.enable" unthemed;
-    "niri without stylix is rejected" = rejectedWith "othrys.desktop.compositors.niri requires othrys.system.stylix.enable" unthemed;
-    "starship without stylix is rejected" = rejectedWith "othrys.system.shell.starship requires othrys.system.stylix.enable" unthemed;
     "idle without a graphical session is rejected" = rejectedWith "othrys.desktop.idle requires a graphical session" noSession;
     "the night light without a graphical session is rejected" = rejectedWith "othrys.desktop.nightLight requires a graphical session" noSession;
     "ashell without a compositor is rejected" = rejectedWith "othrys.desktop.ashell requires a supported compositor" noSession;

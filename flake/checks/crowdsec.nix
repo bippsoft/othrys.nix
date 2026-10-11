@@ -37,12 +37,6 @@ in
         inputs.disko.nixosModules.disko
         inputs.impermanence.nixosModules.impermanence
         inputs.sops-nix.nixosModules.sops
-        {
-          options.stylix = lib.mkOption {
-            type = lib.types.attrs;
-            default = {};
-          };
-        }
       ];
 
       virtualisation.memorySize = 2048;

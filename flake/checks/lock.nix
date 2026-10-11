@@ -14,7 +14,6 @@
   host = extra:
     hostConfig [
       functioningHost
-      {othrys.system.stylix.enable = true;}
       extra
     ];
 

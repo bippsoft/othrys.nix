@@ -11,11 +11,11 @@
   rejectedWith,
   bootBase,
   functioningHost,
+  stylixModules,
 }: let
   host = extra:
     hostConfig [
       functioningHost
-      {othrys.system.stylix.enable = true;}
       extra
     ];
 
@@ -65,7 +65,12 @@
     }).othrys.desktop.ashell.weatherLocation;
 
   # The wallpaper is only ever read as a path here, so any file serves.
-  wallpaper = {othrys.system.stylix.wallpaper = ./desktop-eval.nix;};
+  # hyprpaper is switched on by Stylix, so this host carries the adapter.
+  wallpaper = {
+    imports = [stylixModules];
+    othrys.system.stylix.enable = true;
+    othrys.theme.wallpaper.source = ./desktop-eval.nix;
+  };
   hyprlandWallpaper = host {
     imports = [wallpaper];
     othrys.desktop.compositors.hyprland.enable = true;

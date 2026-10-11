@@ -9,14 +9,19 @@
 # assertion used to speak. Modules that fail without an assertion of their
 # own sit in expectedFailUnnamed.
 # Apps/desktop enables run on a workstation base (user + stylix +
-# hyprland), and everything else runs headless. Uncatchable errors (type
-# errors like a null slipping into string interpolation) abort the
-# whole check, the loudest possible failure, by design.
+# hyprland), and everything else runs headless. Every host of the matrix
+# imports the Stylix module and the othrys adapter, so the walk finds
+# othrys.system.stylix.enable on the same option tree each host is built
+# from. Hosts with no Stylix module are read by the fixtures in ./default.nix
+# and ./theme-eval.nix. Uncatchable errors (type errors like a null slipping
+# into string interpolation) abort the whole check, the loudest possible
+# failure, by design.
 {
   pkgs,
   inputs,
   system,
   upstreamModules,
+  stylixModules,
   bootCore,
   bootBase,
   functioningHost,
@@ -27,7 +32,7 @@
     inputs.nixpkgs.lib.nixosSystem {
       inherit system;
       specialArgs = {inherit inputs;};
-      modules = upstreamModules ++ mods;
+      modules = upstreamModules ++ [stylixModules] ++ mods;
     };
 
   # Enumerate every othrys.*.enable option path from a minimal eval. An

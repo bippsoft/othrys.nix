@@ -8,16 +8,27 @@
     ...
   }: let
     # The othrys tree plus the upstream modules a real consumer imports (these
-    # declare the disko/home-manager/stylix/sops/impermanence option namespaces
-    # othrys modules write into).
+    # declare the disko/home-manager/sops/impermanence option namespaces
+    # othrys modules write into). Stylix is not among them, so every fixture
+    # built from this list alone shows that `default` evaluates on a host
+    # that imports no Stylix module.
     upstreamModules = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
       inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
-      inputs.stylix.nixosModules.stylix
       inputs.sops-nix.nixosModules.sops
     ];
+
+    # The Stylix module and the othrys adapter, which a consumer imports
+    # together or not at all. A fixture that wants Stylix lists this module
+    # among its own and sets othrys.system.stylix.enable.
+    stylixModules = {
+      imports = [
+        inputs.stylix.nixosModules.stylix
+        inputs.self.nixosModules.stylix
+      ];
+    };
 
     # A bootable core with NO identity at all, just a bootloader and a root
     # filesystem. othrys.system.user.name stays unset, since it is only read when a
@@ -145,9 +156,8 @@
     # of eval-persistence, which forces its toplevel.
     appDesktopModules = {
       # Prerequisites the modules below assert on, rather than things under
-      # test. Several apps refuse to evaluate without theming, a Steam install,
-      # a JDK or a secrets provider.
-      othrys.system.stylix.enable = true;
+      # test. Several apps refuse to evaluate without a Steam install, a JDK
+      # or a secrets provider.
       othrys.system.secrets.enable = true;
       othrys.system.nix.allowUnfree = true;
       othrys.desktop.graphical = true;
@@ -523,12 +533,16 @@
     templateHost =
       ((import ../../templates/default/flake.nix).outputs {
         othrys = inputs.self;
-        inherit (inputs) nixpkgs home-manager disko stylix sops-nix impermanence;
+        inherit (inputs) nixpkgs home-manager disko sops-nix impermanence;
       }).nixosConfigurations.myhost;
 
-    # Files under modules/ that are not modules. Each is a plain function that
-    # modules import directly, and says so in its header.
-    moduleHelpers = ["modules/desktop/compositors/hyprland-lua.nix" "modules/desktop/session.nix"];
+    # Files under modules/ that are not modules. Each is a plain function or
+    # plain data that modules import directly, and says so in its header.
+    moduleHelpers = [
+      "modules/desktop/compositors/hyprland-lua.nix"
+      "modules/desktop/session.nix"
+      "modules/theme/schemes/oxocarbon.nix"
+    ];
 
     # Force a host's toplevel derivation so any option/module error fails the
     # check. Only the tiny wrapper is realised, not the system. The string
@@ -891,7 +905,14 @@
       # What the desktop modules, kitty and ghostty write (see ./desktop-eval.nix).
       eval-desktop = import ./desktop-eval.nix {
         inherit (inputs.nixpkgs) lib;
-        inherit hostConfig mkExpectations rejectedWith bootBase functioningHost;
+        inherit hostConfig mkExpectations rejectedWith bootBase functioningHost stylixModules;
+      };
+
+      # The theme interface with and without the Stylix adapter (see
+      # ./theme-eval.nix).
+      eval-theme = import ./theme-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit hostConfig mkExpectations rejectedWith functioningHost stylixModules;
       };
 
       # Every conflict and dependency assertion that takes two modules or
@@ -921,13 +942,14 @@
 
       # EXTENDED, heavy, one runner each
 
-      # Whole-tree evaluation over the minimal host plus theming and the mangohud
-      # settings merge (mangohud reads Stylix colors, so both must be on. This
-      # pairing caught the mangohud x Stylix conflict). Heavier GUI apps (floorp,
-      # vesktop) are left out so this doesn't pull a browser/Electron closure;
-      # their merges are trivial `//` unions covered by plain eval + parse.
+      # Whole-tree evaluation over the minimal host plus Stylix through the
+      # adapter and the mangohud settings merge (Stylix themes mangohud too, and
+      # this pairing caught the mangohud x Stylix conflict). Heavier GUI apps
+      # (floorp, vesktop) are left out so this doesn't pull a browser/Electron
+      # closure. Their merges are trivial `//` unions covered by plain eval + parse.
       eval-default = mkHostEval "othrys-eval-default" [
         functioningHost
+        stylixModules
         {
           othrys.system.shell.zsh.enable = true;
           othrys.system.stylix.enable = true;
@@ -939,9 +961,11 @@
       # session manager, prompt, none of which eval-default covers. Notably
       # hyprland is evaluated with its default (unnamed) monitor config, which
       # once crashed workspace auto-generation, so this check pins enable-with-
-      # defaults working for the whole desktop stack.
+      # defaults working for the whole desktop stack. Stylix is on through the
+      # adapter here, so both compositors are evaluated beside its targets.
       eval-host-desktop = mkHostEval "othrys-eval-host-desktop" [
         functioningHost
+        stylixModules
         {
           othrys.system.stylix.enable = true;
           othrys.system.shell.zsh.enable = true;
@@ -982,11 +1006,11 @@
 
       # Niri-only desktop with ashell. Login starts niri-session directly and
       # defaultDesktop stays UNSET, pinning that sessionCommand doesn't force
-      # the uwsm-path option.
+      # the uwsm-path option. No Stylix module is imported, so niri and the bar
+      # take their colours from othrys.theme alone.
       eval-host-desktop-niri = mkHostEval "othrys-eval-host-desktop-niri" [
         functioningHost
         {
-          othrys.system.stylix.enable = true;
           othrys.desktop.compositors.niri.enable = true;
           othrys.desktop.ashell.enable = true;
           othrys.desktop.login = {
@@ -1116,7 +1140,7 @@
 
       # EXTENDED. Enable-with-defaults matrix (see ./enable-matrix.nix).
       enable-matrix = import ./enable-matrix.nix {
-        inherit pkgs inputs system upstreamModules bootCore bootBase functioningHost;
+        inherit pkgs inputs system upstreamModules stylixModules bootCore bootBase functioningHost;
       };
 
       # EXTENDED. Runtime VM tests, one file each.

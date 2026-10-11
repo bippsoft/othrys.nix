@@ -13,10 +13,7 @@
     hostConfig [
       functioningHost
       {
-        othrys.system.stylix = {
-          enable = true;
-          inherit polarity;
-        };
+        othrys.theme = {inherit polarity;};
         othrys.apps.floorp.enable = true;
       }
     ];
@@ -26,7 +23,6 @@
   withUserscripts = hostConfig [
     functioningHost
     ({options, ...}: {
-      othrys.system.stylix.enable = true;
       othrys.apps.floorp = {
         enable = true;
         extensions =

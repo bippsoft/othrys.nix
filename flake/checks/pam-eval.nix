@@ -15,7 +15,6 @@
     hostConfig [
       functioningHost
       {
-        othrys.system.stylix.enable = true;
         othrys.desktop.compositors.hyprland.enable = true;
         othrys.desktop.login.enable = true;
         othrys.desktop.idle.enable = true;

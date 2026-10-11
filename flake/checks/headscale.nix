@@ -8,19 +8,13 @@
   pkgs,
   inputs,
 }: let
-  testStubs = {lib, ...}: {
+  testStubs = {
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
       inputs.disko.nixosModules.disko
       inputs.impermanence.nixosModules.impermanence
       inputs.sops-nix.nixosModules.sops
-      {
-        options.stylix = lib.mkOption {
-          type = lib.types.attrs;
-          default = {};
-        };
-      }
     ];
   };
 in
