@@ -370,22 +370,22 @@
         [ -z "$username_args" ] ||
           report "modules must read config.othrys.system.user.name, not take a username argument:" "$username_args"
 
-        # Clause 4. specialArgs carry `inputs` alone wherever a host or a NixOS
-        # test is built. Bare lib.evalModules fixtures with stub option trees are
-        # not a consumer path and pass what they need, so the rule is scoped to
-        # files that actually build one.
+        # Clause 4. specialArgs carry `inputs` alone, or nothing, wherever a
+        # host or a NixOS test is built. Bare lib.evalModules fixtures with stub
+        # option trees are not a consumer path and pass what they need, so the
+        # rule is scoped to files that actually build one.
         bad_special=()
         while IFS= read -r f; do
           grep -q 'nixosSystem\|nixosTest\|runTest' "$f" || continue
           while IFS= read -r hit; do
             case "$hit" in
-              *'{inherit inputs;}'*) ;;
+              *'{inherit inputs;}'*|*'{}'*) ;;
               *) bad_special+=("$f: $hit") ;;
             esac
           done < <(grep -hoE 'specialArgs = \{[^}]*\}' "$f")
         done < <(grep -rl --include='*.nix' 'specialArgs' . | sed 's|^\./||' | sort)
         [ ''${#bad_special[@]} -eq 0 ] ||
-          report "specialArgs must carry inputs alone where a host or NixOS test is built:" "''${bad_special[@]}"
+          report "specialArgs must carry inputs alone, or nothing, where a host or NixOS test is built:" "''${bad_special[@]}"
 
         [ "$fail" -eq 0 ] || exit 1
         echo "contract-guards: ok"
@@ -963,6 +963,12 @@
       eval-contract = import ./contract-eval.nix {
         inherit inputs hostEval mkExpectations templateHost moduleHelpers;
         inherit functioningHost accountNoHomeManager appDesktopModules serverModules;
+      };
+
+      # Where the modules take ashell, Hyprland, nixvim and nix-index-database
+      # from, on a host that is handed no specialArgs (see ./inputs-eval.nix).
+      eval-inputs = import ./inputs-eval.nix {
+        inherit inputs system upstreamModules secretsModules functioningHost mkExpectations;
       };
 
       # The check names in .github/workflows/build.yml, held to the checks

@@ -61,8 +61,10 @@
   strays = lib.unique (lib.concatMap strayWriters [managedApps managedServer accountOnly]);
 
   # Clause 4. nixosSystem adds modulesPath to whatever it is handed, so that
-  # name is set aside and the rest has to be `inputs` alone.
+  # name is set aside and the rest has to be `inputs` alone or nothing.
+  # eval-inputs (./inputs-eval.nix) evaluates the host that is handed nothing.
   handed = evaluation: lib.subtractLists ["modulesPath"] (builtins.attrNames evaluation._module.specialArgs);
+  allowed = evaluation: builtins.elem (handed evaluation) [[] ["inputs"]];
 
   named = lib.genAttrs (identityArgs ++ map (file: "${relative file} writes home-manager.users") strays) (_: false);
 in
@@ -74,7 +76,7 @@ in
       "users.nix is recorded as a writer of home-manager.users on a managed host" = builtins.elem usersModule (writersOf managedApps);
       "nothing else in this repository writes home-manager.users" = strays == [];
       "no file in this repository writes home-manager.users on an account-only host" = builtins.filter inTree (writersOf accountOnly) == [];
-      "the check fixtures hand a host inputs alone" = handed managedApps == ["inputs"];
-      "the template hands its host inputs alone" = handed templateHost == ["inputs"];
+      "the check fixtures hand a host inputs or nothing" = allowed managedApps;
+      "the template hands its host inputs or nothing" = allowed templateHost;
     }
   )
