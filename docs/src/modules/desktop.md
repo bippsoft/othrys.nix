@@ -27,6 +27,14 @@ locker of each enabled compositor and, on Hyprland, hyprpicker. The audio
 buttons open pavucontrol, which `othrys.hardware.audio` installs on a graphical
 host.
 
+The bar uses two unit settings. `region` is the locale ashell takes its unit
+system from, and the weather follows it. The default `en_US` is imperial, so
+the weather is in °F and the wind in mph. `systemTemperatureUnit` is the unit
+of the sensor reading in the system information module, and its default is
+`"Celsius"`, since hardware temperatures are quoted that way. ashell warns at
+60 °C and alerts at 80 °C. A metric host sets `region = "de_DE"` or another
+locale, and `region = null` follows `LC_MEASUREMENT` and the login locale.
+
 The clock shows no weather until `weatherLocation` is set. With the default of
 `null` the key is left out of the config and the bar makes no forecast request.
 The value is a city name or a pair of coordinates, and it is identity-shaped, so

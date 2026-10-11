@@ -65,10 +65,10 @@
     layer = "Top"
     outputs = "All"
 
-    # Unit system. ashell 0.9 derives ONE global unit for both weather and
-    # system temps from `region` (no per-module override). en_US => Imperial
-    # (°F, mph). Pinned explicitly so it doesn't drift with the login locale.
-    region = "en_US"
+    # ashell derives one unit system from `region`, and the weather follows
+    # it. en_US is imperial, so °F and mph. Without the key ashell reads
+    # LC_MEASUREMENT and then the login locale.
+    ${lib.optionalString (cfg.region != null) "region = \"${cfg.region}\""}
 
     [modules]
     left = [[${tomlList leftModules}]]
@@ -151,16 +151,15 @@
     alert_threshold = 85
 
     [system_info.temperature]
-    # Thresholds are in the *display* unit, so °F here (Imperial). 140°F≈60°C,
-    # 176°F≈80°C. (0.9 dropped the per-module `format`, and the unit is global now.)
-    warn_threshold = 140
-    alert_threshold = 176
+    # The sensor reading takes its own unit, apart from the region. No
+    # threshold is written, so ashell warns at 60 °C and alerts at 80 °C and
+    # converts both when the unit is Fahrenheit.
+    ${lib.optionalString (cfg.systemTemperatureUnit != null) "units = \"${cfg.systemTemperatureUnit}\""}
 
     [tempo]
     clock_format = "${cfg.clockFormat}"
     ${lib.optionalString (cfg.weatherLocation != null) "weather_location = ${weatherLocationToml cfg.weatherLocation}"}
     weather_indicator = "IconAndTemperature"
-    wind_speed_unit = "Mph"
 
     [settings]
     lock_cmd = "${lockCmd}"
@@ -252,6 +251,30 @@ in {
         `null` the key is left out, the bar shows no weather and makes no
         request. The location is identity-shaped, so the consuming host sets
         it.
+      '';
+    };
+
+    region = lib.mkOption {
+      type = lib.types.nullOr (lib.types.strMatching "[a-z]{2,3}_[A-Z]{2}");
+      default = "en_US";
+      example = "de_DE";
+      description = ''
+        The locale ashell takes its unit system from, which decides the
+        weather's temperature and wind speed. `en_US` is imperial, so °F and
+        mph, and nearly every other locale is metric. With `null` the key is
+        left out and ashell follows `LC_MEASUREMENT` and then the login
+        locale.
+      '';
+    };
+
+    systemTemperatureUnit = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum ["Celsius" "Fahrenheit"]);
+      default = "Celsius";
+      description = ''
+        The unit of the sensor temperature in the system information module,
+        which is set apart from `region`. Hardware temperatures are quoted
+        in °C, so that is the default while the weather follows the region.
+        With `null` the reading follows the region as well.
       '';
     };
 
