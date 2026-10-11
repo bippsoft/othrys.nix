@@ -1169,6 +1169,8 @@
       eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
       eval-exposure = import ./exposure-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost;};
       eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost bootBase inputs;};
+
+      eval-opencode = import ./opencode-eval.nix {inherit hostConfig mkExpectations functioningHost inputs;};
       # What the gh module renders, wraps and pre-approves (see ./gh-eval.nix).
       eval-gh = import ./gh-eval.nix {
         inherit (inputs.nixpkgs) lib;
