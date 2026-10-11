@@ -67,29 +67,6 @@
     };
   };
 
-  noctalia = {
-    othrys.system.stylix.enable = true;
-    othrys.desktop.graphical = true;
-    othrys.desktop.noctalia.enable = true;
-  };
-  idleBesideNoctalia = workstation {
-    imports = [noctalia];
-    othrys.desktop.idle.enable = true;
-  };
-  nightLightBesideNoctalia = workstation {
-    imports = [noctalia];
-    othrys.desktop.nightLight = {
-      enable = true;
-      latitude = 0.0;
-      longitude = 0.0;
-    };
-  };
-  ashellBesideNoctalia = workstation {
-    imports = [noctalia];
-    othrys.desktop.compositors.niri.enable = true;
-    othrys.desktop.ashell.enable = true;
-  };
-
   scrutinyBesideCrowdsec = headless {
     othrys.services.scrutiny.enable = true;
     othrys.services.security.crowdsec = {
@@ -191,22 +168,20 @@
 
   # Requirements.
 
-  # Six modules that read the Stylix palette, on a host without it.
+  # Five modules that read the Stylix palette, on a host without it.
   unthemed = workstation {
     othrys.apps.floorp.enable = true;
     othrys.apps.gaming.mangohud.enable = true;
     othrys.desktop.compositors.hyprland.enable = true;
     othrys.desktop.compositors.niri.enable = true;
-    othrys.desktop.noctalia.enable = true;
     othrys.system.shell.starship.enable = true;
   };
 
-  # Four desktop modules on a host with no compositor and no graphical flag.
+  # Three desktop modules on a host with no compositor and no graphical flag.
   noSession = workstation {
     othrys.system.stylix.enable = true;
     othrys.desktop.ashell.enable = true;
     othrys.desktop.idle.enable = true;
-    othrys.desktop.noctalia.enable = true;
     othrys.desktop.nightLight = {
       enable = true;
       latitude = 0.0;
@@ -268,9 +243,6 @@ in
     "podman's docker alias beside rootless docker is rejected" = rejectedWith "Podman dockerCompat conflicts" rootlessDockerBesidePodman;
     "the NVIDIA runtime on rootless docker is rejected" = rejectedWith "Docker rootless mode is incompatible" dockerNvidia;
     "the NVIDIA runtime without the driver is rejected" = rejectedWith "Docker NVIDIA support requires" dockerNvidia;
-    "idle beside noctalia is rejected" = rejectedWith "othrys.desktop.idle conflicts with othrys.desktop.noctalia" idleBesideNoctalia;
-    "the night light beside noctalia is rejected" = rejectedWith "othrys.desktop.nightLight conflicts with othrys.desktop.noctalia" nightLightBesideNoctalia;
-    "ashell beside noctalia is rejected" = rejectedWith "exclusive shell layers" ashellBesideNoctalia;
     "scrutiny beside crowdsec on port 8080 is rejected" = rejectedWith "Give Scrutiny another port" scrutinyBesideCrowdsec;
     "the insecure dashboard beside scrutiny on port 8080 is rejected" = rejectedWith "which is also othrys.services.scrutiny.port" dashboardBesideScrutiny;
     "the insecure dashboard beside headscale on port 8080 is rejected" = rejectedWith "which is also othrys.services.headscale.port" dashboardBesideHeadscale;
@@ -287,11 +259,9 @@ in
     "mangohud without stylix is rejected" = rejectedWith "othrys.apps.gaming.mangohud requires othrys.system.stylix.enable" unthemed;
     "hyprland without stylix is rejected" = rejectedWith "othrys.desktop.compositors.hyprland requires othrys.system.stylix.enable" unthemed;
     "niri without stylix is rejected" = rejectedWith "othrys.desktop.compositors.niri requires othrys.system.stylix.enable" unthemed;
-    "noctalia without stylix is rejected" = rejectedWith "othrys.desktop.noctalia requires othrys.system.stylix.enable" unthemed;
     "starship without stylix is rejected" = rejectedWith "othrys.system.shell.starship requires othrys.system.stylix.enable" unthemed;
     "idle without a graphical session is rejected" = rejectedWith "othrys.desktop.idle requires a graphical session" noSession;
     "the night light without a graphical session is rejected" = rejectedWith "othrys.desktop.nightLight requires a graphical session" noSession;
-    "noctalia without a graphical session is rejected" = rejectedWith "othrys.desktop.noctalia requires a graphical session" noSession;
     "ashell without a compositor is rejected" = rejectedWith "othrys.desktop.ashell requires a supported compositor" noSession;
     "neovim integration without nixvim is rejected" = rejectedWith "neovimIntegration.enable requires othrys.apps.nixvim.enable" neovimWithoutNixvim;
     "autologin without a managed account is rejected" = rejectedWith "needs othrys.system.users.enable" autoLoginNoAccount;

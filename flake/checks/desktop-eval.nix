@@ -2,13 +2,14 @@
 # CORE. What the desktop modules and the two terminals write, read back from
 # evaluated hosts. A location service enabled for the whole host, a terminal
 # that takes remote control from its own output, a scrollback of a hundred
-# lines and two wallpaper daemons on one screen all evaluate cleanly, so
-# each is compared here with the value the module documents.
+# lines and a graphical session with no Secret Service provider all evaluate
+# cleanly, so each is compared here with the value the module documents.
 {
   lib,
   hostConfig,
   mkExpectations,
   rejectedWith,
+  bootBase,
   functioningHost,
 }: let
   host = extra:
@@ -65,16 +66,45 @@
 
   # The wallpaper is only ever read as a path here, so any file serves.
   wallpaper = {othrys.system.stylix.wallpaper = ./desktop-eval.nix;};
-  hyprlandNoctalia = host {
-    imports = [wallpaper];
-    othrys.desktop.compositors.hyprland.enable = true;
-    othrys.desktop.noctalia.enable = true;
-  };
   hyprlandWallpaper = host {
     imports = [wallpaper];
     othrys.desktop.compositors.hyprland.enable = true;
     othrys.desktop.ashell.enable = true;
   };
+
+  # The keyring, on each compositor with the login module, turned off on
+  # each, and on a host with no graphical session. niri-flake enables
+  # gnome-keyring on a niri host itself, so the niri host with the option off
+  # is the one that shows the option still decides.
+  greeter = {othrys.desktop.login.enable = true;};
+  noKeyring = {othrys.desktop.keyring.enable = false;};
+  hyprlandLogin = host {
+    imports = [greeter];
+    othrys.desktop.compositors.hyprland.enable = true;
+  };
+  niriLogin = host {
+    imports = [greeter];
+    othrys.desktop.compositors.niri.enable = true;
+  };
+  hyprlandNoKeyring = host {
+    imports = [greeter noKeyring];
+    othrys.desktop.compositors.hyprland.enable = true;
+  };
+  niriNoKeyring = host {
+    imports = [greeter noKeyring];
+    othrys.desktop.compositors.niri.enable = true;
+  };
+  headless = hostConfig [
+    bootBase
+    {
+      othrys.system.nix = {
+        enable = true;
+        stateVersion = "26.05";
+      };
+    }
+  ];
+  keyring = cfg: cfg.services.gnome.gnome-keyring.enable;
+  greeterUnlocks = cfg: cfg.security.pam.services.greetd.enableGnomeKeyring;
 
   both = host {
     othrys.desktop.compositors.hyprland.enable = true;
@@ -144,10 +174,16 @@ in
     "the browser default follows floorp on niri" = floorp.othrys.desktop.compositors.niri.browser == "floorp";
     "hyprland does not export TERM" = !builtins.elem "TERM" hyprlandEnv;
 
-    "noctalia on hyprland has a Secret Service provider" = hyprlandNoctalia.services.gnome.gnome-keyring.enable;
-    "noctalia on hyprland draws the wallpaper itself" = (home hyprlandNoctalia).programs.noctalia.settings.wallpaper.enabled;
-    "noctalia on hyprland starts no hyprpaper" = !(home hyprlandNoctalia).services.hyprpaper.enable;
-    "hyprland without noctalia keeps hyprpaper for the Stylix wallpaper" = (home hyprlandWallpaper).services.hyprpaper.enable;
+    "a hyprland host has a Secret Service provider" = hyprlandLogin.othrys.desktop.keyring.enable && keyring hyprlandLogin;
+    "a niri host has a Secret Service provider" = niriLogin.othrys.desktop.keyring.enable && keyring niriLogin;
+    "the greeter unlocks the keyring on hyprland" = greeterUnlocks hyprlandLogin;
+    "the greeter unlocks the keyring on niri" = greeterUnlocks niriLogin;
+    "a hyprland host can turn the keyring off" = !keyring hyprlandNoKeyring;
+    "a niri host can turn the keyring off" = !keyring niriNoKeyring;
+    "a host without the keyring leaves the greeter alone" = !greeterUnlocks hyprlandNoKeyring && !greeterUnlocks niriNoKeyring;
+    "a headless host has no keyring" = !headless.othrys.desktop.keyring.enable && !keyring headless;
+
+    "hyprland keeps hyprpaper for the Stylix wallpaper" = (home hyprlandWallpaper).services.hyprpaper.enable;
 
     "a host with both compositors picks the screen-off command at run time" = let
       script = builtins.readFile (screenOff both);

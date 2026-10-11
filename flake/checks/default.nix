@@ -134,11 +134,9 @@
       };
     };
 
-    # Every app and desktop module that configures the primary user, minus two
-    # sets the module tree declares mutually exclusive. hyprland stands for the
-    # compositor pair, with niri covered by eval-host-desktop-niri. ashell,
-    # idle and nightLight stand for the shell layer, with noctalia covered by
-    # the companion fixture below, since noctalia asserts against all three.
+    # Every app and desktop module that configures the primary user. hyprland
+    # stands for the compositor pair, with niri covered by
+    # eval-host-desktop-niri.
     #
     # Two modules are set past their defaults, since each holds a code path a
     # bare enable never reaches. IDEA repackages the IDE only when a plugin is
@@ -893,7 +891,7 @@
       # What the desktop modules, kitty and ghostty write (see ./desktop-eval.nix).
       eval-desktop = import ./desktop-eval.nix {
         inherit (inputs.nixpkgs) lib;
-        inherit hostConfig mkExpectations rejectedWith functioningHost;
+        inherit hostConfig mkExpectations rejectedWith bootBase functioningHost;
       };
 
       # Every conflict and dependency assertion that takes two modules or
@@ -919,20 +917,6 @@
       eval-host-app-no-hm-full = mkHostEval "othrys-eval-host-app-no-hm-full" [
         accountNoHomeManager
         appDesktopModules
-      ];
-
-      # The exclusive shell layer, which asserts against ashell, idle and
-      # nightLight and so cannot ride in the fixture above. Small on its own,
-      # and without it noctalia would be the one per-user module no fixture
-      # covers on an unmanaged host.
-      eval-host-app-no-hm-noctalia = mkHostEval "othrys-eval-host-app-no-hm-noctalia" [
-        accountNoHomeManager
-        {
-          othrys.system.stylix.enable = true;
-          othrys.desktop.graphical = true;
-          othrys.desktop.compositors.niri.enable = true;
-          othrys.desktop.noctalia.enable = true;
-        }
       ];
 
       # EXTENDED, heavy, one runner each
@@ -996,22 +980,19 @@
         }
       ];
 
-      # Niri-only desktop with the noctalia shell (the ashell alternative,
-      # both shells stay covered, since ashell rides eval-host-desktop). Login
-      # starts niri-session directly and defaultDesktop stays UNSET,
-      # pinning that sessionCommand doesn't force the uwsm-path option.
+      # Niri-only desktop with ashell. Login starts niri-session directly and
+      # defaultDesktop stays UNSET, pinning that sessionCommand doesn't force
+      # the uwsm-path option.
       eval-host-desktop-niri = mkHostEval "othrys-eval-host-desktop-niri" [
         functioningHost
         {
           othrys.system.stylix.enable = true;
           othrys.desktop.compositors.niri.enable = true;
-          othrys.desktop.noctalia.enable = true;
+          othrys.desktop.ashell.enable = true;
           othrys.desktop.login = {
             enable = true;
             sessionCommand = "niri-session";
           };
-          # idle/nightLight must stay OFF here, since noctalia owns both and their
-          # conflict assertions are exercised by eval-pairs instead.
         }
       ];
 

@@ -2,10 +2,9 @@
 # CORE. The session lock, read back from evaluated hosts. A locker whose PAM
 # service is missing rejects the correct password, and nothing but a real
 # session showed it, since the package was installed and the lock command was
-# right. Four hosts cover the four ways a locker is reached: the idle module
-# on hyprland and on niri, ashell's lock button with no idle module and no
-# YubiKey, and noctalia, whose IPC lock falls back to the compositor's locker.
-# A compositor with none of the three locks before sleep and at no other time.
+# right. Three hosts cover the three ways a locker is reached: the idle module
+# on hyprland and on niri, and ashell's lock button with no idle module and no
+# YubiKey. A compositor with neither locks before sleep and at no other time.
 {
   hostConfig,
   mkExpectations,
@@ -37,11 +36,6 @@
     othrys.desktop.compositors.hyprland.enable = true;
     othrys.desktop.ashell.enable = true;
   };
-  niriNoctalia = host {
-    othrys.desktop.compositors.niri.enable = true;
-    othrys.desktop.noctalia.enable = true;
-    othrys.desktop.idle.timeouts.suspend = 1800;
-  };
   niriAlone = host {othrys.desktop.compositors.niri.enable = true;};
   niriUnlocked = host {
     othrys.desktop.compositors.niri.enable = true;
@@ -66,9 +60,6 @@
   user = hyprlandIdle.othrys.system.user.name;
   hypridle = cfg: cfg.home-manager.users.${user}.services.hypridle.settings;
   runsHypridle = cfg: cfg.home-manager.users.${user}.services.hypridle.enable;
-  noctalia = niriNoctalia.home-manager.users.${user}.programs.noctalia.settings;
-  lockScript = builtins.readFile niriNoctalia.othrys.desktop.lockCommand;
-  hasInfix = needle: s: builtins.match ".*${needle}.*" s != null;
   timeouts = cfg: map (l: l.timeout) (hypridle cfg).listener;
 in
   mkExpectations "othrys-eval-lock" {
@@ -80,31 +71,11 @@ in
     "the idle stages are rendered in order" = timeouts niriIdle == [240 300 330 1800];
     "ashell without idle or a YubiKey declares the hyprlock PAM service" = hyprlandAshell.security.pam.services ? hyprlock;
     "ashell without a YubiKey adds no touch factor" = !hyprlandAshell.security.pam.services.hyprlock.u2f.enable;
-    "noctalia locks through its IPC first" = hasInfix "noctalia msg session lock" lockScript;
-    "noctalia falls back to swaylock on niri" = hasInfix "bin/swaylock" lockScript;
-    "noctalia declares the fallback locker's PAM service" = niriNoctalia.security.pam.services ? swaylock;
-    "noctalia locks after the idle lock timeout" =
-      noctalia.idle.behavior.lock
-      == {
-        action = "lock";
-        enabled = true;
-        timeout = 300;
-      };
-    "noctalia turns the screen off after the idle screenOff timeout" = noctalia.idle.behavior."screen-off".timeout == 330;
-    "noctalia suspends after the idle suspend timeout" = noctalia.idle.behavior.suspend.enabled && noctalia.idle.behavior.suspend.timeout == 1800;
-    "a null idle stage is rendered disabled for noctalia" =
-      !(host {
-        othrys.desktop.compositors.niri.enable = true;
-        othrys.desktop.noctalia.enable = true;
-      }).home-manager.users.${
-        user
-      }.programs.noctalia.settings.idle.behavior.suspend.enabled;
     "the idle module locks before sleep" = (hypridle niriIdle).general.before_sleep_cmd == "swaylock";
     "a compositor alone locks before sleep" = runsHypridle niriAlone && (hypridle niriAlone).general.before_sleep_cmd == "swaylock";
     "a compositor alone has no idle stage" = !((hypridle niriAlone) ? listener);
     "a compositor alone gets the locker and its PAM service" = niriAlone.security.pam.services ? swaylock && builtins.any (p: p.pname or "" == "swaylock") niriAlone.environment.systemPackages;
     "ashell without idle locks before sleep with the shared command" = runsHypridle hyprlandAshell && (hypridle hyprlandAshell).general.before_sleep_cmd == hyprlandAshell.othrys.desktop.lockCommand;
-    "noctalia is left to lock before sleep itself" = !runsHypridle niriNoctalia;
     "a host can turn the sleep lock off" = !runsHypridle niriUnlocked;
     "the idle module honours the sleep lock switch" = !((hypridle niriIdleUnlocked).general ? before_sleep_cmd) && (hypridle niriIdleUnlocked).general.lock_cmd == "swaylock";
     "a screen-off stage before the lock stage is rejected" = rejectedWith "timeouts must increase" unordered;
