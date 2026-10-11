@@ -901,6 +901,13 @@
         inherit hostConfig mkExpectations rejectedWith bootBase functioningHost stylixModules;
       };
 
+      # The Secret Service provider each keyring setting selects, and what the
+      # module refuses (see ./keyring-eval.nix).
+      eval-keyring = import ./keyring-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit hostConfig mkExpectations rejectedWith bootBase functioningHost accountNoHomeManager;
+      };
+
       # The theme interface with and without the Stylix adapter (see
       # ./theme-eval.nix).
       eval-theme = import ./theme-eval.nix {
@@ -1160,6 +1167,7 @@
       router-ips-test = import ./router-ips.nix {inherit pkgs inputs;};
       auto-upgrade-test = import ./auto-upgrade.nix {inherit pkgs inputs;};
       wallpaper-test = import ./wallpaper.nix {inherit pkgs inputs;};
+      keyring-test = import ./keyring.nix {inherit pkgs inputs;};
 
       # CORE. Pre-commit hooks check (treefmt formats, statix and deadnix lint,
       # comment-hygiene enforces the CONTRIBUTING.md comment conventions).

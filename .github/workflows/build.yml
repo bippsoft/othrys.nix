@@ -152,6 +152,7 @@ jobs:
             '.#checks.x86_64-linux.eval-lock' \
             '.#checks.x86_64-linux.eval-login' \
             '.#checks.x86_64-linux.eval-desktop' \
+            '.#checks.x86_64-linux.eval-keyring' \
             '.#checks.x86_64-linux.eval-theme' \
             '.#checks.x86_64-linux.eval-wallpaper' \
             '.#checks.x86_64-linux.impermanence-test'
@@ -216,6 +217,7 @@ jobs:
           - impermanence-reboot-test
           - impermanence-wipe-test
           - wallpaper-test
+          - keyring-test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
