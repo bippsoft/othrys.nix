@@ -6,7 +6,7 @@
   ...
 }: let
   cfg = config.othrys.apps.ai.claude-code;
-  mcpCfg = config.othrys.apps.ai.mcp;
+  aiCfg = config.othrys.apps.ai;
 
   # Type for file content that can be inline string or path
   fileContentType = lib.types.either lib.types.str lib.types.path;
@@ -77,7 +77,11 @@ in {
     skills = lib.mkOption {
       type = lib.types.attrsOf fileContentType;
       default = {};
-      description = "Skill files for .claude/skills/.";
+      description = ''
+        Skill files for .claude/skills/, for Claude Code alone. They are
+        written beside `othrys.apps.ai.skills`, and an entry of the same name
+        here replaces the shared one for this tool.
+      '';
     };
   };
 
@@ -158,9 +162,12 @@ in {
           includeCoAuthoredBy = false;
         };
 
-        inherit (mcpCfg) context;
+        context = aiCfg.context.text;
 
-        inherit (cfg) rules agents commands hooks skills;
+        inherit (cfg) rules agents commands hooks;
+        # The shared skills first, so a skill declared for this tool under
+        # the same name replaces the shared one.
+        skills = aiCfg.skills // cfg.skills;
       };
 
       home.sessionVariables = {

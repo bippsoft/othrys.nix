@@ -40,12 +40,33 @@ than inherited from a library. The module registers no hooks of its own.
 `dark-daltonized`, `light-daltonized`, `dark-ansi` and `light-ansi`. Any other
 value is refused at evaluation.
 
-The shared context every MCP-enabled assistant receives describes the host it
-runs on. Its line about the root wipe is rendered from
+## Shared skills and context
+
+Two things are declared once and handed to every enabled assistant.
+
+`othrys.apps.ai.skills` holds skills in the Agent Skills layout, keyed by
+name. A value is the text of a `SKILL.md`, the path of one, or the path of a
+directory that holds one. A name is lower-case letters, digits and single
+hyphens, and any other name is refused at evaluation. A skill for one tool
+alone goes to that tool's own option, such as
+`othrys.apps.ai.claude-code.skills`, and an entry there replaces a shared one
+of the same name.
+
+```nix
+othrys.apps.ai.skills.release-notes = ./skills/release-notes;
+```
+
+`othrys.apps.ai.context` is the global context. Its first part describes the
+host the assistant runs on, and `context.nixos.enable = false` leaves it out.
+The line about the root wipe is rendered from
 `othrys.system.impermanence.enable`, so a host with a persistent root is not
 told its root is wiped. The line about where to store data follows the same
 option. It says "only in `$HOME`" on a host that wipes its root and suggests
-the home directory on every other host.
+the home directory on every other host. `context.extra` holds the host's own
+lines, which follow that text. `context.text` is the rendered result.
+
+`othrys.apps.ai.mcp.context` is a removed option, and its text is
+`othrys.apps.ai.context.text`.
 
 ## MCP Servers
 
