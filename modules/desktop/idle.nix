@@ -4,11 +4,8 @@
 # The stages are lock, then screen off, then optional suspend, on
 # ext-idle-notify, which works on hyprland and niri alike. The lock command
 # comes from the othrys.desktop.lockCommand signal, while the screen-off
-# dispatch follows the running compositor. Noctalia hosts are excluded, since
-# the shell owns idle behavior there, and noctalia.nix reads the timeouts
-# declared here for its own idle behaviors, so one set of numbers describes
-# every host. A compositor host with neither the stages nor noctalia runs
-# hypridle for the lock before sleep alone.
+# dispatch follows the running compositor. A compositor host without the
+# stages runs hypridle for the lock before sleep alone.
 {
   config,
   lib,
@@ -19,10 +16,9 @@
   session = import ./session.nix {inherit config pkgs;};
   compositorEnabled = config.othrys.desktop.compositors.hyprland.enable || config.othrys.desktop.compositors.niri.enable;
 
-  # A compositor host that runs neither this module's idle stages nor
-  # noctalia has nothing that locks before sleep, and it resumes into an
-  # open session. Noctalia locks before suspend itself.
-  sleepLockOnly = !cfg.enable && cfg.lockBeforeSleep && compositorEnabled && !config.othrys.desktop.noctalia.enable;
+  # A compositor host that does not run this module's idle stages has
+  # nothing that locks before sleep, and it resumes into an open session.
+  sleepLockOnly = !cfg.enable && cfg.lockBeforeSleep && compositorEnabled;
 
   # The locker is a PAM client, and a PAM service that is not declared
   # denies every attempt, so a lock screen with no service cannot be
@@ -73,16 +69,12 @@ in {
         Lock the session before the host sleeps, so it does not resume into
         an open session. With `enable` set this is the idle daemon's
         before-sleep command. Without it, a host that runs one of the othrys
-        compositors and not noctalia still starts hypridle for this alone,
-        with no idle stage, and gets the locker and its PAM service. Noctalia
-        locks before suspend itself. Set it to `false` on a host that should
-        resume unlocked, such as one with no keyboard.
+        compositors still starts hypridle for this alone, with no idle stage,
+        and gets the locker and its PAM service. Set it to `false` on a host
+        that should resume unlocked, such as one with no keyboard.
       '';
     };
 
-    # Read by noctalia.nix as well, which runs its own idle manager, so the
-    # stages below describe a noctalia host too even though idle.enable is off
-    # there.
     timeouts = {
       dim = lib.mkOption {
         type = lib.types.nullOr lib.types.ints.positive;
@@ -118,10 +110,6 @@ in {
           {
             assertion = config.othrys.desktop.graphical;
             message = "othrys.desktop.idle requires a graphical session: enable a compositor module (or set othrys.desktop.graphical for an unmanaged one).";
-          }
-          {
-            assertion = !config.othrys.desktop.noctalia.enable;
-            message = "othrys.desktop.idle conflicts with othrys.desktop.noctalia, which manages idle and locking itself.";
           }
           {
             # A later stage that fires before an earlier one makes the earlier

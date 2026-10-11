@@ -135,9 +135,7 @@ its scratchpad.
 
 The [ashell module](../modules/desktop.md#ashell) adds `Mod + D` for the
 launcher, `Mod + Shift + D` for the run prompt and `Mod + E` for the emoji
-picker. The color picker is Hyprland only. Noctalia adds its own chords for the
-launcher, the clipboard panel, the session panel and the lock, set under
-`othrys.desktop.noctalia.binds`.
+picker. The color picker is Hyprland only.
 
 ### Media
 

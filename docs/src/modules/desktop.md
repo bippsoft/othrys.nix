@@ -12,9 +12,9 @@ Theming (Stylix) has moved to `othrys.system.stylix`, see [Theming](../guides/th
 | Hyprland | `othrys.desktop.compositors.hyprland` | Wayland compositor (dynamic tiling) |
 | Niri | `othrys.desktop.compositors.niri` | Wayland compositor (scrollable tiling) |
 | Idle | `othrys.desktop.idle` | Staged idle management (dim, lock, screen off, suspend) |
+| Keyring | `othrys.desktop.keyring` | Secret Service provider (gnome-keyring), on by default on a graphical host |
 | Login | `othrys.desktop.login` | greetd login manager (tuigreet or cosmic-greeter) |
 | Night light | `othrys.desktop.nightLight` | Color temperature shifting (gammastep) |
-| Noctalia | `othrys.desktop.noctalia` | All-in-one Wayland shell (bar, launcher, notifications, lock, wallpaper) |
 | UWSM | `othrys.desktop.uwsm` | Systemd session management for Wayland |
 
 ## Ashell
@@ -161,97 +161,28 @@ Universal Wayland Session Manager. When enabled, Hyprland registers as a UWSM-ma
 othrys.desktop.uwsm.enable = true;
 ```
 
-## Noctalia
-
-[Noctalia](https://noctalia.dev/) is a native Wayland desktop shell: bar,
-launcher, control center, notifications, lock screen, wallpaper, clipboard
-history, and OSDs in one layer (no Qt/GTK). Exclusive with [Ashell](#ashell), so
-one shell layer per host.
-
-Configured through upstream's home-manager module: nix-declared defaults land
-in a build-time-validated `config.toml`, while the in-shell settings GUI
-layers its overrides in `~/.local/state/noctalia` (persisted under
-impermanence), so both coexist. Theming defaults to a custom palette
-generated from the Stylix base16 scheme, while `theme.source` escapes to noctalia's
-builtin/wallpaper/community engines. Launcher/clipboard/session/lock chords
-are written into whichever compositor (Hyprland, Niri) is enabled, dispatched
-over noctalia's IPC.
-
-Noctalia stores credentials in the Secret Service and the tray applications it
-hosts expect one, so the module enables gnome-keyring on every Noctalia host.
-With `othrys.desktop.login` the keyring is unlocked by the login password, and
-under impermanence `~/.local/share/keyrings` is persisted.
-
-One wallpaper engine runs. On a Hyprland host with
-`othrys.system.stylix.wallpaper` set, Stylix would start hyprpaper beside
-Noctalia's own engine. Noctalia's is kept, since its picker and its
-wallpaper-generated palettes depend on it, and hyprpaper is turned off. The
-Stylix wallpaper still appears, as Noctalia's default image. Setting
-`wallpaper.enable = false` hands the wallpaper back to hyprpaper.
-
-`settings` takes the tables and keys of noctalia's `config.toml` and is
-deep-merged over the config the module generates, so a key set there replaces
-what an option would have written.
-
-```nix
-othrys.desktop.noctalia.settings = {
-  osd.position = "bottom_center";
-  notification.show_actions = false;
-  shell.show_location = false;
-};
-```
-
-The merge covers only what this module generates. With
-`theme.source = "stylix"` the Stylix target writes `theme.source`,
-`theme.custom_palette`, `theme.mode`, the popup and dock opacities,
-`shell.font_family` and the default wallpaper path as a second definition, and
-setting one of those through `settings` is a conflict the module system
-reports. Change them through Stylix or choose another `theme.source`.
-
-### Options
-
-```nix
-{{#include ../../../modules/desktop/noctalia.nix:noctalia-options}}
-```
-
-### Usage
-
-```nix
-othrys.desktop.noctalia = {
-  enable = true;
-  weather.enable = true;
-  location.address = "Toronto, ON";
-  bar.widgets.center = ["clock" "media"];
-};
-```
-
 ## Idle
 
 Staged idle policy via hypridle (ext-idle-notify, which works on Hyprland and
 Niri): optional backlight dim, lock (via the shared
 `othrys.desktop.lockCommand` signal), screen off (DPMS through the running compositor),
 and optional suspend. The stages must increase in that order, and the module
-refuses a configuration where a later stage fires first. Conflicts with
-Noctalia, which manages idle itself. Noctalia reads the same `timeouts` for
-its own lock, screen-off and suspend behaviors, so a Noctalia host locks on
-the same schedule without enabling this module; the dim stage has no Noctalia
-equivalent.
+refuses a configuration where a later stage fires first.
 
 `lockBeforeSleep`, on by default, locks the session before the host sleeps.
 With the module enabled it is hypridle's before-sleep command. A Hyprland or
-Niri host that enables neither this module nor Noctalia still gets hypridle for
-that one job, configured with the lock command and no idle stage, together with
-the locker and its PAM service. Such a host therefore locks on suspend and on
-`loginctl lock-session` and never on idle time. Noctalia locks before suspend
-itself. Setting `othrys.desktop.idle.lockBeforeSleep = false` removes the
-before-sleep lock in both cases.
+Niri host that does not enable this module still gets hypridle for that one
+job, configured with the lock command and no idle stage, together with the
+locker and its PAM service. Such a host therefore locks on suspend and on
+`loginctl lock-session` and never on idle time. Setting
+`othrys.desktop.idle.lockBeforeSleep = false` removes the before-sleep lock in
+both cases.
 
 The module declares the PAM service of each locker it installs, `hyprlock` for
 Hyprland and `swaylock` for Niri or an unmanaged compositor, and so does ashell
 for its lock button. A
 locker whose PAM service is missing rejects the correct password, and the only
-way out is a VT switch. On a Noctalia host the lock command falls back to that
-locker when the shell is not running.
+way out is a VT switch.
 
 ### Options
 
@@ -259,12 +190,42 @@ locker when the shell is not running.
 {{#include ../../../modules/desktop/idle.nix:idle-options}}
 ```
 
+## Keyring
+
+Browsers, mail clients and tray applications store credentials in the Secret
+Service, and a session without a provider leaves each of them to fall back to a
+plain file or to ask again on every start. `othrys.desktop.keyring.enable` runs
+gnome-keyring as that provider. Its default is `othrys.desktop.graphical`, so a
+Hyprland host, a niri host and a host with an unmanaged desktop all get one,
+while a headless host does not.
+
+With `othrys.desktop.login` the greeter passes the login password to the
+keyring, which is unlocked when the session starts. This holds while the
+keyring password and the login password are the same. An autologin session has
+no password to pass, so the keyring asks for its own the first time an
+application reads a secret. Under impermanence `~/.local/share/keyrings` is
+persisted at mode 0700 for the primary user.
+
+A host that runs another provider, such as KeePassXC or KWallet, turns the
+option off, since two providers compete for the same D-Bus name. niri-flake
+enables gnome-keyring on every niri host by itself, and the option overrides
+that when it is off.
+
+```nix
+othrys.desktop.keyring.enable = false;
+```
+
+### Options
+
+```nix
+{{#include ../../../modules/desktop/keyring.nix:keyring-options}}
+```
+
 ## Night light
 
 Color temperature shifting via gammastep. The schedule needs a location, and
 the module refuses to evaluate without one. Provide `latitude` and `longitude`
 from the host, or set `geoclue.enable` to have the location resolved.
-Conflicts with Noctalia's built-in night light.
 
 `geoclue.enable` is off by default because it turns on `services.geoclue2` for
 the whole host. With the nixpkgs defaults geoclue scans for nearby Wi-Fi

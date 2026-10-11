@@ -4,7 +4,6 @@
 # Coordinates are identity-shaped, so the host provides them for the manual
 # provider. A host that wants its location resolved instead turns geoclue on
 # explicitly, since that enables a location service for the whole host.
-# Noctalia hosts are excluded, since the shell has its own night light.
 {
   config,
   lib,
@@ -66,10 +65,6 @@ in {
       {
         assertion = config.othrys.desktop.graphical;
         message = "othrys.desktop.nightLight requires a graphical session: enable a compositor module (or set othrys.desktop.graphical for an unmanaged one).";
-      }
-      {
-        assertion = !config.othrys.desktop.noctalia.enable;
-        message = "othrys.desktop.nightLight conflicts with othrys.desktop.noctalia, which has a built-in night light.";
       }
       {
         assertion = (cfg.latitude == null) == (cfg.longitude == null);

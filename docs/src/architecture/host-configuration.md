@@ -85,7 +85,6 @@ declares the ones its hosts use, typically as `follows = "othrys/<name>"`.
 |-------|---------|
 | `hyprland` | `othrys.desktop.compositors.hyprland` |
 | `ashell` | `othrys.desktop.ashell` |
-| `noctalia` | `othrys.desktop.noctalia` |
 | `nixvim` | `othrys.apps.nixvim` |
 | `nix-index-database` | `othrys.apps.comma` |
 | `secrets` | `othrys.system.secrets`, as the default of `secretFiles` when the input exists |

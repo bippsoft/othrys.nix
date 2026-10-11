@@ -16,7 +16,6 @@ All external dependencies are declared in `flake.nix`:
 | `home-manager` | Declarative user environment management |
 | `hyprland` | Wayland compositor (pinned, not following nixpkgs) |
 | `niri` | niri-flake, the typed `programs.niri.settings` module the Niri compositor module imports |
-| `noctalia` | Noctalia Wayland shell, whose Home Manager module the Noctalia module imports |
 | `disko` | Declarative disk partitioning |
 | `nix-index-database` | Prebuilt database for `comma` and `nix-locate` |
 | `impermanence` | Opt-in state persistence |

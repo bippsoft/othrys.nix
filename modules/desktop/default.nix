@@ -18,9 +18,9 @@ in {
     ./ashell
     ./compositors
     ./idle.nix
+    ./keyring.nix
     ./login.nix
     ./night-light.nix
-    ./noctalia.nix
     ./uwsm.nix
   ];
 
@@ -43,8 +43,7 @@ in {
 
   # The single "lock this session" command, consumed by every module that
   # needs to lock (ashell's lock button, the idle module's lock stage). The
-  # default runs the locker of the running compositor. Shell layers with
-  # their own lock (noctalia) override it.
+  # default runs the locker of the running compositor.
   options.othrys.desktop.lockCommand = lib.mkOption {
     type = lib.types.str;
     default =
@@ -54,7 +53,7 @@ in {
         ${config.othrys.desktop.lockHooks}
         exec ${locker}
       ''}";
-    defaultText = lib.literalExpression ''"hyprlock" in a Hyprland session, "swaylock" otherwise (noctalia sets "noctalia msg session lock")'';
+    defaultText = lib.literalExpression ''"hyprlock" in a Hyprland session, "swaylock" otherwise'';
     description = "Command that locks the session; one authority for every lock consumer.";
   };
 

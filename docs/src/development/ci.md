@@ -40,7 +40,7 @@ tier reports early while the whole suite still gates what lands:
 | `docs-includes` | Every include, anchor, relative link and heading fragment under `docs/src` resolves |
 | `eval-host-min` | A minimal functioning host evaluates |
 | `eval-host-headless`, `eval-host-server`, `eval-host-anonymous`, `eval-host-server-account` | The four server-contract host shapes |
-| `eval-host-app-no-hm`, `eval-host-app-no-hm-full`, `eval-host-app-no-hm-noctalia` | A slice of the app and desktop modules, all of them, and the noctalia shell, each on a host with an account that Home Manager does not manage |
+| `eval-host-app-no-hm`, `eval-host-app-no-hm-full` | A slice of the app and desktop modules, and all of them, each on a host with an account that Home Manager does not manage |
 | `eval-pairs` | Every conflict or requirement between two modules or two options, each matched by a fragment of its assertion message |
 | `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/users.nix` writes `home-manager.users`, and the fixtures and the template pass `inputs` alone |
 | `ci-coverage` | Every check is named by a job in `build.yml`, and every name there is a check |

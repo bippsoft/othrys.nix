@@ -53,13 +53,6 @@
       inputs.nixpkgs-stable.follows = "nixpkgs";
     };
 
-    # Noctalia Wayland desktop shell (bar/launcher/notifications/lock/...).
-    # Self-contained, since the module imports its home-manager module directly.
-    noctalia = {
-      url = "github:noctalia-dev/noctalia";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Declarative disk partitioning
     disko = {
       url = "github:nix-community/disko";

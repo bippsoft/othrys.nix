@@ -155,7 +155,7 @@ a typo'd input name used to surface much later as a missing sops file.
 | Namespace | Covers |
 |---|---|
 | `othrys.system.*` | Identity, locale, Nix settings, kernel, systemd-networkd, bootloader, [disko](https://github.com/nix-community/disko) with LUKS and BTRFS, [impermanence](https://github.com/nix-community/impermanence), persistence, [sops-nix](https://github.com/Mic92/sops-nix) secrets, git, [Stylix](https://github.com/nix-community/stylix) theming, shells, unattended upgrades |
-| `othrys.desktop.*` | [Hyprland](https://hyprland.org) through [UWSM](https://github.com/Vladimir-csp/uwsm), [niri](https://github.com/YaLTeR/niri), the [ashell](https://github.com/MalpenZibo/ashell) and [noctalia](https://github.com/noctalia-dev/noctalia-shell) shells, greetd login, idle policy, night light |
+| `othrys.desktop.*` | [Hyprland](https://hyprland.org) through [UWSM](https://github.com/Vladimir-csp/uwsm), [niri](https://github.com/YaLTeR/niri), the [ashell](https://github.com/MalpenZibo/ashell) status bar, greetd login, a Secret Service keyring, idle policy, night light |
 | `othrys.hardware.*` | NVIDIA with PRIME offload and shader-cache tuning, PipeWire audio, WiFi and Bluetooth, laptop profiles, USB, webcam, SMART, UPS, scanners |
 | `othrys.services.*` | Router stack (nftables router and NAT, [Suricata](https://suricata.io) IDS/IPS, Kea DHCP, Unbound DNS), CrowdSec, fail2ban, SSH, Tailscale and Headscale, WireGuard, DDNS, VictoriaMetrics, VictoriaLogs, Grafana, vmalert, ntfy, restic, Traefik, Docker, Podman, k3s, mounts, printing |
 | `othrys.apps.*` | [Nixvim](https://github.com/nix-community/nixvim), VSCodium, IntelliJ IDEA, Floorp, Ghostty, Kitty, yazi, gh, Claude Code and MCP servers, media apps, Steam with GameMode and MangoHud |
@@ -246,7 +246,6 @@ pattern, package placement and comment conventions. AI usage is governed by
 [Hyprland](https://github.com/hyprwm/Hyprland),
 [niri-flake](https://github.com/sodiboo/niri-flake),
 [ashell](https://github.com/MalpenZibo/ashell),
-[noctalia](https://github.com/noctalia-dev/noctalia-shell),
 [nix-index-database](https://github.com/nix-community/nix-index-database),
 [git-hooks.nix](https://github.com/cachix/git-hooks.nix) and
 [treefmt-nix](https://github.com/numtide/treefmt-nix).

@@ -35,9 +35,9 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   ├── desktop/               # Desktop environment
   │   ├── compositors/       # Hyprland, Niri
   │   ├── ashell/            # Status bar
-  │   ├── noctalia.nix       # All-in-one Wayland shell
   │   ├── login.nix          # greetd login manager
   │   ├── idle.nix           # Staged idle policy
+  │   ├── keyring.nix        # Secret Service provider
   │   ├── night-light.nix    # Color temperature shifting
   │   └── uwsm.nix           # Session management
   ├── hardware/              # Hardware

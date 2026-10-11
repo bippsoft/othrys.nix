@@ -77,7 +77,7 @@
     login = ../modules/desktop/login.nix;
     idle = ../modules/desktop/idle.nix;
     night-light = ../modules/desktop/night-light.nix;
-    noctalia = ../modules/desktop/noctalia.nix;
+    keyring = ../modules/desktop/keyring.nix;
     ashell = ../modules/desktop/ashell;
 
     # Hardware-specific

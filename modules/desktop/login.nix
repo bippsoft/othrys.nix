@@ -13,7 +13,6 @@
   usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.desktop.login;
   niriEnabled = config.othrys.desktop.compositors.niri.enable;
-  lockPath = config.othrys.desktop.idle.enable || config.othrys.desktop.noctalia.enable;
 
   # The session the greeter starts when the host does not say. A compositor
   # that registers a uwsm entry sets defaultDesktop; niri runs its own session
@@ -65,8 +64,8 @@ in {
       description = ''
         Skip the greeter and start the session as the primary user (tuigreet
         only). Anyone at the console gets the session, so the host must lock
-        it on idle and before sleep, which `othrys.desktop.idle` or noctalia
-        provides, and the module refuses the option without one of them.
+        it on idle and before sleep, which `othrys.desktop.idle` provides,
+        and the module refuses the option without it.
       '';
     };
   };
@@ -80,8 +79,8 @@ in {
         message = "othrys.desktop.login has no session to start: enable a compositor module, or set othrys.desktop.login.sessionCommand for a desktop othrys does not manage.";
       }
       {
-        assertion = cfg.autoLogin -> lockPath;
-        message = "othrys.desktop.login.autoLogin starts a session for whoever is at the console, so the host needs a lock path: enable othrys.desktop.idle or othrys.desktop.noctalia.";
+        assertion = cfg.autoLogin -> config.othrys.desktop.idle.enable;
+        message = "othrys.desktop.login.autoLogin starts a session for whoever is at the console, so the host needs a lock path: enable othrys.desktop.idle.";
       }
       {
         assertion = cfg.autoLogin -> usersEnabled;
