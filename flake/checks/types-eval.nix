@@ -8,6 +8,7 @@
 {
   hostConfig,
   impermanenceModules,
+  homeModules,
   mkExpectations,
   rejectedWith,
   bootBase,
@@ -27,11 +28,13 @@
   headless = extra: hostConfig [bootBase nix extra];
 
   # A managed account that states no git identity of its own, which
-  # functioningHost would supply.
+  # functioningHost would supply. Home Manager manages it, so the host
+  # carries the Home Manager module and the export.
   managed = extra:
     hostConfig [
       bootBase
       nix
+      homeModules
       {
         othrys.system.users = {
           enable = true;

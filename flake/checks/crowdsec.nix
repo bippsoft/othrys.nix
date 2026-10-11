@@ -33,7 +33,6 @@ in
     nodes.machine = {lib, ...}: {
       imports = [
         inputs.self.nixosModules.default
-        inputs.home-manager.nixosModules.home-manager
       ];
 
       virtualisation.memorySize = 2048;

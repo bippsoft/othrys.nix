@@ -176,6 +176,6 @@ in
     "pass persists no gnome-keyring store" = !persists persistedPass ".local/share/keyrings";
 
     "a headless host has no provider" = !headless.othrys.desktop.keyring.enable && !gnomeKeyring headless;
-    "a headless host has no Home Manager user" = headless.home-manager.users == {};
+    "a headless host has no Home Manager option namespace" = !(headless ? home-manager);
     "a headless host is accepted" = !rejectedWith refusal headless;
   }

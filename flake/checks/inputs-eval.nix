@@ -9,7 +9,7 @@
 {
   inputs,
   system,
-  upstreamModules,
+  defaultModules,
   secretsModules,
   functioningHost,
   mkExpectations,
@@ -33,7 +33,7 @@
     inputs.nixpkgs.lib.nixosSystem {
       inherit system;
       specialArgs = {};
-      modules = upstreamModules ++ [functioningHost theFour extra];
+      modules = defaultModules ++ [functioningHost theFour extra];
     };
 
   bare = bareEval {};

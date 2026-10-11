@@ -18,6 +18,7 @@ pkgs.testers.runNixOSTest {
     imports = [
       inputs.self.nixosModules.default
       inputs.home-manager.nixosModules.home-manager
+      inputs.self.nixosModules.home
     ];
 
     virtualisation.memorySize = 2048;

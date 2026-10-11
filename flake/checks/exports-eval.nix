@@ -5,6 +5,11 @@
 # a file or directory that exists. The list fell two
 # dozen modules behind the tree once, and nothing noticed, since the
 # aggregate `default` evaluated either way.
+#
+# `full` is an aggregate too, and it is read like any other export. It
+# imports `default`, the five adapters and five modules of upstream flakes.
+# Only paths inside this repository are compared with the tree, so the
+# upstream modules are set aside and the adapters it names have to exist.
 {
   pkgs,
   inputs,
@@ -28,7 +33,8 @@
     else if builtins.isAttrs m
     then lib.concatMap pathsOf (m.imports or [])
     else [];
-  exports = lib.mapAttrs (_: pathsOf) (lib.filterAttrs (name: _: name != "default") inputs.self.nixosModules);
+  inTree = path: lib.hasPrefix "${root}/" (toString path);
+  exports = lib.mapAttrs (_: m: builtins.filter inTree (pathsOf m)) (lib.filterAttrs (name: _: name != "default") inputs.self.nixosModules);
   exported = lib.concatMap (map relative) (lib.attrValues exports);
   missing = builtins.filter (f: !(builtins.elem f exported)) tree;
   dangling = lib.attrNames (lib.filterAttrs (_: paths: paths == [] || !(builtins.all builtins.pathExists paths)) exports);

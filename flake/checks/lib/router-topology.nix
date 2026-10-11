@@ -109,7 +109,6 @@
   common = {
     imports = [
       inputs.self.nixosModules.default
-      inputs.home-manager.nixosModules.home-manager
     ];
 
     # Four VMs boot at once, so each stays small unless a test needs more.

@@ -16,14 +16,17 @@
 # option tree each host is built from, and othrys.system.impermanence.enable
 # fails on its missing device alone. Hosts with none of the four are read
 # by the fixtures in ./default.nix, ./theme-eval.nix and
-# ./exports-optional-eval.nix. Uncatchable errors (type errors like a null slipping
+# ./exports-optional-eval.nix. The fifth export, nixosModules.home, declares
+# no option, so the walk does not need it. The workstation base carries it
+# with the Home Manager module, and the headless hosts import neither, which
+# is the shape a server has. Uncatchable errors (type errors like a null slipping
 # into string interpolation) abort the whole check, the loudest possible
 # failure, by design.
 {
   pkgs,
   inputs,
   system,
-  upstreamModules,
+  defaultModules,
   stylixModules,
   diskoModules,
   secretsModules,
@@ -38,7 +41,7 @@
     inputs.nixpkgs.lib.nixosSystem {
       inherit system;
       specialArgs = {inherit inputs;};
-      modules = upstreamModules ++ [stylixModules diskoModules secretsModules impermanenceModules] ++ mods;
+      modules = defaultModules ++ [stylixModules diskoModules secretsModules impermanenceModules] ++ mods;
     };
 
   # Enumerate every othrys.*.enable option path from a minimal eval. An

@@ -12,6 +12,7 @@
 {
   inputs,
   impermanenceModules,
+  homeModules,
   hostEval,
   mkExpectations,
   templateHost,
@@ -47,14 +48,15 @@
     moduleFiles;
 
   # Clause 2, home-manager half. Every definition of home-manager.users
-  # carries the file that made it. Two managed hosts are read, one with the
+  # carries the file that made it, and the one file allowed to make one is
+  # the export, nixosModules.home. Two managed hosts are read, one with the
   # app and desktop modules on and one with the server modules on, so a write
   # behind a module's own enable is a definition here. A file outside this
   # repository belongs to an upstream module and is not held to the rule.
-  usersModule = "${root}/modules/system/users.nix";
+  homeModule = "${root}/modules/system/home.nix";
   writersOf = evaluation: map (definition: toString definition.file) evaluation.options.home-manager.users.definitionsWithLocations;
   inTree = file: lib.hasPrefix "${root}/" file;
-  strayWriters = evaluation: builtins.filter (file: inTree file && file != usersModule) (writersOf evaluation);
+  strayWriters = evaluation: builtins.filter (file: inTree file && file != homeModule) (writersOf evaluation);
 
   # Both managed hosts wipe their root, so the same two evaluations show who
   # writes environment.persistence. No disk layout is imported. The device is
@@ -89,7 +91,10 @@
 
   managedApps = hostEval [functioningHost appDesktopModules wiped];
   managedServer = hostEval [functioningHost serverModules wiped];
-  accountOnly = hostEval [accountNoHomeManager appDesktopModules];
+  # The account Home Manager does not manage, with the Home Manager module
+  # and the export imported all the same, so the option exists to be read and
+  # the export is shown to write nothing into it.
+  accountOnly = hostEval [accountNoHomeManager homeModules appDesktopModules];
 
   strays = lib.unique (lib.concatMap strayWriters [managedApps managedServer accountOnly]);
 
@@ -121,7 +126,7 @@ in
     // {
       "no module file takes username or hostname as an argument" = identityArgs == [];
       "module files were found to read" = builtins.length moduleFiles > 50;
-      "users.nix is recorded as a writer of home-manager.users on a managed host" = builtins.elem usersModule (writersOf managedApps);
+      "the export is recorded as a writer of home-manager.users on a managed host" = builtins.elem homeModule (writersOf managedApps);
       "nothing else in this repository writes home-manager.users" = strays == [];
       "no file in this repository writes home-manager.users on an account-only host" = builtins.filter inTree (writersOf accountOnly) == [];
       "the adapter is recorded as a writer of environment.persistence on the app host" = builtins.elem adapterModule (persistWritersOf managedApps);

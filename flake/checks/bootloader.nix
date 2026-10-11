@@ -7,7 +7,7 @@
   pkgs,
   inputs,
   system,
-  upstreamModules,
+  defaultModules,
   bootCore,
 }: let
   lib = inputs.nixpkgs.lib;
@@ -18,7 +18,7 @@
   # configures by hand.
   rootOnly = {inherit (bootCore) fileSystems;};
 
-  # upstreamModules stays as every other fixture has it, without lanzaboote.
+  # defaultModules stays as every other fixture has it, without lanzaboote.
   # The one case that needs the module passes it through extraModules, so the
   # rest keep proving that a consumer who never imports it evaluates.
   mkConfig = {
@@ -31,7 +31,7 @@
       inherit system;
       specialArgs = {inherit inputs;};
       modules =
-        upstreamModules
+        defaultModules
         ++ extraModules
         ++ [
           (

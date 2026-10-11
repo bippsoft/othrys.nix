@@ -7,15 +7,28 @@
     pkgs,
     ...
   }: let
-    # The othrys tree plus the one upstream module a real consumer has to
-    # import, which declares the home-manager option namespace othrys writes
-    # into. Stylix, disko, sops-nix and impermanence are not among them, so
-    # every fixture built from this list alone shows that `default` evaluates
-    # on a host that imports none of the four.
-    upstreamModules = [
+    # The othrys tree and nothing beside it, which is what every fixture
+    # starts from. `default` writes into no option namespace of an upstream
+    # flake, so a fixture built from this list alone shows that it evaluates
+    # on a host that imports none of Home Manager, Stylix, disko, sops-nix and
+    # impermanence. A fixture that wants one of the five lists the matching
+    # module below among its own.
+    defaultModules = [
       inputs.self.nixosModules.default
-      inputs.home-manager.nixosModules.home-manager
     ];
+
+    # The Home Manager module and the othrys adapter that hands it the
+    # per-user registry, which a consumer imports together or not at all.
+    # functioningHost carries it, and so does any other fixture with a
+    # managed user or one that reads home-manager.users. The headless and
+    # server fixtures leave it out, and the account that Home Manager does
+    # not manage does too.
+    homeModules = {
+      imports = [
+        inputs.home-manager.nixosModules.home-manager
+        inputs.self.nixosModules.home
+      ];
+    };
 
     # The impermanence module and the othrys adapter that hands it the
     # persistence registry, which a consumer imports together or not at all.
@@ -164,6 +177,8 @@
 
     # A named primary account that home-manager does NOT manage. The shape the
     # per-user guard exists for, shared by the two app/desktop fixtures below.
+    # It imports neither the Home Manager module nor the export, so the host
+    # has no home-manager option namespace at all.
     accountNoHomeManager = {
       imports = [bootBase];
       othrys.system.nix = {
@@ -255,9 +270,10 @@
     };
 
     # bootBase plus the core system modules a functioning workstation host needs
-    # (a managed user account, nix settings, git).
+    # (a managed user account, nix settings, git), and the Home Manager module
+    # with its export, since Home Manager manages that account.
     functioningHost = {
-      imports = [bootBase];
+      imports = [bootBase homeModules];
       othrys.system.users = {
         enable = true;
         # Bootstrap hash for "changeme", generated with mkpasswd -m yescrypt.
@@ -327,21 +343,31 @@
 
         # Clause 2, home-manager half. Stated as a prohibition rather than a
         # correlation: modules route per-user config through
-        # othrys.internal.homeConfig and othrys.system.users applies the
+        # othrys.internal.homeConfig and nixosModules.home applies the
         # homeManaged guard once. A correlation ("a module writing
         # home-manager.users must also mention homeManaged") can be satisfied by
         # a guard on the wrong node; this cannot be satisfied by accident.
         #
-        # A read is `config.home-manager.users...`, which is how
-        # apps/gui/vscode reaches nixvim's build product. Only writes lack the
-        # `config.` prefix, so that prefix is the discriminator.
+        # A read counts as well. home-manager.users is declared by the Home
+        # Manager module, which `default` does not import, so a module that
+        # read config.home-manager.users would fail on every host without it.
         hm_writes=$(grep -rn --include='*.nix' -E '(^|[^.a-zA-Z])home-manager\.users' modules \
-          | grep -v '^modules/system/users\.nix:' \
-          | grep -v 'config\.home-manager\.users' \
+          | grep -v '^modules/system/home\.nix:' \
           | grep -vE '^[^:]+:[0-9]+: *#' || true)
         [ -z "$hm_writes" ] || report \
-          "only modules/system/users.nix may write home-manager.users; route per-user config through othrys.internal.homeConfig:" \
+          "only modules/system/home.nix may name home-manager.users; route per-user config through othrys.internal.homeConfig:" \
           "$hm_writes"
+
+        # Clause 3. Every other home-manager option is held to the same file,
+        # with one exception. The Stylix adapter is outside `default` and
+        # writes home-manager.sharedModules behind a test for the namespace.
+        hm_options=$(grep -rn --include='*.nix' -E '(^|[^.a-zA-Z-])home-manager\.[a-zA-Z]' modules \
+          | grep -v '^modules/system/home\.nix:' \
+          | grep -v '^modules/theme/stylix\.nix:' \
+          | grep -vE '^[^:]+:[0-9]+: *#' || true)
+        [ -z "$hm_options" ] || report \
+          "only modules/system/home.nix may write into the home-manager option namespace:" \
+          "$hm_options"
 
         # Clause 2, account half. Every module creating the primary account
         # guards on othrys.system.users.enable, at the attrset level.
@@ -542,15 +568,16 @@
       inputs.nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {inherit inputs;};
-        modules = upstreamModules ++ hostModules;
+        modules = defaultModules ++ hostModules;
       };
 
     # The evaluated config of such a host.
     hostConfig = hostModules: (hostEval hostModules).config;
 
     # The default template, instantiated with its othrys input pointed at this
-    # flake and only the inputs a consumer would have. disko, sops-nix and
-    # impermanence are not among them, since the template declares none.
+    # flake and only the inputs a consumer would have. Home Manager is the one
+    # upstream flake among them. disko, sops-nix and impermanence are not,
+    # since the template declares none.
     templateHost =
       ((import ../../templates/default/flake.nix).outputs {
         othrys = inputs.self;
@@ -812,11 +839,13 @@
       # module surface and never an app or desktop module, so thirty-two
       # unguarded per-user writes sat undetected. A managed account with
       # home-manager off must be able to enable app modules without any of them
-      # materializing a home-manager user.
+      # materializing a home-manager user. The host imports no Home Manager
+      # module either, so a module that named the namespace fails here.
       #
       # A cheap representative slice runs here in CORE, one CLI module, one GUI
-      # module, one desktop module, and vscode for its cross-read of nixvim's
-      # build product. The full set follows below, since a subset only proves
+      # module, one desktop module, and vscode, which once read nixvim's build
+      # product through config.home-manager and failed where that namespace is
+      # absent, as it is on this host. The full set follows below, since a subset only proves
       # that a subset is guarded.
       eval-host-app-no-hm = mkHostEval "othrys-eval-host-app-no-hm" [
         accountNoHomeManager
@@ -834,7 +863,7 @@
       # module off, and the enable matrix lists it as an expected failure for
       # the same reason, so nothing else evaluates it.
       eval-bootloader = import ./bootloader.nix {
-        inherit pkgs inputs system upstreamModules bootCore;
+        inherit pkgs inputs system defaultModules bootCore;
       };
 
       # The hardening profile, read back rather than merely evaluated. Every
@@ -914,10 +943,11 @@
 
       eval-impermanence = import ./impermanence-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase diskoModules;};
 
-      # A host with no disko, sops-nix, Stylix or impermanence module, and a
-      # host that imports each export (see ./exports-optional-eval.nix).
+      # A host with no upstream module at all, a host that imports each
+      # export, and a host built from the aggregate (see
+      # ./exports-optional-eval.nix).
       eval-optional-exports = import ./exports-optional-eval.nix {
-        inherit impermanenceModules hostEval mkExpectations rejectedWith bootBase functioningHost diskoModules secretsModules;
+        inherit inputs system impermanenceModules hostEval mkExpectations rejectedWith bootBase functioningHost diskoModules secretsModules stylixModules;
       };
 
       # What the app and desktop modules persist, read back on an impermanence
@@ -963,14 +993,14 @@
       # Three clauses of the consumer contract, read back from evaluation
       # (see ./contract-eval.nix).
       eval-contract = import ./contract-eval.nix {
-        inherit impermanenceModules inputs hostEval mkExpectations templateHost moduleHelpers;
+        inherit impermanenceModules homeModules inputs hostEval mkExpectations templateHost moduleHelpers;
         inherit functioningHost accountNoHomeManager appDesktopModules serverModules;
       };
 
       # Where the modules take ashell, Hyprland, nixvim and nix-index-database
       # from, on a host that is handed no specialArgs (see ./inputs-eval.nix).
       eval-inputs = import ./inputs-eval.nix {
-        inherit inputs system upstreamModules secretsModules functioningHost mkExpectations;
+        inherit inputs system defaultModules secretsModules functioningHost mkExpectations;
       };
 
       # The check names in .github/workflows/build.yml, held to the checks
@@ -1035,7 +1065,8 @@
           othrys.hardware.scanner.enable = true;
           # Pins two failure classes, an unfree package inside home-manager
           # (needs useGlobalPkgs to see nixpkgs.config.allowUnfree) and a
-          # cross-module HM dereference (vscode reads nixvim's package).
+          # dereference across two Home Manager modules (vscode reads nixvim's
+          # package inside the user's configuration).
           # allowUnfree is opt-in, so a host wanting claude-code says so.
           othrys.system.nix.allowUnfree = true;
           othrys.apps.ai.claude-code.enable = true;
@@ -1167,7 +1198,7 @@
       eval-auto-upgrade = import ./auto-upgrade-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost;};
 
       # What the option types and the named assertions refuse (see ./types-eval.nix).
-      eval-types = import ./types-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
+      eval-types = import ./types-eval.nix {inherit impermanenceModules homeModules hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
 
       # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
@@ -1192,7 +1223,7 @@
 
       # EXTENDED. Enable-with-defaults matrix (see ./enable-matrix.nix).
       enable-matrix = import ./enable-matrix.nix {
-        inherit impermanenceModules pkgs inputs system upstreamModules stylixModules diskoModules secretsModules bootCore bootBase functioningHost;
+        inherit impermanenceModules pkgs inputs system defaultModules stylixModules diskoModules secretsModules bootCore bootBase functioningHost;
       };
 
       # EXTENDED. Runtime VM tests, one file each.

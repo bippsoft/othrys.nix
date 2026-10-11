@@ -1,17 +1,24 @@
 # flake/checks/exports-optional-eval.nix
-# CORE. The three exports nixosModules.default leaves out beside the Stylix
-# adapter, read back from evaluated hosts. The disk layout writes into the
-# `disko` option namespace, the secrets plumbing into `sops` and the
-# impermanence adapter into `environment.persistence`, and a write into a
-# namespace no module declares fails whatever guards it. A host built from
-# `default` and home-manager alone therefore has to evaluate and declare
-# none of the three. A host that imports each export beside its upstream
-# module has to get what the export always wrote, and a host that turns
-# impermanence on without the adapter has to be told so, since it would wipe
-# its root and bind nothing back.
+# CORE. The five exports nixosModules.default leaves out, read back from
+# evaluated hosts. The Home Manager adapter writes into the `home-manager`
+# option namespace, the disk layout into `disko`, the secrets plumbing into
+# `sops`, the impermanence adapter into `environment.persistence` and the
+# Stylix adapter into `stylix`, and a write into a namespace no module
+# declares fails whatever guards it. A host built from `default` alone
+# therefore has to evaluate and declare none of the five. A host that imports
+# each export beside its upstream module has to get what the export always
+# wrote, and a host built from the aggregate has to have all five.
+#
+# Two shapes are refused by name. A host that turns impermanence on without
+# the adapter would wipe its root and bind nothing back. A host with an
+# account that Home Manager is to manage and no Home Manager adapter would
+# create the account and skip every module that configures it.
 {
+  inputs,
+  system,
   hostEval,
   impermanenceModules,
+  stylixModules,
   mkExpectations,
   rejectedWith,
   bootBase,
@@ -19,7 +26,60 @@
   diskoModules,
   secretsModules,
 }: let
+  inherit (inputs.nixpkgs) lib;
   evaluates = host: host.config.system.build.toplevel.drvPath != null;
+
+  nix = {
+    othrys.system.nix = {
+      enable = true;
+      stateVersion = "26.05";
+    };
+  };
+
+  # A primary account, with Home Manager left at its default, which is on.
+  account = {
+    othrys.system.users = {
+      enable = true;
+      # Bootstrap hash for "changeme", generated with mkpasswd -m yescrypt.
+      initialHashedPassword = "$y$j9T$aiZuvauf85ZjB04z3seyG0$OKYG9I1g.vAp5IA48MlGzaVoB15gqWIL.k7lSni8fe8";
+    };
+  };
+
+  # `default` and no upstream module at all, which is all hostEval adds. The
+  # shape of a server.
+  alone = hostEval [bootBase nix];
+
+  # The account with no Home Manager adapter. Only its assertions and its
+  # options are read, since the host is meant to be rejected.
+  accountWithoutExport = hostEval [bootBase nix account];
+  # The same account stated as one Home Manager does not manage, with a
+  # module on that configures nothing but the user.
+  accountUnmanaged = hostEval [
+    bootBase
+    nix
+    account
+    {
+      othrys.system.users.homeManager.enable = false;
+      othrys.apps.gh.enable = true;
+    }
+  ];
+  skippedWarning = host: builtins.filter (lib.hasInfix "home-manager configuration was") host.config.warnings;
+
+  # The Stylix adapter on a host with no Home Manager module. The adapter
+  # writes one Home Manager option, behind a test for the namespace.
+  stylixAlone = hostEval [bootBase nix stylixModules {othrys.system.stylix.enable = true;}];
+
+  # The aggregate as the one othrys import of a host, with no upstream module
+  # named beside it and a managed account. It is built here and not with
+  # hostEval, which would put `default` in front of it.
+  aggregate = inputs.nixpkgs.lib.nixosSystem {
+    inherit system;
+    specialArgs = {inherit inputs;};
+    modules = [inputs.self.nixosModules.full bootBase nix account];
+  };
+  # `default` beside the aggregate, which holds it already.
+  aggregateTwice = hostEval [inputs.self.nixosModules.full bootBase nix account];
+  homeNeedle = "nixosModules.home is not imported";
 
   # Impermanence on a device named by hand, with the two volumes it marks as
   # needed for boot.
@@ -57,7 +117,8 @@
     othrys.system.secrets.enable = true;
   };
 
-  # `default` and home-manager, which is all hostEval adds.
+  # `default` with a managed account, so with Home Manager and its adapter
+  # and none of the other four.
   bare = hostEval [functioningHost];
   # The impermanence adapter and no disk layout.
   bareWiped = hostEval [functioningHost impermanenceModules wipedByHand];
@@ -104,7 +165,32 @@
   adapterNeedle = "nixosModules.impermanence is not imported";
 in
   mkExpectations "othrys-eval-optional-exports" {
-    "a host with no disko, sops-nix, Stylix or impermanence module evaluates" = evaluates bare;
+    "a host with `default` and no upstream module evaluates" = evaluates alone;
+    "that host has no home-manager option namespace" = !(alone.options ? home-manager) && !(alone.config ? home-manager);
+    "it has no environment.persistence option" = !(alone.options.environment ? persistence);
+    "it has no disko, sops or stylix option namespace" = !(alone.options ? disko) && !(alone.options ? sops) && !(alone.options ? stylix);
+    "it declares the Home Manager registry all the same" = alone.options.othrys.internal ? homeConfig;
+    "it is not asked for the Home Manager adapter" = !rejectedWith homeNeedle alone.config;
+    "its user is not managed" = !alone.config.othrys.system.users.homeManaged;
+
+    "an account Home Manager is to manage is rejected without the adapter, by name" = rejectedWith homeNeedle accountWithoutExport.config;
+    "the user of that host does not read as managed" = !accountWithoutExport.config.othrys.system.users.homeManaged;
+    "an account Home Manager does not manage evaluates without the adapter" = evaluates accountUnmanaged && !(accountUnmanaged.options ? home-manager);
+    "that account is not asked for the adapter" = !rejectedWith homeNeedle accountUnmanaged.config;
+    "the skipped configuration is reported once, naming the module and the export" = builtins.length (skippedWarning accountUnmanaged) == 1 && builtins.all (w: lib.hasInfix "apps.gh" w && lib.hasInfix "othrys.nixosModules.home" w) (skippedWarning accountUnmanaged);
+    "a managed account with the adapter is not asked for it" = !rejectedWith homeNeedle bare.config && bare.config.othrys.system.users.homeManaged;
+    "the adapter hands the registry to the user" = bare.config.home-manager.users ? ${bare.config.othrys.system.user.name};
+
+    "the Stylix adapter evaluates on a host with no Home Manager module" = evaluates stylixAlone && !(stylixAlone.options ? home-manager);
+    "Stylix is on there" = stylixAlone.config.stylix.enable;
+
+    "a host built from the aggregate alone evaluates" = evaluates aggregate;
+    "the aggregate declares all five upstream namespaces" = aggregate.options ? home-manager && aggregate.options.environment ? persistence && aggregate.options ? disko && aggregate.options ? sops && aggregate.options ? stylix;
+    "the aggregate manages the account through Home Manager" = aggregate.config.othrys.system.users.homeManaged && aggregate.config.home-manager.users ? alice;
+    "the aggregate leaves the four switches off" = !aggregate.config.othrys.system.impermanence.enable && !aggregate.config.othrys.system.disko.enable && !aggregate.config.othrys.system.secrets.enable && !aggregate.config.othrys.system.stylix.enable;
+    "the aggregate beside `default` evaluates" = evaluates aggregateTwice;
+
+    "a managed host with no disko, sops-nix, Stylix or impermanence module evaluates" = evaluates bare;
     "that host has no environment.persistence option" = !(bare.options.environment ? persistence);
     "that host declares the persistence registry all the same" = bare.options.othrys.internal ? persist;
     "that host is not asked for the impermanence adapter" = !rejectedWith adapterNeedle bare.config;

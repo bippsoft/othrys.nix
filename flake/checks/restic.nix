@@ -41,7 +41,6 @@ in
       nodes.machine = {
         imports = [
           inputs.self.nixosModules.default
-          inputs.home-manager.nixosModules.home-manager
         ];
 
         environment.etc."restic-pass".text = "test-password";

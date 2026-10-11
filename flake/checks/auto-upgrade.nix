@@ -13,7 +13,6 @@
   testStubs = {
     imports = [
       inputs.self.nixosModules.default
-      inputs.home-manager.nixosModules.home-manager
     ];
   };
 
