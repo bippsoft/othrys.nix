@@ -1,3 +1,19 @@
+## v0.16.0 (2026-10-11)
+
+### BREAKING CHANGE
+
+- the system information module shows the sensor
+temperature in °C. A host that wants °F sets
+othrys.desktop.ashell.systemTemperatureUnit = "Fahrenheit".
+- othrys.apps.ai.mcp.context is removed. A configuration
+that reads it reads othrys.apps.ai.context.text.
+
+### Feat
+
+- **ashell**: show the sensor temperature in Celsius, add options for both units, and update the ashell input
+- **opencode**: add an OpenCode module that receives the shared skills, context and MCP servers
+- **ai**: declare skills and the global context once for every assistant
+
 ## v0.15.0 (2026-10-11)
 
 ### BREAKING CHANGE
