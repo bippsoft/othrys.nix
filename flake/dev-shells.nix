@@ -2,10 +2,12 @@
 # Development shell environments
 {inputs, ...}: {
   perSystem = {
+    config,
     pkgs,
     system,
     portableHooks,
     repositoryHooks,
+    agentTools,
     ...
   }: let
     # Both hook sets are named in ./checks/default.nix, which builds
@@ -13,7 +15,7 @@
     # locally every hook it will meet in CI.
     # hookIds is read back by the eval-dev-shells check, which is how the two
     # shells are held to the hooks they claim to install.
-    shellFor = hooks: let
+    shellFor = hooks: extra: let
       run = inputs.git-hooks.lib.${system}.run {
         src = inputs.self;
         inherit hooks;
@@ -21,7 +23,7 @@
     in
       pkgs.mkShell {
         name = "nixos-dev";
-        packages = tools;
+        packages = tools ++ extra;
         # Install pre-commit hooks on shell entry
         inherit (run) shellHook;
         passthru.hookIds = builtins.attrNames (pkgs.lib.filterAttrs (_: hook: hook.enable) run.config.hooks);
@@ -30,6 +32,7 @@
     tools = with pkgs; [
       # Nix tooling
       nixd
+      config.treefmt.build.wrapper # `treefmt`, with this flake's formatter set
       alejandra
       statix
       deadnix
@@ -55,14 +58,16 @@
   in {
     # ANCHOR: dev-shells
     devShells = {
-      # For work on this repository. Installs every hook on shell entry.
-      default = shellFor (portableHooks // repositoryHooks);
+      # For work on this repository. Installs every hook on shell entry, and
+      # carries the commands an agent session is held to: check-one,
+      # hygiene-scan and module-coverage.
+      default = shellFor (portableHooks // repositoryHooks) agentTools;
 
       # For a flake that re-exports the shell. Same tools, portable hooks only.
       # The repository hooks check this repository's own tree and reject any
       # other, so a consumer points its default here:
       #   devShells.default = inputs'.othrys.devShells.consumer;
-      consumer = shellFor portableHooks;
+      consumer = shellFor portableHooks [];
 
       javascript = pkgs.mkShell {
         name = "javascript-dev";

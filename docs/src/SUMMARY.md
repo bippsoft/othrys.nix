@@ -49,6 +49,7 @@ ______________________________________________________________________
 - [CI/CD](./development/ci.md)
 - [Standalone Home-Manager (spike)](./development/standalone-home-manager.md)
 - [Linting & Formatting](./development/linting.md)
+- [Agent Sessions](./development/agents.md)
 
 # Reference
 

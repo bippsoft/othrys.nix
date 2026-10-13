@@ -405,10 +405,11 @@ with `just build <hostname>`, `just diff <hostname>` and `just test <hostname>`.
 
 ## Linting
 
-Eight hooks run on every commit once the dev shell has installed them, and
+Nine hooks run on every commit once the dev shell has installed them, and
 `pre-commit-check` runs the same set in `nix flake check`. Both are built from
 the two hook sets named in `flake/checks/default.nix`. `comment-hygiene`,
-`contract-mirror` and `contract-guards` read this repository's own tree, so
+`contract-mirror`, `contract-guards` and `hygiene-scan` read this repository's
+own tree, so
 `devShells.consumer`, the shell a consuming flake re-exports, leaves them out.
 
 - **treefmt** formats Nix, shell, TOML, YAML and Markdown (`just fmt`)
@@ -419,6 +420,7 @@ the two hook sets named in `flake/checks/default.nix`. `comment-hygiene`,
 - **contract-mirror** keeps the consumer contract in this file and in
   `AGENTS.md` identical
 - **contract-guards** enforces the consumer contract against `modules/`
+- **hygiene-scan** refuses a file whose text names private infrastructure
 - **gitleaks** scans what the commit stages for keys and tokens
 
 ## Commit Conventions
@@ -477,3 +479,6 @@ and never accept an option design that puts one in the Nix store.
 ## AI Usage
 
 Contributions made with AI assistance are subject to [AI_POLICY.md](AI_POLICY.md).
+
+`AGENTS.md`, `opencode.json` and `.opencode/` configure agent sessions in this
+repository. `docs/src/development/agents.md` describes them.

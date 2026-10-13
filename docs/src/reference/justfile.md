@@ -7,6 +7,7 @@ Each repository carries its own justfile. This one covers library development, w
 | Command | Description |
 |---------|-------------|
 | `just check` | `nix flake check`, which runs every check, the VM tests included |
+| `just check-one NAME` | One named check, under one job and a memory cap |
 | `just fmt` | Format the repo (treefmt) |
 | `just lint` | Format check + statix + deadnix |
 | `just ci` | lint + flake check |

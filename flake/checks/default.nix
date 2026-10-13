@@ -682,6 +682,173 @@
     # dev shells (../dev-shells.nix) are built from them, so a local commit in
     # this repository meets exactly what CI runs.
     #
+    # hygiene-scan refuses text that would put private infrastructure into this
+    # public tree. It covers what a pattern can prove and nothing else. A
+    # hostname or a person's name needs a reader, and gitleaks already covers
+    # key material. With no argument it scans what git has staged, including
+    # renames. The pre-commit hook passes file names so CI scans its checkout
+    # even after git-hooks commits it. With file names it scans those files. With
+    # `-` it scans standard input, and an optional second argument names the
+    # path the text is bound for, so the exemptions below still apply.
+    hygieneScan = pkgs.writeShellApplication {
+      name = "hygiene-scan";
+      runtimeInputs = [pkgs.gnugrep pkgs.gnused pkgs.coreutils pkgs.git];
+      text = ''
+        fail=0
+        work=$(mktemp -d)
+        trap 'rm -rf "$work"' EXIT
+
+        report() {
+          fail=1
+          echo "hygiene-scan: $1: $2" >&2
+          sed 's/^/  /' >&2
+        }
+
+        # scan <path the text belongs to> <file holding the text>
+        scan() {
+          local path=$1 file=$2 hits
+
+          # AGENTS.md names the scheme in the rule that forbids it.
+          if [ "$path" != AGENTS.md ]; then
+            hits=$(grep -InE 'git\+ssh://' "$file" || true)
+            [ -z "$hits" ] || report "$path" "an SSH flake URL, which names a private input" <<< "$hits"
+          fi
+
+          hits=$(grep -InE 'ENC\[AES256_GCM,data:' "$file" || true)
+          [ -z "$hits" ] || report "$path" "a sops-encrypted value" <<< "$hits"
+
+          hits=$(grep -InE 'AGE-SECRET-KEY-1[0-9A-Z]{20,}' "$file" || true)
+          [ -z "$hits" ] || report "$path" "an age secret key" <<< "$hits"
+
+          # An address inside the carrier-grade NAT range is a tailnet node.
+          # The range itself, written as a CIDR, is not.
+          hits=$(grep -InoE '(^|[^0-9.])100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+(/[0-9]+)?' "$file" |
+            grep -vE '100\.64\.0\.0/10$' || true)
+          [ -z "$hits" ] || report "$path" "an address in 100.64.0.0/10" <<< "$hits"
+
+          # An address at a domain this tree does not already use. The
+          # dynamic DNS module lists its providers' protocol endpoints, which
+          # share the shape of an address.
+          if [ "$path" != modules/services/ddns.nix ]; then
+            hits=$(grep -InoE '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[a-z]{2,}' "$file" |
+              grep -vE '@([a-z0-9-]+\.)*example\.(com|org|net)$' |
+              grep -vE '@(openssh\.com|libssh\.org|cloudflare\.com|raymondhill\.net|kagi\.com)$' |
+              # The DDNS page names this inadyn provider, not an e-mail address.
+              grep -vE '^[0-9]+:ipv6@dynv6\.com$' |
+              grep -vE '\.service$' || true)
+            [ -z "$hits" ] || report "$path" "an e-mail address outside example.com" <<< "$hits"
+          fi
+        }
+
+        case "''${1:-}" in
+          -)
+            cat > "$work/stdin"
+            scan "''${2:-standard input}" "$work/stdin"
+            ;;
+          "")
+            while IFS= read -r -d "" f; do
+              git show ":$f" > "$work/staged" 2>/dev/null || continue
+              scan "$f" "$work/staged"
+            done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+            ;;
+          *)
+            for f in "$@"; do
+              [ -f "$f" ] && scan "$f" "$f"
+            done
+            ;;
+        esac
+
+        [ "$fail" -eq 0 ] || exit 1
+      '';
+    };
+
+    # module-coverage reads the branch against its fork point from main and
+    # says when a module changed while no page under docs/src or no check
+    # under flake/checks did. It is a reminder for whoever is finishing the
+    # branch and is not a commit hook, since a module and its check land as
+    # separate commits. The branch to compare against is the first argument,
+    # then OTHRYS_COVERAGE_BASE, then main, which serves a branch stacked on
+    # another. Run from a repository root.
+    moduleCoverage = pkgs.writeShellApplication {
+      name = "module-coverage";
+      runtimeInputs = [pkgs.gnugrep pkgs.gnused pkgs.coreutils pkgs.git];
+      text = ''
+        base=$(git merge-base HEAD "''${1:-''${OTHRYS_COVERAGE_BASE:-main}}" 2>/dev/null || echo HEAD)
+        changed=$({
+          git diff --name-only "$base"
+          git ls-files --others --exclude-standard
+        } | sort -u)
+
+        modules=$(grep -E '^modules/.*\.nix$' <<< "$changed" || true)
+        if [ -z "$modules" ]; then
+          echo "module-coverage: no module changed since $base"
+          exit 0
+        fi
+
+        missing=0
+        if ! grep -qE '^docs/src/' <<< "$changed"; then
+          missing=1
+          echo "module-coverage: a module changed and no page under docs/src did"
+        fi
+        if ! grep -qE '^flake/checks/' <<< "$changed"; then
+          missing=1
+          echo "module-coverage: a module changed and no check under flake/checks did"
+        fi
+        if [ "$missing" -eq 1 ]; then
+          echo "changed modules:"
+          printf '%s\n' "$modules" | sed 's/^/  /'
+          exit 1
+        fi
+        echo "module-coverage: ok"
+      '';
+    };
+
+    # check-one builds a single named check, one at a time. Evaluating every
+    # check of this flake at once has exhausted a workstation's memory, so the
+    # build runs under one job and inside a memory-capped scope where the user
+    # manager can make one, and a second call fails while the first holds the
+    # lock. It is a store path, so nothing a session edits can change what it
+    # runs. nix and systemd-run come from the caller's PATH.
+    checkOne = pkgs.writeShellApplication {
+      name = "check-one";
+      runtimeInputs = [pkgs.util-linux pkgs.coreutils];
+      text = ''
+        name=''${1:-}
+        if ! [[ $name =~ ^[a-z0-9][a-z0-9-]*$ ]] || [ $# -ne 1 ]; then
+          echo "usage: check-one <check name>, as listed in flake/checks/default.nix" >&2
+          exit 2
+        fi
+
+        jobs=''${OTHRYS_CHECK_JOBS:-1}
+        cores=''${OTHRYS_CHECK_CORES:-4}
+        memory=''${OTHRYS_CHECK_MEMORY:-16G}
+
+        exec 9> "''${XDG_RUNTIME_DIR:-/tmp}/othrys-check-one.lock"
+        if ! flock -n 9; then
+          echo "check-one: another check is running, wait for it to finish" >&2
+          exit 75
+        fi
+
+        system=$(nix eval --raw --impure --expr builtins.currentSystem)
+        build=(nix build --no-link --print-build-logs --max-jobs "$jobs" --cores "$cores" ".#checks.$system.$name")
+        if systemd-run --user --scope --quiet true 2> /dev/null; then
+          systemd-run --user --scope --quiet -p "MemoryMax=$memory" -p MemorySwapMax=2G "''${build[@]}"
+        else
+          "''${build[@]}"
+        fi
+        echo "check-one: $name passed"
+      '';
+    };
+
+    # The validator the opencode-config check runs (./opencode-config.py).
+    opencodeConfig = pkgs.writeShellApplication {
+      name = "opencode-config";
+      runtimeInputs = [(pkgs.python3.withPackages (ps: [ps.pyyaml]))];
+      text = ''
+        exec python3 ${./opencode-config.py} "$@"
+      '';
+    };
+
     # portableHooks suit any Nix repository. repositoryHooks read this
     # repository's own tree, its contract prose, its module layout and its doc
     # anchors, and fail in any other. A flake that re-exports the dev shell
@@ -725,6 +892,12 @@
         entry = "${contractGuards}/bin/contract-guards";
         pass_filenames = false;
       };
+      hygiene-scan = {
+        enable = true;
+        name = "hygiene-scan";
+        entry = "${hygieneScan}/bin/hygiene-scan";
+        pass_filenames = true;
+      };
     };
 
     # x86_64-linux runs every check. Any other system keeps the host
@@ -755,7 +928,12 @@
     # Handed to ../dev-shells.nix as module arguments. It cannot read them off
     # config.checks, which holds no pre-commit-check on a system other than
     # x86_64-linux.
-    _module.args = {inherit portableHooks repositoryHooks;};
+    _module.args = {
+      inherit portableHooks repositoryHooks;
+      # The three commands an agent session runs in place of bare nix builds
+      # (see ../dev-shells.nix and AGENTS.md).
+      agentTools = [hygieneScan moduleCoverage checkOne];
+    };
 
     # ANCHOR: checks
     # Checks are split into two tiers. The GitHub workflow runs CORE on every PR
@@ -1159,7 +1337,8 @@
           "the default shell installs what pre-commit-check runs and nothing else" = default == lib.sort builtins.lessThan (portable ++ repository);
           "the consumer shell installs every portable hook" = lib.all (hook: builtins.elem hook consumer) portable;
           "the consumer shell installs no repository hook" = !(lib.any (hook: builtins.elem hook consumer) repository);
-          "the three repository hooks are the ones expected" = repository == ["comment-hygiene" "contract-guards" "contract-mirror"];
+          "the four repository hooks are the ones expected" = repository == ["comment-hygiene" "contract-guards" "contract-mirror" "hygiene-scan"];
+          "the hygiene hook scans filenames in a clean CI checkout" = repositoryHooks.hygiene-scan.pass_filenames;
         };
 
       # Start-up defaults of Suricata and CrowdSec (see ./router-services.nix).
@@ -1171,6 +1350,19 @@
       eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost bootBase inputs;};
 
       eval-opencode = import ./opencode-eval.nix {inherit hostConfig mkExpectations functioningHost inputs;};
+
+      # The committed OpenCode configuration, read as files. Every skill name
+      # matches its directory, every agent and command carries a description,
+      # and every agent a file names exists (see ./opencode-config.py).
+      opencode-config =
+        pkgs.runCommand "othrys-opencode-config" {
+          nativeBuildInputs = [opencodeConfig hygieneScan moduleCoverage pkgs.git pkgs.bun (pkgs.python3.withPackages (ps: [ps.pyyaml]))];
+        } ''
+          opencode-config ${inputs.self}
+          python3 ${./opencode-regressions.py} ${inputs.self}
+          OTHRYS_ROOT=${inputs.self} bun test ${./othrys-plugin.test.js}
+          touch $out
+        '';
       # What the gh module renders, wraps and pre-approves (see ./gh-eval.nix).
       eval-gh = import ./gh-eval.nix {
         inherit (inputs.nixpkgs) lib;

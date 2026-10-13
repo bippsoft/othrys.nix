@@ -78,6 +78,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-floorp`, `eval-rustdesk` | The Floorp and Discord settings, and what RustDesk persists and launches |
 | `eval-claude-code` | The settings, pre-approved tools, skills and context the AI modules hand Claude Code |
 | `eval-opencode` | The permission map, skills, context, MCP servers and Ollama provider the AI modules hand OpenCode |
+| `opencode-config` | The committed OpenCode configuration, which is the skill names, the agent and command descriptions, the permission values and the agents each file names |
 | `eval-gh` | The `gh` settings and credential helper, the wrapper a token file installs, and the read-only commands pre-approved for Claude Code |
 | `yubikey-onboard-builds` | The onboarding script's package, whose build runs shellcheck and `bash -n` over the script |
 | `impermanence-test` | A VM test of the wipe script and the persistence invariant |

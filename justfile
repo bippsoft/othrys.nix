@@ -20,6 +20,10 @@ update input="":
 check:
     nix flake check
 
+# Build one named check under one job and a memory cap (see flake/checks)
+check-one name:
+    nix develop -c check-one "{{name}}"
+
 # Format the repo (treefmt: nix, shell, toml, yaml, markdown)
 fmt:
     nix fmt
