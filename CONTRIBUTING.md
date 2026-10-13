@@ -272,7 +272,7 @@ and nothing reading it. The `comment-hygiene` check fails on one.
 **Prose that must exist in two places.** Anchor it and add the pair to
 `contract-mirror` in `flake/checks/`. The consumer contract is the worked
 example. `CONTRIBUTING.md` holds the canonical copy, `docs/src/architecture/`
-embeds it through mdbook, and `CLAUDE.md` carries an enforced duplicate because
+embeds it through mdbook, and `AGENTS.md` carries an enforced duplicate because
 an agent reads that file automatically and would otherwise have to be told to go
 and fetch the contract. Duplication is only dangerous when the copies can
 disagree unnoticed, so the hook diffs the two regions and turns the copy into a
@@ -417,7 +417,7 @@ the two hook sets named in `flake/checks/default.nix`. `comment-hygiene`,
 - **commitizen** checks the commit message against Conventional Commits
 - **comment-hygiene** enforces the comment and anchor conventions above
 - **contract-mirror** keeps the consumer contract in this file and in
-  `CLAUDE.md` identical
+  `AGENTS.md` identical
 - **contract-guards** enforces the consumer contract against `modules/`
 - **gitleaks** scans what the commit stages for keys and tokens
 

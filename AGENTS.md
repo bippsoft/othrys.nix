@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 othrys.nix is a flake-parts flake exporting reusable NixOS modules under the
 `othrys.*` namespace. It holds no host configurations, no secrets and no personal

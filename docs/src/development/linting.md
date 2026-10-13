@@ -14,7 +14,7 @@ two hook sets named in `flake/checks/default.nix`.
 | **commitizen** | Conventional commit message validation | `commit-msg` | `cz check` |
 | **gitleaks** | Scans what the commit stages for keys and tokens | `pre-commit` | |
 | **comment-hygiene** | File headers, banner comments, anchors, and docs pages and links | `pre-commit` | |
-| **contract-mirror** | Keeps the consumer contract in `CONTRIBUTING.md` and `CLAUDE.md` identical | `pre-commit` | |
+| **contract-mirror** | Keeps the consumer contract in `CONTRIBUTING.md` and `AGENTS.md` identical | `pre-commit` | |
 | **contract-guards** | Enforces the consumer contract against `modules/` | `pre-commit` | |
 
 The first five suit any Nix repository, and `devShells.consumer` installs

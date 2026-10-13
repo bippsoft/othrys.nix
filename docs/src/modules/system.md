@@ -35,7 +35,7 @@ under **System Infrastructure**, and the rest are summarized here.
 
 - **User identity**: modules read `config.othrys.system.user.name`. It is a
   required option with no default and no `username` specialArg fallback, so set it
-  per host. See the consumer contract in the repository `CLAUDE.md`. The name
+  per host. See the consumer contract in the repository `AGENTS.md`. The name
   starts with a lowercase letter or an underscore and continues with lowercase
   letters, digits, underscores and hyphens. Any other value, such as `Alice`,
   is refused at evaluation.

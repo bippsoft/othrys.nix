@@ -290,7 +290,7 @@
       };
     };
 
-    # CONTRIBUTING.md holds the canonical consumer contract, and CLAUDE.md keeps
+    # CONTRIBUTING.md holds the canonical consumer contract, and AGENTS.md keeps
     # an inline copy because an agent reads that file automatically. Duplication
     # is only dangerous when the copies can disagree unnoticed, so this diffs the
     # two anchored regions and turns the duplicate into an enforced mirror.
@@ -306,16 +306,16 @@
 
         if ! diff -u \
           --label CONTRIBUTING.md <(extract CONTRIBUTING.md) \
-          --label CLAUDE.md <(extract CLAUDE.md); then
+          --label AGENTS.md <(extract AGENTS.md); then
           echo "contract-mirror: the consumer-contract blocks have drifted." >&2
-          echo "CONTRIBUTING.md is canonical. Copy its block into CLAUDE.md." >&2
+          echo "CONTRIBUTING.md is canonical. Copy its block into AGENTS.md." >&2
           exit 1
         fi
       '';
     };
 
     # The four numbered clauses of the consumer contract, as a static check.
-    # contract-mirror keeps the prose in CONTRIBUTING.md and CLAUDE.md
+    # contract-mirror keeps the prose in CONTRIBUTING.md and AGENTS.md
     # identical; this keeps the tree honest about it. Run from a repository root.
     #
     # Clauses 1 and 2 fail at evaluation only in the cases a fixture happens to
