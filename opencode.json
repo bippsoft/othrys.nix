@@ -1,0 +1,53 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "nix build*": "deny",
+      "nix eval*": "deny",
+      "nix flake check*": "deny",
+      "nix-build*": "deny",
+      "nix develop*": "deny",
+      "nixos-rebuild*": "deny",
+      "just": "deny",
+      "just *": "deny",
+      "git push*": "deny",
+      "git tag*": "deny",
+      "git commit*-S*": "deny",
+      "git commit*--gpg-sign*": "deny",
+      "git merge*": "deny",
+      "gh pr merge*": "deny",
+      "gh release*": "deny",
+      "check-one *": "allow",
+      "hygiene-scan*": "allow",
+      "module-coverage*": "allow"
+    }
+  },
+  "agent": {
+    "general": {
+      "permission": {
+        "bash": {
+          "check-one*": "deny"
+        }
+      }
+    },
+    "explore": {
+      "permission": {
+        "bash": {
+          "check-one*": "deny"
+        }
+      }
+    }
+  },
+  "formatter": {
+    "treefmt": {
+      "command": ["treefmt", "$FILE"],
+      "extensions": [".nix", ".sh", ".toml", ".yaml", ".yml", ".md"]
+    }
+  },
+  "lsp": {
+    "nixd": {
+      "command": ["nixd"],
+      "extensions": [".nix"]
+    }
+  }
+}
