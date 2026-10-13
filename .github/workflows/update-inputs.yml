@@ -8,6 +8,10 @@ name: Update Inputs
 # surfaces. The "chore(flake)" title is the commit convention and selects
 # nothing.
 #
+# The commit is unsigned, since no key that signs for main is given to a
+# workflow. build.yml skips its signature job for this branch, and the
+# maintainer who lands the bump signs it.
+#
 # TOKEN. This needs a token other than the default GITHUB_TOKEN, supplied as the
 # FLAKE_UPDATE_TOKEN secret. Two separate GitHub behaviours make the default
 # token insufficient:

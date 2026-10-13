@@ -19,10 +19,17 @@ jobs:
   # request from a branch of this repository over its own commits. A fork
   # cannot sign with a maintainer key, so the job is skipped there, and the
   # maintainer who lands the change signs it.
+  #
+  # The same holds for the two bots that open pull requests from branches of
+  # this repository. update-inputs.yml pushes update_flake_lock_action and
+  # Dependabot pushes dependabot/*, and neither holds a key in keys/. The job
+  # is skipped for those branches and the maintainer signs the bump on
+  # landing. The push to main is still checked, so an unsigned bump cannot
+  # land.
   signatures:
     name: Commit signatures
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'update_flake_lock_action' && !startsWith(github.head_ref, 'dependabot/'))
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:

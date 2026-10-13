@@ -452,6 +452,12 @@ An outside contribution does not need to be signed by its author, and the job
 is skipped for a pull request from a fork. The maintainer who lands it signs
 the commits, since a commit on `main` that no listed key signed fails the job.
 
+The weekly input update and Dependabot are treated the same way. Their pull
+requests come from the `update_flake_lock_action` and `dependabot/*` branches
+of this repository, and their commits carry no signature from a listed key.
+The job is skipped for those branches, and the maintainer who lands the bump
+signs it.
+
 ## Systemd Units
 
 A unit a module defines itself merges `baseline` from `modules/lib/sandbox.nix`
