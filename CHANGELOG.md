@@ -1,3 +1,24 @@
+## v0.17.0 (2026-10-13)
+
+### BREAKING CHANGE
+
+- a run that would leave factory PINs in place exits
+with an error unless --allow-default-pins is given. An unknown option
+exits 1. The summary is written to the backup directory, or to a
+private temporary directory, and no longer to the working directory.
+- a host that still bind-mounts <persistRoot>/nix/var
+is no longer moved onto the nix subvolume. Switch such a host to a
+release from v0.9.0 to v0.16.0 first, confirm that findmnt /nix/var
+prints nothing, and then take this one.
+
+### Fix
+
+- **yubikey-onboard**: move the keys to the card from inside the script, protect every export, and refuse factory PINs
+
+### Refactor
+
+- **persistence**: remove the activation step that moved /nix/var off the persist root
+
 ## v0.16.0 (2026-10-11)
 
 ### BREAKING CHANGE
