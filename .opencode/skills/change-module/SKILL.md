@@ -33,4 +33,8 @@ evaluate is now refused. Then:
 4. When a default changes, state the old and the new value in the commit body.
 
 Commit the module, the check and the page as separate commits with the types
-`feat`, `fix` or `refactor`, then `test`, then `docs`.
+`feat`, `fix` or `refactor`, then `test`, then `docs`. A request that also
+changes how another module behaves gets that change in its own commit, with
+its own `BREAKING CHANGE:` footer when it needs one. When the old behaviour
+inferred something from the host, such as which application is enabled, keep
+the inference unless the request asks to drop it.

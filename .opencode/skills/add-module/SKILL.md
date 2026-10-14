@@ -28,7 +28,13 @@ template and the reasoning. The steps below are what those pages leave to you.
    with defaults. A module that needs configuration to evaluate is listed in
    `expectedFail` in `flake/checks/enable-matrix.nix` with a fragment of its
    assertion.
-7. **Check and page.** Follow `write-check` and `document-module`, or hand
+7. **Defaults.** Every default suits any consumer of a public library. A
+   personal preference, such as an extension list, a theme or a launch
+   argument for one machine, is left empty here and set in the host. A
+   default that downloads something pins a URL that stays valid, such as a
+   release asset or a versioned path, never a content delivery blob that the
+   publisher replaces.
+8. **Check and page.** Follow `write-check` and `document-module`, or hand
    them to the `checks` and `docs` sub-agents when you run as `module`.
 
 Use `alice` and `example.com` in every example and default.

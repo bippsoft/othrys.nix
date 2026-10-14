@@ -31,4 +31,9 @@ its type and default, and it is never edited by hand.
 
 Write in full sentences, in the present tense, and state behaviour as fact.
 Describe the module as it is now. A page never narrates how the module
-changed, since the changelog does that.
+changed or how to migrate from an earlier default, since the changelog and the
+commit's `BREAKING CHANGE:` footer do that.
+
+Keep a section to what a reader needs to use the module. Name what the module
+does not do only where a reader would assume that it does. A section about
+one module rarely needs more than forty lines before its options.
