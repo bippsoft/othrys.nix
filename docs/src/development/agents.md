@@ -59,7 +59,7 @@ summarises open work, unreleased commits and the last runs on `main`.
 
 ## Automatic Steps
 
-Three things happen without being asked for, and none of them calls a model.
+Four things happen without being asked for, and none of them calls a model.
 
 - **Formatting.** After an edit, OpenCode runs `treefmt` on the file.
 - **Hygiene.** Before a write, the plugin reconstructs each complete resulting
@@ -79,6 +79,9 @@ Three things happen without being asked for, and none of them calls a model.
   page, the result of that write says which is missing, once for each distinct
   report. The comparison is against `main`, and `OTHRYS_COVERAGE_BASE` names
   another branch for work stacked on one.
+- **Main.** After every shell command, the plugin compares `main` with the
+  commit it pointed at before. If it moved anyway, the result of that command
+  says so and tells the agent to stop and report both commits.
 
 ## Limits
 
@@ -93,6 +96,10 @@ denied commands.
 - **No landing.** An agent commits unsigned on a branch. Pushing, tagging,
   signing and merging are denied, since every commit on `main` carries a
   maintainer's signature.
+- **`main` stays put.** Renaming or force-moving a branch and rewriting a ref
+  are denied. The plugin also refuses a git command that records history
+  while `main` is checked out, and one that names `main` as the target of a
+  branch move.
 
 `just` is denied because a recipe is a line of shell in a file the agent can
 edit. `check-one` is a store path, so an edit made during a session cannot

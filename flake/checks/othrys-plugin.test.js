@@ -167,3 +167,53 @@ test("relative paths resolve from the session directory, exemptions from the wor
     args: { filePath: "contact.txt", oldString: "example.com", newString: forbiddenDomain },
   })).rejects.toThrow("Refused by hygiene-scan")
 })
+
+// A repository on main with one commit. Identity is process-local and uses
+// placeholders, and signing is off since no key exists in the sandbox.
+const commitArgs = ["-c", "user.name=alice", "-c", "user.email=alice@example.com", "-c", "commit.gpgsign=false"]
+async function repository() {
+  await $`git init -q -b main ${root}`.quiet()
+  await $`git -C ${root} ${commitArgs} commit -q --allow-empty -m init`.quiet()
+  const hooks = await Othrys({ $, worktree: root })
+  const bash = (command) => hooks["tool.execute.before"]({ tool: "bash", sessionID: "fixture" }, { args: { command } })
+  return { hooks, bash }
+}
+
+test("a command that records history is refused on main and allowed on a branch", async () => {
+  const { bash } = await repository()
+  for (const command of ["git commit -m change", "git merge feature", "git cherry-pick abc", "git reset --hard HEAD~1"])
+    await expect(bash(command)).rejects.toThrow("The session is on main")
+  await bash("git status")
+  await bash("git log main..HEAD")
+  await $`git -C ${root} switch -q -c feature`.quiet()
+  await bash("git commit -m change")
+  await bash("git rebase main")
+})
+
+test("a command that points main elsewhere is refused from any branch", async () => {
+  const { bash } = await repository()
+  await $`git -C ${root} switch -q -c feature`.quiet()
+  for (const command of [
+    "git branch -m feature main",
+    "git branch -M main",
+    "git branch -f main HEAD",
+    "git branch -D main",
+    "git checkout -B main",
+    "git switch -C main",
+    "git update-ref refs/heads/main HEAD",
+  ])
+    await expect(bash(command)).rejects.toThrow("would move or replace main")
+  await bash("git branch -m feature other")
+})
+
+test("a main that moved during a command is reported once", async () => {
+  const { hooks } = await repository()
+  await $`git -C ${root} ${commitArgs} commit -q --allow-empty -m moved`.quiet()
+  const after = async () => {
+    const output = { output: "done" }
+    await hooks["tool.execute.after"]({ tool: "bash", sessionID: "fixture" }, output)
+    return output.output
+  }
+  expect(await after()).toContain("main moved from")
+  expect(await after()).toBe("done")
+})

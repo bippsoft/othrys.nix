@@ -1,10 +1,12 @@
 // .opencode/plugins/othrys.js
-// Two automatic steps for a session in this repository. Neither calls a model.
+// Three automatic steps for a session in this repository. None calls a model.
 //
 // Before a write, the text bound for each file goes through hygiene-scan, and
 // a refusal stops the write. After a write in a session that edited a module,
 // module-coverage runs, and a missing check or page is added to the result of
-// that write, once for each distinct report.
+// that write, once for each distinct report. Before a shell command, a git
+// command that records history on main, or points main elsewhere, is refused,
+// and after one, a main that moved anyway is reported in the result.
 //
 // Both commands come from the dev shell. Imports are runtime built-ins, so
 // OpenCode has no dependencies of this plugin's to install.
@@ -13,6 +15,13 @@ import { readFile } from "node:fs/promises"
 import { resolve, relative } from "node:path"
 
 const WRITERS = new Set(["write", "edit", "multiedit", "apply_patch", "patch"])
+
+// Only a maintainer moves main, by a fast-forward to a reviewed and signed
+// head. A git command that records history refuses to run while main is
+// checked out, and one that would point main somewhere else refuses always.
+const RECORDS = /\bgit\b[^;&|]*\b(commit|merge|cherry-pick|rebase|reset|revert|am|pull|stash\s+pop)\b/
+const MOVES_MAIN =
+  /\bgit\b[^;&|]*\b(branch\s+(-[mMfcCdD]\b|--move|--force|--copy|--delete)|checkout\s+-B|switch\s+(-C|--force-create)|update-ref|symbolic-ref)\b[^;&|]*\bmain\b/
 
 // Refuse fuzzy matches rather than scanning a different result from the tool.
 function replace(text, edit) {
@@ -126,8 +135,30 @@ export const Othrys = async ({ $, worktree, directory = worktree }) => {
   const touchedModules = new Set()
   const reminded = new Map()
 
+  const git = async (...args) => {
+    try {
+      const result = await $`git ${args}`.cwd(worktree).nothrow().quiet()
+      return result.exitCode === 0 ? result.stdout.toString().trim() : null
+    } catch {
+      return null
+    }
+  }
+  // The commit main pointed at when the session started, and after each
+  // command an agent ran.
+  let mainHead = await git("rev-parse", "--verify", "--quiet", "refs/heads/main")
+
   return {
     "tool.execute.before": async (input, output) => {
+      if (input.tool === "bash") {
+        const command = String(output.args?.command ?? "")
+        if (MOVES_MAIN.test(command))
+          throw new Error("Refused. This command would move or replace main, which only a maintainer does.")
+        if (RECORDS.test(command) && (await git("symbolic-ref", "--short", "-q", "HEAD")) === "main")
+          throw new Error(
+            "Refused. The session is on main. Create a branch with `git switch -c <name>` and work there.",
+          )
+        return
+      }
       if (!WRITERS.has(input.tool)) return
       if (!ready)
         throw new Error(
@@ -148,6 +179,17 @@ export const Othrys = async ({ $, worktree, directory = worktree }) => {
     },
 
     "tool.execute.after": async (input, output) => {
+      if (input.tool === "bash") {
+        const now = await git("rev-parse", "--verify", "--quiet", "refs/heads/main")
+        if (now !== mainHead) {
+          output.output =
+            String(output.output ?? "") +
+            `\n\nmain moved from ${mainHead ?? "nothing"} to ${now ?? "nothing"} during this command. ` +
+            "Only a maintainer moves main. Stop, and report this to the user with both commits."
+          mainHead = now
+        }
+        return
+      }
       if (!ready || !WRITERS.has(input.tool) || !touchedModules.has(input.sessionID)) return
 
       const coverage = await $`module-coverage`.cwd(worktree).nothrow().quiet()

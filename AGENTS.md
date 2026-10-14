@@ -79,10 +79,12 @@ call each command by its name. `nix develop` is denied inside a session.
 
 A change to a module is finished when its check and its page changed with it.
 
-An agent commits on a branch with `git commit --no-gpg-sign`, one logical
-change per commit. It never pushes, tags, signs or merges. Every commit on
-`main` carries a maintainer's signature, which the maintainer adds when landing
-the branch.
+An agent works on a branch made from `main` with `git switch -c <type>/<name>`,
+and commits there with `git commit --no-gpg-sign`, one logical change per
+commit. It never commits on `main`, renames a branch onto it or points it
+anywhere else, and the plugin refuses each of those. It never pushes, tags,
+signs or merges. Every commit on `main` carries a maintainer's signature, which
+the maintainer adds when landing the branch.
 
 `.opencode/` holds the agents, skills and commands for this repository, and
 `docs/src/development/agents.md` describes them.
