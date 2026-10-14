@@ -1,3 +1,14 @@
+## v0.17.1 (2026-10-13)
+
+### Inputs
+
+- **flake**: update inputs, moving nixpkgs, home-manager, stylix, sops-nix, hyprland, ashell, nixvim, nix-index-database and treefmt-nix
+
+### Chore
+
+- **ci**: bump determinate-nix-action to 3.23.1 and codeql-action/upload-sarif to 4.38.3
+- **agents**: add an OpenCode configuration, the check-one, hygiene-scan and module-coverage commands, and the opencode-config check
+
 ## v0.17.0 (2026-10-13)
 
 ### BREAKING CHANGE
