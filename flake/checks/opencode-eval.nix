@@ -3,7 +3,7 @@
 # Manager configuration of an evaluated host. OpenCode's own defaults allow
 # every edit and every command, and it reads Claude Code's skill directory
 # beside its own, so a shared skill written to both would be listed twice.
-# None of it fails evaluation.
+# The typed sharing option also refuses values outside its three modes.
 {
   hostConfig,
   mkExpectations,
@@ -29,6 +29,18 @@
   alone = mk {};
   hm = hmOf alone;
   inherit (hm.programs.opencode) settings;
+
+  shareOf = value: (hmOf (mk {othrys.apps.ai.opencode.share = value;})).programs.opencode.settings.share;
+  shareOverridden = hmOf (mk {
+    othrys.apps.ai.opencode = {
+      share = "auto";
+      settings.share = "manual";
+    };
+  });
+  # Force the scalar option because trying the host attrset alone would
+  # leave its type check unevaluated.
+  shareRejected = value: !(builtins.tryEval (mk {othrys.apps.ai.opencode.share = value;}).othrys.apps.ai.opencode.share).success;
+  off = mk {othrys.apps.ai.opencode.enable = lib.mkForce false;};
 
   withClaude = hmOf (mk {
     othrys.system.nix.allowUnfree = true;
@@ -70,6 +82,16 @@
   });
 in
   mkExpectations "othrys-eval-opencode" {
+    "session sharing is disabled by default" = settings.share == "disabled";
+    "explicit manual sharing reaches OpenCode" = shareOf "manual" == "manual";
+    "explicit automatic sharing reaches OpenCode" = shareOf "auto" == "auto";
+    "explicit disabled sharing reaches OpenCode" = shareOf "disabled" == "disabled";
+    "settings.share overrides the typed sharing option" = shareOverridden.programs.opencode.settings.share == "manual";
+    "an unknown sharing mode is refused" = shareRejected "bogus";
+    "a boolean sharing mode is refused" = shareRejected true;
+    "a null sharing mode is refused" = shareRejected null;
+    "an integer sharing mode is refused" = shareRejected 1;
+    "disabled OpenCode writes no sharing setting or registry entries" = !((hmOf off).programs.opencode.settings ? share) && !(off.othrys.internal.homeConfig ? "apps.ai.opencode") && !(off.othrys.internal.persist ? "apps.ai.opencode");
     "edits and commands are prompted" = settings.permission.edit == "ask" && settings.permission.bash."*" == "ask";
     "the read-only git commands run without a prompt" = settings.permission.bash."git diff*" == "allow" && settings.permission.bash."git status*" == "allow";
     "rm -rf and sudo are denied" = settings.permission.bash."rm -rf*" == "deny" && settings.permission.bash."sudo *" == "deny";
