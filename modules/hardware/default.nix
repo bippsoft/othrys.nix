@@ -9,6 +9,7 @@
     ./usb.nix
     ./scanner.nix
     ./smart.nix
+    ./tablet.nix
     ./ups.nix
     ./webcam.nix
     ./wireless

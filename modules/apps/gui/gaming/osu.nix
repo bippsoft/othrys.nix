@@ -1,5 +1,5 @@
 # modules/apps/gui/gaming/osu.nix
-# osu!lazer wrapped for low-latency audio, with OpenTabletDriver support
+# osu!lazer wrapped for low-latency audio, with a pen tablet on by default
 {
   pkgs,
   lib,
@@ -44,8 +44,12 @@
     '';
   };
 in {
+  imports = [
+    (lib.mkRenamedOptionModule ["othrys" "apps" "gaming" "osu" "enableTabletDriver"] ["othrys" "hardware" "tablet" "enable"])
+  ];
+
   options.othrys.apps.gaming.osu = {
-    enable = lib.mkEnableOption "osu!lazer with OpenTabletDriver and low-latency optimizations";
+    enable = lib.mkEnableOption "osu!lazer with low-latency optimizations";
 
     package = lib.mkOption {
       type = lib.types.package;
@@ -53,32 +57,23 @@ in {
       defaultText = lib.literalMD "`pkgs.osu-lazer` behind a wrapper that sets the PipeWire latency and starts it through `gamemoderun`";
       description = "osu!lazer package to use (wrapped with latency optimizations).";
     };
-
-    enableTabletDriver = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Enable OpenTabletDriver for pen tablet support.";
-    };
   };
 
   config = lib.mkIf cfg.enable {
-    # Persistence for osu! songs, skins, replays, scores and tablet settings
+    # Persistence for osu! songs, skins, replays and scores
     othrys.internal.persist."apps.gaming.osu" = {
       user.directories = [
         ".local/share/osu"
-        ".config/OpenTabletDriver"
       ];
     };
 
-    hardware.opentabletdriver = lib.mkIf cfg.enableTabletDriver {
-      enable = true;
-      daemon.enable = true;
-    };
+    # Most osu! players use a tablet, so the driver comes with the game unless
+    # the host turns it off.
+    othrys.hardware.tablet.enable = lib.mkDefault true;
 
     othrys.internal.homeConfig."apps.gaming.osu" = {
       home.packages = [
         cfg.package # Low-latency wrapper that calls pkgs.osu-lazer
-        pkgs.opentabletdriver # GUI for tablet configuration
       ];
     };
   };

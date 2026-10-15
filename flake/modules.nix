@@ -199,6 +199,7 @@ in {
     powerspec-1710 = ../modules/hardware/laptop/powerspec-1710.nix;
     scanner = ../modules/hardware/scanner.nix;
     smart = ../modules/hardware/smart.nix;
+    tablet = ../modules/hardware/tablet.nix;
     ups = ../modules/hardware/ups.nix;
     usb = ../modules/hardware/usb.nix;
     webcam = ../modules/hardware/webcam.nix;
