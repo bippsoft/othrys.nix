@@ -22,6 +22,11 @@ Colours and fonts come from `othrys.theme`, see [Theming](../guides/theming.md).
 
 Status bar for Hyprland or Niri. Either compositor satisfies its assertion, and the lock and logout commands follow the session that is running, as described under [Sessions](#sessions). Installed from the ashell flake this library locks, or from `othrys.desktop.ashell.package` when a host sets it, and configured via a generated `~/.config/ashell/config.toml` with the colours of `othrys.theme.palette` and the font of `othrys.theme.fonts.sansSerif` written in at build time. A null palette or font leaves the matching keys out, and ashell uses its own defaults. Hot-reloads on config changes.
 
+The bar runs as a user unit tied to the graphical session, and it starts
+without `DISPLAY`. It draws through layer-shell and needs no X server, and with
+`DISPLAY` set it would hold a connection to the session's Xwayland server,
+which aborts the bar whenever that server restarts.
+
 The module installs wofi as the launcher, rofimoji as the emoji picker, the
 locker of each enabled compositor and, on Hyprland, hyprpicker. The audio
 buttons open pavucontrol, which `othrys.hardware.audio` installs on a graphical
