@@ -30,9 +30,12 @@ in {
     default =
       if config.othrys.apps.floorp.enable
       then "floorp"
+      else if config.othrys.apps.chromium.enable
+      then "chromium"
       else "firefox";
     defaultText = lib.literalMD ''
-      `"floorp"` when `othrys.apps.floorp` is enabled, `"firefox"` otherwise
+      `"floorp"` when `othrys.apps.floorp` is enabled, `"chromium"` when
+      `othrys.apps.chromium` is, and `"firefox"` otherwise
     '';
     example = "chromium";
     description = ''

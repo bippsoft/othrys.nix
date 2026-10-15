@@ -12,6 +12,7 @@
 
     # Browsers
     ./floorp
+    ./chromium.nix
 
     # Communication
     ./discord.nix
