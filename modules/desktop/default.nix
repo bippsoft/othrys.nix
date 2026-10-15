@@ -22,6 +22,7 @@ in {
     ./login.nix
     ./night-light.nix
     ./uwsm.nix
+    ./vicinae.nix
     ./wallpaper.nix
   ];
 
@@ -80,6 +81,24 @@ in {
       ''}";
     defaultText = lib.literalExpression ''"hyprlock" in a Hyprland session, "swaylock" otherwise'';
     description = "Command that locks the session; one authority for every lock consumer.";
+  };
+
+  # The single "open the launcher" command, consumed by ashell's launcher
+  # chord and its launcher button. A module that provides a launcher sets it
+  # at mkDefault, as the Vicinae module does, so the host keeps the last word.
+  options.othrys.desktop.launcherCommand = lib.mkOption {
+    type = lib.types.nonEmptyListOf lib.types.str;
+    default = ["wofi" "--show" "drun"];
+    defaultText = lib.literalMD ''
+      `["<vicinae>/bin/vicinae" "toggle"]` when `othrys.desktop.vicinae` is
+      enabled with `launcher` on, and `["wofi" "--show" "drun"]` otherwise
+    '';
+    example = ["fuzzel"];
+    description = ''
+      The launcher as a program and its arguments. Niri spawns the list as
+      it is, and Hyprland and the bar's launcher button run it through the
+      shell with each element quoted.
+    '';
   };
 
   # Shell lines the default lock command runs before the locker starts. A

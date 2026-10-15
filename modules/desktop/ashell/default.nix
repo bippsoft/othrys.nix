@@ -28,6 +28,12 @@
   # dispatcher name.
   lockCmd = config.othrys.desktop.lockCommand;
 
+  # The launcher comes from the shared signal as well, which the Vicinae
+  # module points at itself. Niri spawns the list, and the bar and Hyprland
+  # take it as one shell command.
+  launcherArgv = config.othrys.desktop.launcherCommand;
+  launcherCmd = lib.escapeShellArgs launcherArgv;
+
   # What a laptop adds to the bar. Each entry is listed only when the host runs
   # the service the indicator reads, so nothing sits in the bar empty.
   laptop = config.othrys.hardware.laptop.enable;
@@ -193,7 +199,7 @@
     [[CustomModule]]
     name = "launcher"
     icon = "󱗼"
-    command = "wofi --show drun"
+    command = ${builtins.toJSON launcherCmd}
     ${lib.optionalString cfg.clipboard.enable ''
 
       [[CustomModule]]
@@ -481,7 +487,7 @@ in {
           bind = map hlLua.mkBind [
             {
               key = "$mainMod + D";
-              dispatcher = hlLua.execCmd "wofi --show drun";
+              dispatcher = hlLua.execCmd launcherCmd;
             }
             {
               key = "$mainMod + SHIFT + D";
@@ -500,7 +506,7 @@ in {
 
         # Same launcher chords on niri (hyprpicker is hyprland-only).
         programs.niri.settings.binds = lib.mkIf niriEnabled {
-          "Mod+D".action.spawn = ["wofi" "--show" "drun"];
+          "Mod+D".action.spawn = launcherArgv;
           "Mod+Shift+D".action.spawn = ["wofi" "--show" "run"];
           "Mod+E".action.spawn = ["rofimoji" "--selector" "wofi" "--clipboarder" "wl-copy" "--typer" "wtype" "--action" "type"];
         };

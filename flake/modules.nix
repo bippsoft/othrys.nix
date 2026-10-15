@@ -186,6 +186,7 @@ in {
     keyring = ../modules/desktop/keyring.nix;
     wallpaper = ../modules/desktop/wallpaper.nix;
     ashell = withArgs ../modules/desktop/ashell;
+    vicinae = ../modules/desktop/vicinae.nix;
 
     # Hardware-specific
     audio = ../modules/hardware/audio.nix;

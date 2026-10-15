@@ -254,6 +254,16 @@ in {
           };
         })
 
+        # Stylix has a Vicinae target that names its own theme at normal
+        # priority, which would win over the othrys theme the Vicinae module
+        # selects at mkDefault. The Stylix palette reaches that theme through
+        # othrys.theme already, so the target is off while the module is on.
+        # The desktop tree is absent when this file is imported without it,
+        # so the read falls back to off.
+        (lib.optionalAttrs (config.othrys.desktop.vicinae.enable or false) {
+          stylix.targets.vicinae.enable = false;
+        })
+
         # Stylix's own browser theme for the Floorp profile othrys creates.
         # The app tree is absent when this file is imported without it, so
         # the read falls back to off.
