@@ -229,6 +229,7 @@
         ai.mcp.nixos.enable = true;
         ai.ollama.enable = true;
         comma.enable = true;
+        chromium.enable = true;
         development.enable = true;
         gh.enable = true;
         nixvim.enable = true;
@@ -1376,6 +1377,10 @@
       eval-listen = import ./listen-eval.nix {inherit hostConfig mkExpectations functioningHost;};
       eval-shell = import ./shell-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost;};
       eval-floorp = import ./floorp-eval.nix {inherit hostConfig mkExpectations functioningHost;};
+      eval-chromium = import ./chromium-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit pkgs hostConfig mkExpectations rejectedWith functioningHost bootBase bootCore homeModules accountNoHomeManager;
+      };
 
       # Which binaries nixvim and vscode take from the language registry (see
       # ./languages-eval.nix).

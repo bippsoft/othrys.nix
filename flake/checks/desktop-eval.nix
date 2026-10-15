@@ -130,11 +130,34 @@
   geoclue = nightLight {geoclue.enable = true;};
   unlocated = nightLight {};
 
-  floorp = host {
-    othrys.desktop.compositors.hyprland.enable = true;
-    othrys.desktop.compositors.niri.enable = true;
-    othrys.apps.floorp.enable = true;
+  # Both compositors, with the browser modules named in `apps`.
+  browsers = apps:
+    host {
+      othrys.desktop.compositors.hyprland.enable = true;
+      othrys.desktop.compositors.niri.enable = true;
+      othrys.apps = apps;
+    };
+  floorp = browsers {floorp.enable = true;};
+  chromium = browsers {chromium.enable = true;};
+  bothBrowsers = browsers {
+    floorp.enable = true;
+    chromium.enable = true;
   };
+  neither = browsers {};
+  browserHost = extra:
+    host {
+      imports = [extra];
+      othrys.desktop = {
+        defaultBrowser = "chromium";
+        compositors.hyprland.enable = true;
+        compositors.niri.enable = true;
+      };
+    };
+  sharedBrowser = browserHost {};
+  hyprlandBrowser = browserHost {othrys.desktop.compositors.hyprland.browser = "example-hyprland-browser";};
+  niriBrowser = browserHost {othrys.desktop.compositors.niri.browser = "example-niri-browser";};
+  browserLua = cfg: (home cfg).xdg.configFile."hypr/hyprland.lua".text;
+  browserSpawn = cfg: lib.toList (home cfg).programs.niri.settings.binds."Mod+F".action.spawn;
 
   kitty = cfg: (home cfg).programs.kitty.settings;
   hyprlandEnv = map (e: builtins.head e._args) (home hyprlandAshell).wayland.windowManager.hyprland.settings.env;
@@ -176,8 +199,27 @@ in
     "a host can turn the clipboard history off" = !(home noClipboard).services.cliphist.enable && !lib.hasInfix "clipboard" (ashellToml noClipboard);
     "without the history the lock command is the bare locker" = noClipboard.othrys.desktop.lockCommand == "swaylock";
 
-    "the browser default follows floorp on hyprland" = floorp.othrys.desktop.compositors.hyprland.browser == "floorp";
-    "the browser default follows floorp on niri" = floorp.othrys.desktop.compositors.niri.browser == "floorp";
+    "the browser default follows floorp on both compositors" =
+      floorp.othrys.desktop.defaultBrowser
+      == "floorp"
+      && lib.hasInfix "local browser = \"floorp\"\n" (browserLua floorp)
+      && browserSpawn floorp == ["floorp"];
+    "the browser default follows chromium when floorp is off" =
+      chromium.othrys.desktop.defaultBrowser
+      == "chromium"
+      && lib.hasInfix "local browser = \"chromium\"\n" (browserLua chromium)
+      && browserSpawn chromium == ["chromium"];
+    "floorp wins when both browser modules are on" = bothBrowsers.othrys.desktop.defaultBrowser == "floorp";
+    "the browser default names firefox with neither module on" =
+      neither.othrys.desktop.defaultBrowser
+      == "firefox"
+      && browserSpawn neither == ["firefox"];
+    "the shared chromium command reaches Hyprland's Lua local" = sharedBrowser.othrys.desktop.compositors.hyprland.browser == "chromium" && lib.hasInfix "local browser = \"chromium\"\n" (browserLua sharedBrowser);
+    "Hyprland's browser shortcut executes the Lua browser local" = lib.hasInfix "hl.bind((mainMod .. \" + F\"), (hl.dsp.exec_cmd(browser)))\n" (browserLua sharedBrowser);
+    "the shared chromium command reaches Niri's browser spawn action" = sharedBrowser.othrys.desktop.compositors.niri.browser == "chromium" && browserSpawn sharedBrowser == ["chromium"];
+    "selecting a browser command does not enable either browser app" = !sharedBrowser.othrys.apps.chromium.enable && !sharedBrowser.othrys.apps.floorp.enable;
+    "a Hyprland override reaches Lua without changing Niri's chromium spawn" = lib.hasInfix "local browser = \"example-hyprland-browser\"\n" (browserLua hyprlandBrowser) && browserSpawn hyprlandBrowser == ["chromium"] && hyprlandBrowser.othrys.desktop.defaultBrowser == "chromium";
+    "a Niri override reaches its spawn without changing Hyprland's chromium local" = browserSpawn niriBrowser == ["example-niri-browser"] && lib.hasInfix "local browser = \"chromium\"\n" (browserLua niriBrowser) && niriBrowser.othrys.desktop.defaultBrowser == "chromium";
     "hyprland does not export TERM" = !builtins.elem "TERM" hyprlandEnv;
 
     "a hyprland host has a Secret Service provider" = hyprlandLogin.othrys.desktop.keyring.enable && keyring hyprlandLogin;

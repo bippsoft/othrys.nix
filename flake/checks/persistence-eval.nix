@@ -114,6 +114,7 @@ in
     "the managed host evaluates" = managed.system.build.toplevel.drvPath != null;
 
     "gh is persisted at 0700" = userMode ".config/gh" == "0700";
+    "Chromium is persisted at 0700" = userMode ".config/chromium" == "0700";
     "Signal is persisted at 0700" = userMode ".config/Signal" == "0700";
     "discord is persisted at 0700" = userMode ".config/discord" == "0700";
     "vesktop is persisted at 0700" = userMode ".config/vesktop" == "0700";
