@@ -1,3 +1,25 @@
+## v0.18.0 (2026-10-14)
+
+### BREAKING CHANGE
+
+- /share no longer works on a host that does not set the
+option. A host that wants it sets
+othrys.apps.ai.opencode.share = "manual".
+
+### Feat
+
+- **tablet**: move the tablet driver into its own module, and count a SIGTERM stop as success
+- **cpu**: add a CPU vendor option for microcode, firmware and KVM
+- **chromium**: add Ungoogled Chromium with extensions from pinned CRX files
+- **desktop**: add a shared default browser for the compositor shortcuts
+- **steam**: load ntsync and give the active session's user access to it
+- **opencode**: add a share option that turns session sharing off by default
+
+### Fix
+
+- **ashell**: start the bar without DISPLAY
+- **gamemode**: add the primary user to the gamemode group, and drop softrealtime
+
 ## v0.17.1 (2026-10-13)
 
 ### Inputs
