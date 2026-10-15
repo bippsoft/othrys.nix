@@ -25,6 +25,25 @@ in {
     ./wallpaper.nix
   ];
 
+  options.othrys.desktop.defaultBrowser = lib.mkOption {
+    type = lib.types.nonEmptyStr;
+    default =
+      if config.othrys.apps.floorp.enable
+      then "floorp"
+      else "firefox";
+    defaultText = lib.literalMD ''
+      `"floorp"` when `othrys.apps.floorp` is enabled, `"firefox"` otherwise
+    '';
+    example = "chromium";
+    description = ''
+      Browser command the browser shortcut of Hyprland and Niri runs, unless a
+      compositor's own `browser` option is set. The default follows the
+      browser module that is enabled. `firefox` is installed by no othrys
+      module, so a host with another browser names it here. This selects a
+      command only and sets no default application for links.
+    '';
+  };
+
   # The single "this host runs a graphical session" signal. Every othrys
   # compositor module sets it when enabled, and modules outside desktop/ key
   # their GUI-flavored behavior (tray applets, GUI pinentry, clipboard tools,

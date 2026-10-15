@@ -190,16 +190,12 @@ in {
 
     browser = lib.mkOption {
       type = lib.types.str;
-      default =
-        if config.othrys.apps.floorp.enable
-        then "floorp"
-        else "firefox";
-      defaultText = lib.literalExpression ''"floorp" when othrys.apps.floorp.enable is set, "firefox" otherwise'';
+      default = config.othrys.desktop.defaultBrowser;
+      defaultText = lib.literalExpression "config.othrys.desktop.defaultBrowser";
       description = ''
-        Browser command bound to the `browser` Lua local. The default follows
-        `othrys.apps.floorp`, the browser this library installs. Without it
-        the default names `firefox`, which no othrys module installs, so a
-        host with another browser sets this.
+        Browser command bound to the `browser` Lua local. Defaults to the
+        shared `othrys.desktop.defaultBrowser`. Set this for a
+        Hyprland-specific override without changing Niri's browser shortcut.
       '';
     };
 
