@@ -404,14 +404,6 @@ in {
       ];
     })
     (lib.mkIf (cfg.enable && (hyprlandEnabled || niriEnabled)) {
-      # The bar's lock button runs the shared lock command, so the locker and
-      # its PAM service exist here as well as in the idle module, since a
-      # host can run the bar without idle management. The YubiKey module
-      # adds its factor to both lockers itself.
-      programs.hyprlock.enable = session.hyprlock;
-      environment.systemPackages = lib.optional session.swaylock pkgs.swaylock;
-      security.pam.services = lib.mkIf session.swaylock {swaylock = {};};
-
       # The history holds whatever was copied while the session was open, so
       # locking the session empties it. A failed wipe must not stop the lock.
       othrys.desktop.lockHooks = lib.mkIf cfg.clipboard.enable "${cliphist} wipe || true";

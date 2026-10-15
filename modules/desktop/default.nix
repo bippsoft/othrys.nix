@@ -112,12 +112,30 @@ in {
     description = "Shell lines the default lock command runs before the locker.";
   };
 
-  # The file manager belongs to the graphical session and not to one
-  # compositor, so it is installed here for either of them. It is a user-facing
-  # application and goes into the user's packages.
-  config = lib.mkIf compositorEnabled {
-    othrys.internal.homeConfig."desktop.graphical" = {
-      home.packages = [pkgs.nautilus];
-    };
-  };
+  config = lib.mkMerge [
+    # The file manager belongs to the graphical session and not to one
+    # compositor, so it is installed here for either of them. It is a
+    # user-facing application and goes into the user's packages.
+    (lib.mkIf compositorEnabled {
+      othrys.internal.homeConfig."desktop.graphical" = {
+        home.packages = [pkgs.nautilus];
+      };
+    })
+
+    # The locker sits beside the lock command that names it, so it is there
+    # whichever module locks the session. That is every compositor host, and
+    # a host with an unmanaged compositor whose idle module locks it. The
+    # locker is a PAM client, and a PAM service that is not declared denies
+    # every attempt, so a lock screen with no service cannot be unlocked.
+    # programs.hyprlock declares hyprlock's and installs the package. swaylock
+    # has no NixOS module, and niri-flake declares its service only on niri
+    # hosts, so it is declared here for every host that locks with it. A host
+    # with both compositors gets both lockers. The YubiKey module adds its
+    # factor to both services itself.
+    (lib.mkIf (compositorEnabled || config.othrys.desktop.idle.enable) {
+      programs.hyprlock.enable = session.hyprlock;
+      security.pam.services = lib.mkIf session.swaylock {swaylock = {};};
+      environment.systemPackages = lib.optional session.swaylock pkgs.swaylock;
+    })
+  ];
 }

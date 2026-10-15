@@ -28,8 +28,9 @@ without `DISPLAY`. It draws through layer-shell and needs no X server, and with
 `DISPLAY` set it would hold a connection to the session's Xwayland server,
 which aborts the bar whenever that server restarts.
 
-The module installs wofi, rofimoji as the emoji picker, the locker of each
-enabled compositor and, on Hyprland, hyprpicker. The launcher chord and the
+The module installs wofi, rofimoji as the emoji picker and, on Hyprland,
+hyprpicker. The lock button runs `othrys.desktop.lockCommand`, whose locker
+every compositor host already has. The launcher chord and the
 launcher button run `othrys.desktop.launcherCommand`, which is wofi unless
 another module or the host names a launcher, as [Vicinae](#vicinae) does. The audio
 buttons open pavucontrol, which `othrys.hardware.audio` installs on a graphical
@@ -260,15 +261,17 @@ refuses a configuration where a later stage fires first.
 `lockBeforeSleep`, on by default, locks the session before the host sleeps.
 With the module enabled it is hypridle's before-sleep command. A Hyprland or
 Niri host that does not enable this module still gets hypridle for that one
-job, configured with the lock command and no idle stage, together with the
-locker and its PAM service. Such a host therefore locks on suspend and on
+job, configured with the lock command and no idle stage. Such a host therefore locks on suspend and on
 `loginctl lock-session` and never on idle time. Setting
 `othrys.desktop.idle.lockBeforeSleep = false` removes the before-sleep lock in
 both cases.
 
-The module declares the PAM service of each locker it installs, `hyprlock` for
-Hyprland and `swaylock` for Niri or an unmanaged compositor, and so does ashell
-for its lock button. A
+The locker comes with the lock command rather than with this module or ashell.
+Every Hyprland or Niri host, and a host with an unmanaged compositor that
+enables this module, gets the locker `othrys.desktop.lockCommand` names
+together with its PAM service, `hyprlock` for Hyprland and `swaylock` for Niri
+or an unmanaged compositor. That holds on a host where nothing locks the
+session, so a lock command run by hand or by a keybinding finds its locker. A
 locker whose PAM service is missing rejects the correct password, and the only
 way out is a VT switch.
 

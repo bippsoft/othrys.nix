@@ -5,6 +5,9 @@
 # right. Three hosts cover the three ways a locker is reached: the idle module
 # on hyprland and on niri, and ashell's lock button with no idle module and no
 # YubiKey. A compositor with neither locks before sleep and at no other time.
+# The locker comes with the compositor and not with the module that locks, so
+# a host with no locking module at all still has the locker its lock command
+# names.
 {
   hostConfig,
   mkExpectations,
@@ -38,6 +41,10 @@
   niriAlone = host {othrys.desktop.compositors.niri.enable = true;};
   niriUnlocked = host {
     othrys.desktop.compositors.niri.enable = true;
+    othrys.desktop.idle.lockBeforeSleep = false;
+  };
+  hyprlandUnlocked = host {
+    othrys.desktop.compositors.hyprland.enable = true;
     othrys.desktop.idle.lockBeforeSleep = false;
   };
   niriIdleUnlocked = host {
@@ -78,4 +85,13 @@ in
     "a host can turn the sleep lock off" = !runsHypridle niriUnlocked;
     "the idle module honours the sleep lock switch" = !((hypridle niriIdleUnlocked).general ? before_sleep_cmd) && (hypridle niriIdleUnlocked).general.lock_cmd == "swaylock";
     "a screen-off stage before the lock stage is rejected" = rejectedWith "timeouts must increase" unordered;
+
+    "niri with no locking module still gets swaylock and its PAM service" =
+      !runsHypridle niriUnlocked
+      && niriUnlocked.security.pam.services ? swaylock
+      && builtins.any (p: p.pname or "" == "swaylock") niriUnlocked.environment.systemPackages;
+    "hyprland with no locking module still gets hyprlock and its PAM service" =
+      !runsHypridle hyprlandUnlocked
+      && hyprlandUnlocked.programs.hyprlock.enable
+      && hyprlandUnlocked.security.pam.services ? hyprlock;
   }
