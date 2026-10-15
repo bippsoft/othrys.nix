@@ -180,6 +180,8 @@ in
     "the geoclue option selects the geoclue provider" = (home geoclue).services.gammastep.provider == "geoclue2";
     "a night light with no location is rejected" = rejectedWith "needs a location" unlocated;
 
+    "ashell starts without DISPLAY, so an X server restart cannot abort it" =
+      hyprlandAshell.systemd.user.services.ashell.serviceConfig.UnsetEnvironment == "DISPLAY";
     "ashell writes no weather location by default" = !lib.hasInfix "weather_location" (ashellToml hyprlandAshell);
     "ashell renders coordinates as the table it reads" = lib.hasInfix "\nweather_location = { Coordinates = [12.5, -45.25] }\n" (ashellToml niriAshell);
     "ashell renders a city as the table it reads" = lib.hasInfix "\nweather_location = { City = \"Example City\" }\n" (ashellToml noClipboard);
