@@ -7,6 +7,7 @@
 }: let
   cfg = config.othrys.hardware.cpu;
 in {
+  # ANCHOR: cpu-options
   options.othrys.hardware.cpu = {
     vendor = lib.mkOption {
       type = lib.types.nullOr (lib.types.enum ["intel" "amd"]);
@@ -21,6 +22,7 @@ in {
       '';
     };
   };
+  # ANCHOR_END: cpu-options
 
   config = lib.mkIf (cfg.vendor != null) {
     # nixos-generate-config writes these three into hardware.nix, and a host

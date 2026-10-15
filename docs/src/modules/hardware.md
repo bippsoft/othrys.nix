@@ -7,6 +7,7 @@ Hardware modules under `othrys.hardware.*`.
 | Module | Option | Description |
 |--------|--------|-------------|
 | Audio | `othrys.hardware.audio` | PipeWire audio with persistence |
+| CPU | `othrys.hardware.cpu` | Microcode, firmware and KVM for the processor's vendor |
 | NVIDIA | `othrys.hardware.nvidia` | NVIDIA GPU drivers |
 | NVIDIA PRIME | `othrys.hardware.nvidia.prime` | Intel + NVIDIA hybrid offload (laptop) |
 | Shader cache | `othrys.hardware.graphics.shaderCache` | Persistent, size-tuned GPU shader disk caches |
@@ -35,6 +36,31 @@ values, so a client that asks for a smaller buffer still gets one.
 WirePlumber brings up output-only. A device without that profile, such as a
 multichannel interface, ends up with no profile at all and stays silent, which
 is why a host has to ask for it.
+
+## CPU
+
+`othrys.hardware.cpu.vendor` names the processor's vendor, `"intel"` or `"amd"`,
+on a host that runs on its own hardware. With it set, the module turns on that
+vendor's microcode updates, `hardware.enableRedistributableFirmware` and the
+vendor's KVM module.
+
+```nix
+othrys.hardware.cpu.vendor = "amd";
+```
+
+`nixos-generate-config` writes the same three settings into `hardware.nix`. A
+host installed another way, as with disko, has no such file, and NixOS defaults
+all three to off, so the host runs whatever microcode its board shipped. The
+default is `null`, which writes nothing and suits a virtual machine, since the
+hypervisor owns the microcode there. The firmware setting is written at
+`mkDefault`, so a host can keep the microcode and leave the firmware off.
+`othrys.hardware.laptop.powerspec-1710` sets the vendor to `"intel"`.
+
+### Options
+
+```nix
+{{#include ../../../modules/hardware/cpu.nix:cpu-options}}
+```
 
 ## NVIDIA (Dedicated)
 
