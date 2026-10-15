@@ -80,82 +80,107 @@ in {
         iGPU, so the two together are refused.
       '';
     };
+
+    containerToolkit.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      example = true;
+      description = ''
+        Run the NVIDIA container toolkit, which writes a CDI specification
+        for the card at boot. Podman reads it with
+        `--device nvidia.com/gpu=all`, and Docker, rootful or rootless, with
+        `--gpus all` or the same `--device` flag. The option was
+        `othrys.services.containerization.docker.nvidia.enable` before.
+      '';
+    };
   };
 
   # ANCHOR: nvidia-config
-  config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = !(cfg.blacklistIntel && primeEnabled);
-        message = "othrys.hardware.nvidia: blacklistIntel removes the i915 driver that PRIME offload renders the display with. Turn one of the two off.";
-      }
-    ];
+  config = lib.mkMerge [
+    {
+      assertions = [
+        {
+          assertion = cfg.containerToolkit.enable -> cfg.enable;
+          message = "othrys.hardware.nvidia: containerToolkit needs the NVIDIA driver, so set othrys.hardware.nvidia.enable = true.";
+        }
+      ];
+    }
+    (lib.mkIf cfg.enable {
+      assertions = [
+        {
+          assertion = !(cfg.blacklistIntel && primeEnabled);
+          message = "othrys.hardware.nvidia: blacklistIntel removes the i915 driver that PRIME offload renders the display with. Turn one of the two off.";
+        }
+      ];
 
-    hardware.graphics = {
-      enable = true;
-      enable32Bit = true;
+      hardware.nvidia-container-toolkit.enable = cfg.containerToolkit.enable;
 
-      extraPackages = with pkgs;
-        [
+      hardware.graphics = {
+        enable = true;
+        enable32Bit = true;
+
+        extraPackages = with pkgs;
+          [
+            libva-vdpau-driver
+            libvdpau-va-gl
+            nvidia-vaapi-driver
+          ]
+          ++ lib.optionals primeEnabled [
+            intel-media-driver
+          ];
+
+        extraPackages32 = with pkgs.pkgsi686Linux; [
           libva-vdpau-driver
           libvdpau-va-gl
-          nvidia-vaapi-driver
-        ]
-        ++ lib.optionals primeEnabled [
-          intel-media-driver
         ];
-
-      extraPackages32 = with pkgs.pkgsi686Linux; [
-        libva-vdpau-driver
-        libvdpau-va-gl
-      ];
-    };
-
-    services.xserver.videoDrivers =
-      if primeEnabled
-      then ["modesetting" "nvidia"]
-      else ["nvidia"];
-
-    hardware.nvidia = {
-      inherit (cfg) package;
-      modesetting.enable = true;
-      open = cfg.openModules;
-      nvidiaSettings = true;
-
-      powerManagement.enable = lib.mkDefault primeEnabled;
-      powerManagement.finegrained = lib.mkDefault false;
-    };
-    # GPU compute servers enable nvidia with no primary user, so this is the
-    # only nvidia setting that needs one.
-
-    othrys.internal.homeConfig."hardware.nvidia".home.sessionVariables =
-      if primeEnabled
-      then {
-        LIBVA_DRIVER_NAME = "iHD";
-        VDPAU_DRIVER = "va_gl";
-      }
-      else {
-        __GLX_VENDOR_LIBRARY_NAME = "nvidia";
       };
 
-    boot.initrd.kernelModules =
-      lib.optionals cfg.earlyLoad nvidiaModules
-      ++ lib.optionals primeEnabled [
-        "i915"
-      ];
+      services.xserver.videoDrivers =
+        if primeEnabled
+        then ["modesetting" "nvidia"]
+        else ["nvidia"];
 
-    # nixpkgs loads `nvidia`, `nvidia_modeset` and `nvidia_drm` only on a host
-    # with `services.xserver.enable`, and `nvidia_uvm` only with the open
-    # modules. A Wayland host sets neither, so without early loading the four
-    # are named here and systemd-modules-load reads them from the root
-    # filesystem.
-    boot.kernelModules = lib.optionals (!cfg.earlyLoad) nvidiaModules;
+      hardware.nvidia = {
+        inherit (cfg) package;
+        modesetting.enable = true;
+        open = cfg.openModules;
+        nvidiaSettings = true;
 
-    boot.blacklistedKernelModules =
-      ["nouveau"]
-      ++ lib.optionals cfg.blacklistIntel [
-        "i915"
-      ];
-  };
+        powerManagement.enable = lib.mkDefault primeEnabled;
+        powerManagement.finegrained = lib.mkDefault false;
+      };
+      # GPU compute servers enable nvidia with no primary user, so this is the
+      # only nvidia setting that needs one.
+
+      othrys.internal.homeConfig."hardware.nvidia".home.sessionVariables =
+        if primeEnabled
+        then {
+          LIBVA_DRIVER_NAME = "iHD";
+          VDPAU_DRIVER = "va_gl";
+        }
+        else {
+          __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+        };
+
+      boot.initrd.kernelModules =
+        lib.optionals cfg.earlyLoad nvidiaModules
+        ++ lib.optionals primeEnabled [
+          "i915"
+        ];
+
+      # nixpkgs loads `nvidia`, `nvidia_modeset` and `nvidia_drm` only on a host
+      # with `services.xserver.enable`, and `nvidia_uvm` only with the open
+      # modules. A Wayland host sets neither, so without early loading the four
+      # are named here and systemd-modules-load reads them from the root
+      # filesystem.
+      boot.kernelModules = lib.optionals (!cfg.earlyLoad) nvidiaModules;
+
+      boot.blacklistedKernelModules =
+        ["nouveau"]
+        ++ lib.optionals cfg.blacklistIntel [
+          "i915"
+        ];
+    })
+  ];
   # ANCHOR_END: nvidia-config
 }

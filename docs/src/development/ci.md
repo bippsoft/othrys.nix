@@ -70,7 +70,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-services` | What the smaller service modules pass upstream and refuse |
 | `eval-k3s`, `eval-containers` | What k3s opens and requires, and what the container modules run and prune |
 | `eval-gaming` | The `gamemode` group GameMode needs for its root helpers, the GameMode defaults, the ntsync driver and device access with and without Steam, and the ntsync rename |
-| `eval-hardware`, `eval-nvidia` | What the hardware, CPU, mount and disk modules write, and which NVIDIA driver a host gets |
+| `eval-hardware`, `eval-nvidia` | What the hardware, CPU, mount and disk modules write, which NVIDIA driver a host gets, and the container toolkit on Podman and rootless Docker |
 | `eval-desktop`, `eval-lock`, `eval-login` | What the desktop modules and terminals write, the session lock, and what greetd is handed |
 | `eval-vicinae` | The Vicinae settings, theme, unit and persisted directories, the launcher chord on Hyprland and Niri with Vicinae on and off, and the hosts it writes nothing to |
 | `eval-keyring` | The Secret Service provider each setting of `othrys.desktop.keyring` selects, the keyring written without a password, and the combinations the module refuses |

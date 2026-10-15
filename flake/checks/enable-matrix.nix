@@ -133,7 +133,6 @@
     # is missing.
     "othrys.hardware.nvidia.prime.enable" = "set intelBusId and nvidiaBusId";
     "othrys.apps.vscode.neovimIntegration.enable" = "neovimIntegration.enable requires othrys.apps.nixvim.enable";
-    "othrys.services.containerization.docker.nvidia.enable" = "Docker NVIDIA support requires";
     "othrys.services.traefik.acme.enable" = "acme.enable requires acme.email and acme.dnsProvider";
     "othrys.services.alerting.enable" = "othrys.services.alerting: no datasource";
     "othrys.services.ddns.enable" = "othrys.services.ddns: set provider, hostnames, and credentialsFile";

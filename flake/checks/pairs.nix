@@ -60,13 +60,11 @@
     };
   };
 
-  # The NVIDIA container runtime on the default rootless daemon, on a host
-  # without the driver. Both of Docker's NVIDIA assertions fire here.
-  dockerNvidia = workstation {
-    othrys.services.containerization.docker = {
-      enable = true;
-      nvidia.enable = true;
-    };
+  # The NVIDIA container toolkit on a host without the driver, beside the
+  # default rootless Docker daemon.
+  toolkitWithoutDriver = workstation {
+    othrys.services.containerization.docker.enable = true;
+    othrys.hardware.nvidia.containerToolkit.enable = true;
   };
 
   scrutinyBesideCrowdsec = headless {
@@ -233,8 +231,7 @@ in
   mkExpectations "othrys-eval-pairs" {
     "podman's docker alias beside a rootful docker daemon is rejected" = rejectedWith "Podman dockerCompat conflicts" dockerBesidePodman;
     "podman's docker alias beside rootless docker is rejected" = rejectedWith "Podman dockerCompat conflicts" rootlessDockerBesidePodman;
-    "the NVIDIA runtime on rootless docker is rejected" = rejectedWith "Docker rootless mode is incompatible" dockerNvidia;
-    "the NVIDIA runtime without the driver is rejected" = rejectedWith "Docker NVIDIA support requires" dockerNvidia;
+    "the NVIDIA container toolkit without the driver is rejected" = rejectedWith "containerToolkit needs the NVIDIA driver" toolkitWithoutDriver;
     "scrutiny beside crowdsec on port 8080 is rejected" = rejectedWith "Give Scrutiny another port" scrutinyBesideCrowdsec;
     "the insecure dashboard beside scrutiny on port 8080 is rejected" = rejectedWith "which is also othrys.services.scrutiny.port" dashboardBesideScrutiny;
     "the insecure dashboard beside headscale on port 8080 is rejected" = rejectedWith "which is also othrys.services.headscale.port" dashboardBesideHeadscale;

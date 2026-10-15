@@ -1410,8 +1410,8 @@
       # What the option types and the named assertions refuse (see ./types-eval.nix).
       eval-types = import ./types-eval.nix {inherit impermanenceModules homeModules hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
 
-      # Which NVIDIA driver and kernel modules a host gets (see ./nvidia.nix).
-      eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost;};
+      # Which NVIDIA driver, kernel modules and container toolkit a host gets (see ./nvidia.nix).
+      eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost inputs;};
 
       # What the RustDesk module persists and launches (see ./rustdesk.nix).
       eval-rustdesk = import ./rustdesk.nix {inherit impermanenceModules hostConfig mkExpectations functioningHost;};

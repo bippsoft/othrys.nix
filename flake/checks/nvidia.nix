@@ -4,19 +4,36 @@
 # older branch and the proprietary modules, and nothing at evaluation can tell
 # which card a host has, so the option is the only thing to check. The initrd
 # module list is read back as well, since it decides the size of every initrd.
+# The container toolkit belongs to the driver and not to one container
+# runtime, so it is read on a Podman host and on a rootless Docker host.
 {
   hostConfig,
   mkExpectations,
   functioningHost,
+  inputs,
 }: let
-  host = nvidia:
+  inherit (inputs.nixpkgs) lib;
+
+  hostWith = extra: nvidia:
     hostConfig [
       functioningHost
       ({config, ...}: {
         othrys.system.nix.allowUnfree = true;
         othrys.hardware.nvidia = {enable = true;} // nvidia config;
       })
+      extra
     ];
+  host = hostWith {};
+
+  toolkit = {containerToolkit.enable = true;};
+  podmanToolkit = hostWith {othrys.services.containerization.podman.enable = true;} (_: toolkit);
+  rootlessDockerToolkit = hostWith {othrys.services.containerization.docker.enable = true;} (_: toolkit);
+  renamedToolkit = hostWith {
+    othrys.services.containerization.docker = {
+      enable = true;
+      nvidia.enable = true;
+    };
+  } (_: {});
 
   plain = host (_: {});
   pascal = host (config: {
@@ -59,4 +76,18 @@ in
     "a PRIME host loads the four NVIDIA modules from the root filesystem" = hasAll nvidiaModules prime.boot.kernelModules;
     "a PRIME host with earlyLoad has all five modules in the initrd" = hasAll (nvidiaModules ++ ["i915"]) primeEarly.boot.initrd.kernelModules;
     "both PRIME hosts pass every assertion" = noFailedAssertion prime && noFailedAssertion primeEarly;
+
+    "a host that sets nothing runs no container toolkit" = !plain.hardware.nvidia-container-toolkit.enable;
+    "a Podman host gets the container toolkit without Docker" =
+      podmanToolkit.hardware.nvidia-container-toolkit.enable
+      && !podmanToolkit.othrys.services.containerization.docker.enable
+      && noFailedAssertion podmanToolkit;
+    "rootless Docker with the container toolkit is accepted and turns CDI on" =
+      rootlessDockerToolkit.virtualisation.docker.rootless.enable
+      && rootlessDockerToolkit.virtualisation.docker.rootless.daemon.settings.features.cdi
+      && noFailedAssertion rootlessDockerToolkit;
+    "the old Docker option still turns the toolkit on, with a rename warning" =
+      renamedToolkit.othrys.hardware.nvidia.containerToolkit.enable
+      && renamedToolkit.hardware.nvidia-container-toolkit.enable
+      && builtins.any (lib.hasInfix "othrys.hardware.nvidia.containerToolkit.enable") renamedToolkit.warnings;
   }

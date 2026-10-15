@@ -1,5 +1,5 @@
 # modules/services/containerization/docker.nix
-# Docker container runtime with rootless mode and NVIDIA support
+# Docker container runtime with rootless mode
 {
   config,
   lib,
@@ -9,7 +9,6 @@
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
   cfg = config.othrys.services.containerization.docker;
-  nvidiaEnabled = config.othrys.hardware.nvidia.enable;
   routerEnabled = config.othrys.services.router.enable;
   # Docker's own iptables rules sit ahead of the router's chain, so a
   # published port is reachable from the WAN whatever the router says. The
@@ -36,6 +35,10 @@
     cfg.daemon.settings
   ];
 in {
+  imports = [
+    (lib.mkRenamedOptionModule ["othrys" "services" "containerization" "docker" "nvidia" "enable"] ["othrys" "hardware" "nvidia" "containerToolkit" "enable"])
+  ];
+
   options.othrys.services.containerization.docker = {
     enable = lib.mkEnableOption "Docker container runtime";
 
@@ -50,17 +53,6 @@ in {
         type = lib.types.bool;
         default = true;
         description = "Set DOCKER_HOST environment variable for rootless mode.";
-      };
-    };
-
-    nvidia = {
-      enable = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = ''
-          Enable NVIDIA container runtime for GPU workloads.
-          This sets hardware.nvidia-container-toolkit.enable = true.
-        '';
       };
     };
 
@@ -123,14 +115,6 @@ in {
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = cfg.nvidia.enable -> nvidiaEnabled;
-        message = "Docker NVIDIA support requires othrys.hardware.nvidia.enable = true";
-      }
-      {
-        assertion = !(cfg.rootless.enable && cfg.nvidia.enable);
-        message = "Docker rootless mode is incompatible with NVIDIA container runtime. Disable rootless or nvidia.enable.";
-      }
-      {
         assertion = !(routerEnabled && !cfg.rootless.enable && dockerManagesIptables);
         message = "othrys.services.containerization.docker: the rootful daemon writes its own iptables rules ahead of the router's chain, so a published container port is reachable from the WAN whatever othrys.services.router allows. Set daemon.settings.iptables = false and publish ports through the router, or run Docker rootless.";
       }
@@ -154,8 +138,6 @@ in {
         ".docker"
       ];
     };
-
-    hardware.nvidia-container-toolkit.enable = cfg.nvidia.enable;
 
     # The rootful daemon runs only when the host asked for it. Upstream
     # renders the rootless daemon under its own switch, so with rootless on

@@ -96,6 +96,14 @@ initrd either way. On a PRIME host with the 580 legacy driver the initrd
 measures 207M with early loading and 50M without. With a 1G boot partition and
 a 12M kernel that is four generations against sixteen.
 
+### Container toolkit
+
+`containerToolkit.enable` runs the NVIDIA container toolkit, which writes a CDI
+specification for the card at boot. Every container runtime reads the same
+specification, so Podman takes the card with `--device nvidia.com/gpu=all`, and
+Docker, rootful or rootless, with `--gpus all`. The option needs `enable`, and
+a host that sets it without the driver fails evaluation.
+
 ### Older cards
 
 The stable driver and the open kernel modules both leave older cards behind, and

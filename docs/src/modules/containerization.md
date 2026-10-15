@@ -50,6 +50,16 @@ pairing unless `daemon.settings.iptables = false` is set, after which ports
 are published through the router's `portForwards`. Rootless Docker reaches the
 network through its own namespace and touches no host rules.
 
+### GPU containers
+
+GPU access for containers comes from the NVIDIA module, which serves Docker and
+Podman alike. `othrys.hardware.nvidia.containerToolkit.enable` writes a CDI
+specification for the card at boot, as [Hardware](./hardware.md#container-toolkit)
+describes. Podman reads it with `--device nvidia.com/gpu=all`. Docker, rootful
+or rootless, reads it with `--gpus all` or the same `--device` flag. The option
+was `othrys.services.containerization.docker.nvidia.enable` before, and that
+name still works with a warning.
+
 ## k3s
 
 Lightweight Kubernetes (`othrys.services.containerization.k3s`) for a single-node
