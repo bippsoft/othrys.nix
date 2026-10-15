@@ -77,6 +77,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-wallpaper` | The wallpaper daemon's configuration for each form of `othrys.theme.wallpaper.source`, the hosts that get no daemon, and the image the Stylix adapter is handed |
 | `eval-languages` | The binaries nixvim and VSCodium take from the language registry |
 | `eval-floorp`, `eval-rustdesk` | The Floorp and Discord settings, and what RustDesk persists and launches |
+| `eval-chromium` | Chromium's user package, wrapper arguments, extension manifests, persistence, registry guards and typed refusals |
 | `eval-claude-code` | The settings, pre-approved tools, skills and context the AI modules hand Claude Code |
 | `eval-opencode` | The sharing modes, settings override and type refusals, and the permission map, skills, context, MCP servers and Ollama provider the AI modules hand OpenCode |
 | `opencode-config` | The committed OpenCode configuration, which is the skill names, the agent and command descriptions, the permission values and the agents each file names |

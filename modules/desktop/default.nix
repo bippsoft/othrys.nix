@@ -25,6 +25,7 @@ in {
     ./wallpaper.nix
   ];
 
+  # ANCHOR: desktop-options
   options.othrys.desktop.defaultBrowser = lib.mkOption {
     type = lib.types.nonEmptyStr;
     default =
@@ -46,6 +47,7 @@ in {
       command only and sets no default application for links.
     '';
   };
+  # ANCHOR_END: desktop-options
 
   # The single "this host runs a graphical session" signal. Every othrys
   # compositor module sets it when enabled, and modules outside desktop/ key

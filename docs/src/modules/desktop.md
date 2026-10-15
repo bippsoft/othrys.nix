@@ -113,9 +113,6 @@ primary user's packages.
 
 See [Compositors (Hyprland)](./compositors.md) for the full Hyprland reference.
 
-The `browser` option of both compositors defaults to `floorp` when
-`othrys.apps.floorp` is enabled. Without it the default stays `firefox`, which
-no othrys module installs, so a host with another browser sets the option.
 Hyprland no longer exports `TERM` to the session, and each terminal sets its
 own.
 
@@ -126,6 +123,28 @@ othrys.desktop.compositors.hyprland = {
     {output = "eDP-1";}
   ];
 };
+```
+
+### Browser selection
+
+`othrys.desktop.defaultBrowser` is the command the browser shortcut runs,
+`Super + F` in Hyprland and `Mod+F` in Niri. It follows the browser module that
+is enabled, `floorp` before `chromium`, and names `firefox` when neither is.
+No othrys module installs Firefox, so a host with another browser sets the
+option. It selects a command only and sets no default application for links.
+
+Each compositor's `browser` option defaults to the shared one, and setting it
+changes that compositor alone.
+
+```nix
+othrys.desktop.defaultBrowser = "chromium";
+othrys.desktop.compositors.niri.browser = "floorp";
+```
+
+### Options
+
+```nix
+{{#include ../../../modules/desktop/default.nix:desktop-options}}
 ```
 
 ### Niri

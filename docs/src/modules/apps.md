@@ -45,6 +45,7 @@ Require a desktop environment.
 | Ghostty | `othrys.apps.ghostty` | Terminal emulator with rich options |
 | Kitty | `othrys.apps.kitty` | Alternative terminal emulator |
 | Floorp | `othrys.apps.floorp` | Firefox-based browser |
+| Chromium | `othrys.apps.chromium` | Ungoogled Chromium with extensions from pinned CRX files |
 | VSCodium | `othrys.apps.vscode` | VSCodium editor, wired to the shared language toolchains |
 | Vesktop | `othrys.apps.vesktop` | Discord client with Wayland support |
 | Discord | `othrys.apps.discord` | Official Discord client, with `~/.config/discord` persisted at mode `0700` |
@@ -200,6 +201,50 @@ lists sites in `trackingProtectionExemptions`, and the theme follows
 `search.extraEngines` adds search engines over the curated set. Each engine
 is an attribute set of JSON values in the shape Home Manager documents for
 `programs.firefox.profiles.<name>.search.engines`.
+
+## Chromium
+
+`othrys.apps.chromium` installs Ungoogled Chromium for the primary user through
+Home Manager, and persists `~/.config/chromium` at mode `0700`. Nothing is
+installed system-wide, so a host whose user Home Manager does not manage gets
+no browser.
+
+```nix
+othrys.apps.chromium.enable = true;
+```
+
+`commandLineArgs` passes launch arguments through Home Manager's wrapper, and
+`package` replaces the browser with another Chromium build.
+
+Ungoogled Chromium has no Web Store and does not update extensions, so
+`extensions` installs each one from a CRX file fetched at build time. An entry
+is keyed by the extension's 32-letter ID and names the file's `url`, its
+`hash` and the `version` in its manifest. Home Manager writes an external
+extension manifest pointing at the file in the store, and Chromium installs it
+at the next start. The list is empty by default.
+
+```nix
+othrys.apps.chromium.extensions.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa = {
+  url = "https://example.com/extensions/example-1.0.crx";
+  hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  version = "1.0";
+};
+```
+
+The URL has to keep serving that exact file, or a build without a cached copy
+fails. A release asset or a versioned path does. A Web Store download link
+does not, since Google replaces the file with each new upload. An extension's
+settings and logins live in the persisted profile and are not managed here.
+
+With `othrys.apps.floorp` off, enabling Chromium also makes `chromium` the
+browser the compositors' browser shortcut runs, as [Desktop](./desktop.md#browser-selection)
+describes.
+
+### Options
+
+```nix
+{{#include ../../../modules/apps/gui/chromium.nix:chromium-options}}
+```
 
 ## VSCodium
 

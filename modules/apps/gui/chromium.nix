@@ -52,6 +52,7 @@
     };
   };
 in {
+  # ANCHOR: chromium-options
   options.othrys.apps.chromium = {
     enable = lib.mkEnableOption "Ungoogled Chromium browser";
 
@@ -88,6 +89,7 @@ in {
       '';
     };
   };
+  # ANCHOR_END: chromium-options
 
   config = lib.mkIf cfg.enable {
     assertions =
