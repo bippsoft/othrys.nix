@@ -16,6 +16,7 @@ Colours and fonts come from `othrys.theme`, see [Theming](../guides/theming.md).
 | Login | `othrys.desktop.login` | greetd login manager (tuigreet or cosmic-greeter) |
 | Night light | `othrys.desktop.nightLight` | Color temperature shifting (gammastep) |
 | UWSM | `othrys.desktop.uwsm` | Systemd session management for Wayland |
+| Vicinae | `othrys.desktop.vicinae` | Launcher in the style of Raycast, run as a user server and opened from the launcher chord |
 | Wallpaper | `othrys.desktop.wallpaper` | Draws `othrys.theme.wallpaper` with wpaperd, on by default where a compositor runs and a wallpaper is declared |
 
 ## Ashell
@@ -27,8 +28,10 @@ without `DISPLAY`. It draws through layer-shell and needs no X server, and with
 `DISPLAY` set it would hold a connection to the session's Xwayland server,
 which aborts the bar whenever that server restarts.
 
-The module installs wofi as the launcher, rofimoji as the emoji picker, the
-locker of each enabled compositor and, on Hyprland, hyprpicker. The audio
+The module installs wofi, rofimoji as the emoji picker, the locker of each
+enabled compositor and, on Hyprland, hyprpicker. The launcher chord and the
+launcher button run `othrys.desktop.launcherCommand`, which is wofi unless
+another module or the host names a launcher, as [Vicinae](#vicinae) does. The audio
 buttons open pavucontrol, which `othrys.hardware.audio` installs on a graphical
 host.
 
@@ -91,10 +94,61 @@ The battery indicator reads UPower, which the laptop module enables.
 
 | Binding | Action |
 |---------|--------|
-| `Super + D` | App launcher (wofi drun) |
+| `Super + D` | Launcher (`othrys.desktop.launcherCommand`, wofi drun by default) |
 | `Super + Shift + D` | Command runner (wofi run) |
 | `Super + E` | Emoji picker (rofimoji) |
 | `Super + Shift + C` | Color picker to clipboard (hyprpicker) |
+
+## Vicinae
+
+A launcher in the style of Raycast. The module installs it for the primary
+user through Home Manager's `programs.vicinae` and runs `vicinae server` as a
+user unit of the graphical session. The server reloads its settings and theme
+files when they change.
+
+```nix
+othrys.desktop.compositors.niri.enable = true;
+othrys.desktop.ashell.enable = true;
+othrys.desktop.vicinae.enable = true;
+```
+
+A host without a graphical session is refused, and the message names
+`othrys.desktop.graphical`. The unit starts only where `WAYLAND_DISPLAY` is
+set and restarts only on failure, so "Quit Vicinae" in the tray menu stops
+the server until the next session.
+
+`launcher` sets `othrys.desktop.launcherCommand` to `vicinae toggle`. The
+chord that runs it is ashell's `Super + D` on Hyprland and on Niri, beside the
+bar's launcher button, so a host without the bar binds `vicinae toggle`
+through the compositor's `extraBinds`. Vicinae's own `global_shortcuts`
+setting needs a hotkey protocol of Vicinae's on Wayland, and the module does
+not rely on it.
+
+`settings` is merged over four curated keys one key at a time. Telemetry is
+off, `pop_to_root_on_close` is true and `input_server.enabled` follows
+`inputServer.enable`. `favicon_service` is `"none"`, so links show a
+placeholder icon and no third party learns their host names. The declared
+settings go to `~/.config/vicinae/home-manager.json`, which the server reads
+through `VICINAE_OVERRIDES`. `settings.json` stays writable for the settings
+window, and a key declared here wins over the window's value for that key.
+
+With a palette the module writes the theme `othrys` and selects it for light
+and dark alike, with the variant of `othrys.theme.polarity`. Stylix's own
+Vicinae target is off while the module is on. Without a palette or a
+sans-serif font Vicinae keeps its own.
+
+`~/.config/vicinae` and `~/.local/share/vicinae` are persisted, the second at
+mode 0700, since it holds Vicinae's clipboard history. The bar's wipe at lock
+and logout does not touch that history. `inputServer.enable` installs the
+input helper as a security wrapper with `cap_dac_override`, which any local
+account can run. Without it Vicinae copies where it would paste, and snippets
+do not expand.
+
+### Options
+
+```nix
+{{#include ../../../modules/desktop/vicinae.nix:vicinae-options}}
+```
 
 ## Sessions
 

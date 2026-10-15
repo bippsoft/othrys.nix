@@ -74,6 +74,7 @@
     })
   ];
 in {
+  # ANCHOR: vicinae-options
   options.othrys.desktop.vicinae = {
     enable = lib.mkEnableOption "the Vicinae launcher";
 
@@ -155,6 +156,7 @@ in {
       '';
     };
   };
+  # ANCHOR_END: vicinae-options
 
   config = lib.mkIf cfg.enable {
     assertions = [
