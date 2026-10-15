@@ -7,6 +7,8 @@
   ...
 }: let
   cfg = config.othrys.apps.gaming.gamemode;
+  username = config.othrys.system.user.name;
+  usersEnabled = config.othrys.system.users.enable;
 in {
   options.othrys.apps.gaming.gamemode = {
     enable = lib.mkEnableOption "gamemode configuration for gaming optimization";
@@ -27,10 +29,12 @@ in {
 
         One default deserves a decision.
         `gpu.apply_gpu_optimisations = "accept-responsibility"` lets gamemode
-        change GPU power settings as root at every game start, with no
-        password prompt for the active session. It then sets the NVIDIA
-        PowerMizer mode to maximum performance and the AMD
-        `power_dpm_force_performance_level` to `high`. The value is spelled
+        change GPU power settings as root at every game start, for members of
+        the `gamemode` group, which this module adds the primary user to. It
+        then sets the AMD `power_dpm_force_performance_level` to `high`, and
+        on an X11 session the NVIDIA PowerMizer mode to maximum performance.
+        The NVIDIA step goes through nvidia-settings, which needs an X display
+        and Coolbits, so it does nothing under a Wayland compositor. The value is spelled
         that way upstream because gamemode documents these GPU settings as
         able to damage hardware, and writing it accepts that. A host that
         does not want it sets `gpu.apply_gpu_optimisations = 0`, which leaves
@@ -57,7 +61,6 @@ in {
       settings = lib.mkMerge [
         {
           general = {
-            softrealtime = lib.mkDefault "auto";
             inhibit_screensaver = lib.mkDefault 1;
             renice = lib.mkDefault 15;
           };
@@ -66,7 +69,9 @@ in {
             # option description says what the value accepts.
             apply_gpu_optimisations = lib.mkDefault "accept-responsibility";
             gpu_device = lib.mkDefault 0;
-            nv_powermizer_mode = lib.mkDefault 1; # NVIDIA performance mode
+            # NVIDIA performance mode. Applied through nvidia-settings, so only
+            # on an X11 session.
+            nv_powermizer_mode = lib.mkDefault 1;
             # Inert on NVIDIA hosts, present so an AMD host inherits a sane value.
             amd_performance_level = lib.mkDefault "high";
           };
@@ -77,6 +82,15 @@ in {
         }
         cfg.settings
       ];
+    };
+
+    # GameMode's polkit rule runs its root helpers, which set the CPU
+    # governor, the split-lock mitigation and the GPU settings, only for
+    # members of this group. Without it every helper is refused and the
+    # governor stays where it was. Only when othrys manages the account, since
+    # writing users.users.<name> otherwise materializes a phantom user.
+    users.users = lib.mkIf usersEnabled {
+      ${username}.extraGroups = ["gamemode"];
     };
 
     # Ensure libnotify is available for notifications
