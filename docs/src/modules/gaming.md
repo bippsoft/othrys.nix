@@ -19,6 +19,14 @@ Gaming modules under `othrys.apps.gaming.*`. Located in `modules/apps/gui/gaming
 - Proton-GE for compatibility
 - Three firewall options, each off until a host turns it on
 - Gamescope session support
+- The ntsync driver, loaded and opened to the active session's user
+
+`ntsync` defaults to on for a kernel from 6.14. The kernel ships the driver as
+a module that nothing loads, and no udev rule lets a user open `/dev/ntsync`.
+The module loads it and tags the device `uaccess`, which gives it to whoever
+holds the active seat. Proton 10 and later use the device when they can open
+it, for Windows synchronization primitives that otherwise cost CPU time in
+the game's own process.
 
 The module opens no port by default. Each option below opens its ports on
 every interface, so a host turns on the ones it uses.
@@ -56,7 +64,7 @@ at start, and `devConfig` writes any other console variable into the same file.
 Enables `programs.gamemode` with renice support and writes these defaults into
 `gamemode.ini`:
 
-- Soft realtime scheduling (`softrealtime = "auto"`) and `renice = 15`
+- `renice = 15`
 - Screensaver inhibit
 - GPU optimisations on device 0, which are NVIDIA PowerMizer performance mode
   (`nv_powermizer_mode = 1`) and `amd_performance_level = "high"`
@@ -69,6 +77,14 @@ leaves the others in place.
 
 ### What GameMode needs from the host
 
+- **The `gamemode` group.** GameMode sets the CPU governor, the split-lock
+  mitigation and the GPU settings through root helpers, and NixOS's polkit
+  rule runs them only for members of `gamemode`. The module adds the primary
+  user when `othrys.system.users.enable` is on. Another account needs the
+  group in its own `extraGroups`, and a session started before the change
+  needs a fresh login. Without the group each helper is refused and the
+  governor stays where it was.
+
 - **A game that asks for it.** The daemon acts only for a process started
   through `gamemoderun` or a client that requests it. The osu! wrapper on this
   page does so, and a Steam title needs `gamemoderun %command%` in its launch
@@ -79,8 +95,10 @@ leaves the others in place.
   `apply_gpu_optimisations = "accept-responsibility"`, the literal value
   GameMode requires before it changes the GPU power state. With it set,
   GameMode switches the PowerMizer mode or the AMD performance level each
-  time a game starts, as root and with no password prompt for the active
-  session. GameMode documents these GPU settings as able to damage hardware,
+  time a game starts, as root and with no password prompt for a member of
+  `gamemode`. The NVIDIA switch goes through `nvidia-settings`, which needs an
+  X display, so under a Wayland compositor such as niri or Hyprland it does
+  nothing. GameMode documents these GPU settings as able to damage hardware,
   which is why the value is spelled as an acceptance. A host that does not
   want that sets `settings.gpu.apply_gpu_optimisations = 0`, which leaves the
   GPU alone and keeps the CPU and scheduling changes.
