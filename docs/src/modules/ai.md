@@ -91,6 +91,21 @@ othrys.apps.ai.opencode = {
 };
 ```
 
+`othrys.apps.ai.opencode.share` defaults to `"disabled"`, which blocks
+session sharing. Sharing uploads the session's conversation history to
+OpenCode's servers and creates a public URL accessible to anyone with the
+link. `"manual"` allows `/share` without sharing automatically, while
+`"auto"` publishes every new conversation automatically. The
+[upstream sharing documentation](https://opencode.ai/docs/share/) describes
+these modes and what becomes public.
+
+`othrys.apps.ai.opencode.settings.share` overrides the typed `share` option.
+The module writes a global default to `~/.config/opencode/opencode.json`,
+and project configuration and runtime configuration can override it under
+OpenCode's [configuration precedence](https://opencode.ai/docs/config/#precedence-order).
+This setting is not a security boundary or an upload policy. Do not rely on
+the generated global default to prevent uploads from a project or session.
+
 `settings` is merged over what the module writes to `opencode.json` and wins,
 and `tui` becomes `tui.json`. `skills`, `agents` and `commands` are for
 OpenCode alone, since the frontmatter of an agent or a command differs between
@@ -109,6 +124,11 @@ to OpenCode's own directory.
 Provider credentials are entered with `opencode auth login` and stay in
 `~/.local/share/opencode`, which is persisted at mode 0700 on a host with an
 ephemeral root. The module pre-approves no MCP tool for OpenCode.
+
+### Options
+
+The [generated option reference](../reference/options.md) lists the
+`othrys.apps.ai.opencode` options, their types and defaults.
 
 ## MCP Servers
 
