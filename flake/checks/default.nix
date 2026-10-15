@@ -1398,8 +1398,8 @@
       };
 
       # What the hardware, mount and disk modules write (see ./hardware-eval.nix).
-      # What the GameMode and Steam modules grant the user (see ./gaming-eval.nix).
-      eval-gaming = import ./gaming-eval.nix {inherit hostConfig mkExpectations bootBase functioningHost inputs;};
+      # What the GameMode, Steam and ntsync modules grant the user (see ./gaming-eval.nix).
+      eval-gaming = import ./gaming-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost inputs;};
 
       eval-hardware = import ./hardware-eval.nix {inherit hostConfig mkExpectations rejectedWith bootBase functioningHost diskoModules inputs;};
 

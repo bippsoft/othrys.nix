@@ -19,14 +19,12 @@ Gaming modules under `othrys.apps.gaming.*`. Located in `modules/apps/gui/gaming
 - Proton-GE for compatibility
 - Three firewall options, each off until a host turns it on
 - Gamescope session support
-- The ntsync driver, loaded and opened to the active session's user
+- The ntsync driver, on by default from kernel 6.14
 
-`ntsync` defaults to on for a kernel from 6.14. The kernel ships the driver as
-a module that nothing loads, and no udev rule lets a user open `/dev/ntsync`.
-The module loads it and tags the device `uaccess`, which gives it to whoever
-holds the active seat. Proton 10 and later use the device when they can open
-it, for Windows synchronization primitives that otherwise cost CPU time in
-the game's own process.
+Steam turns on `othrys.hardware.ntsync` at `mkDefault` wherever the kernel
+ships the driver. Proton 10 and later use `/dev/ntsync` for Windows
+synchronization primitives when they can open it.
+[Hardware](./hardware.md#ntsync) describes the driver and the device access.
 
 The module opens no port by default. Each option below opens its ports on
 every interface, so a host turns on the ones it uses.

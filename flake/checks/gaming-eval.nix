@@ -1,11 +1,12 @@
 # flake/checks/gaming-eval.nix
-# CORE. What the GameMode and Steam modules grant the user, read back from
-# evaluated hosts. A user outside the gamemode group and a device nobody can
-# open both evaluate cleanly, and each leaves games on the slower path
-# without an error anyone sees.
+# CORE. What the GameMode, Steam and ntsync modules grant the user, read
+# back from evaluated hosts. A user outside the gamemode group and a device
+# nobody can open both evaluate cleanly, and each leaves games on the slower
+# path without an error anyone sees.
 {
   hostConfig,
   mkExpectations,
+  rejectedWith,
   bootBase,
   functioningHost,
   inputs,
@@ -26,7 +27,22 @@
     ];
 
   managed = gaming {};
-  noNtsync = gaming {othrys.apps.gaming.steam.ntsync = false;};
+  noNtsync = gaming {othrys.hardware.ntsync.enable = false;};
+  renamedNtsync = gaming {othrys.apps.gaming.steam.ntsync = false;};
+
+  # A kernel older than ntsync, forced over whatever the fixture picks.
+  oldKernel = {pkgs, ...}: {boot.kernelPackages = lib.mkForce pkgs.linuxKernel.packages.linux_6_12;};
+  steamOldKernel = gaming oldKernel;
+
+  # ntsync for a Wine runner, with no Steam on the host.
+  ntsyncOnly = extra:
+    hostConfig [
+      functioningHost
+      {othrys.hardware.ntsync.enable = true;}
+      extra
+    ];
+  wineHost = ntsyncOnly {};
+  ntsyncOldKernel = ntsyncOnly oldKernel;
 
   # GameMode on a host whose account othrys does not manage.
   anonymous = hostConfig [
@@ -53,10 +69,22 @@ in
     "the GPU settings are still accepted" =
       managed.programs.gamemode.settings.gpu.apply_gpu_optimisations == "accept-responsibility";
 
-    "Steam loads ntsync on a kernel that ships it" = builtins.elem "ntsync" managed.boot.kernelModules;
+    "Steam turns ntsync on by default on a kernel that ships it" =
+      managed.othrys.hardware.ntsync.enable && builtins.elem "ntsync" managed.boot.kernelModules;
     "the active seat's user can open /dev/ntsync" =
       lib.hasInfix ''KERNEL=="ntsync", MODE="0660", TAG+="uaccess"'' managed.services.udev.extraRules;
     "ntsync off loads nothing and writes no rule" =
       !(builtins.elem "ntsync" noNtsync.boot.kernelModules)
       && !(lib.hasInfix "ntsync" noNtsync.services.udev.extraRules);
+    "a host without Steam loads ntsync and gets the rule" =
+      !wineHost.othrys.apps.gaming.steam.enable
+      && builtins.elem "ntsync" wineHost.boot.kernelModules
+      && lib.hasInfix ''KERNEL=="ntsync"'' wineHost.services.udev.extraRules;
+    "the old Steam option still turns ntsync off, with a rename warning" =
+      !renamedNtsync.othrys.hardware.ntsync.enable
+      && !(builtins.elem "ntsync" renamedNtsync.boot.kernelModules)
+      && builtins.any (lib.hasInfix "othrys.hardware.ntsync.enable") renamedNtsync.warnings;
+    "Steam on a kernel before 6.14 leaves ntsync off" =
+      !steamOldKernel.othrys.hardware.ntsync.enable && !rejectedWith "othrys.hardware.ntsync" steamOldKernel;
+    "ntsync on a kernel before 6.14 is rejected" = rejectedWith "ships with kernel 6.14" ntsyncOldKernel;
   }

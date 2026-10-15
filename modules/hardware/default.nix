@@ -6,6 +6,7 @@
     ./cpu.nix
     ./graphics
     ./laptop
+    ./ntsync.nix
     ./usb.nix
     ./scanner.nix
     ./smart.nix

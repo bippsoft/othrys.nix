@@ -13,6 +13,7 @@ Hardware modules under `othrys.hardware.*`.
 | Shader cache | `othrys.hardware.graphics.shaderCache` | Persistent, size-tuned GPU shader disk caches |
 | Laptop | `othrys.hardware.laptop` | Power management, TLP |
 | PowerSpec 1710 | `othrys.hardware.laptop.powerspec-1710` | Laptop-specific hardware quirks |
+| ntsync | `othrys.hardware.ntsync` | The ntsync driver for Wine and Proton, opened to the active session's user |
 | Scanner | `othrys.hardware.scanner` | SANE scanning (network discovery via airscan) |
 | SMART | `othrys.hardware.smart` | Disk health monitoring (smartd + notify hook) |
 | Tablet | `othrys.hardware.tablet` | Pen tablets through OpenTabletDriver |
@@ -172,6 +173,29 @@ persisted Steam tree already (see [Gaming](gaming.md)).
 
 ```nix
 {{#include ../../../modules/hardware/graphics/shader-cache.nix:shader-cache-options}}
+```
+
+## ntsync
+
+`othrys.hardware.ntsync.enable` loads the ntsync driver and tags
+`/dev/ntsync` `uaccess`, which gives the device to whoever holds the active
+seat. The kernel ships the driver from 6.14 as a module that nothing loads, and
+no udev rule lets a user open the device. Proton 10 and later use it when they
+can open it, for Windows synchronization primitives that otherwise cost CPU
+time in the game's own process. A Wine build with ntsync support uses it the
+same way, so a host that runs games through Lutris, Heroic or Bottles turns it
+on without Steam. A kernel older than 6.14 is refused.
+
+`othrys.apps.gaming.steam` turns it on at `mkDefault` on a kernel from 6.14,
+so a Steam host that does not want it sets
+`othrys.hardware.ntsync.enable = false`. The option was
+`othrys.apps.gaming.steam.ntsync` before, and that name still works with a
+warning.
+
+### Options
+
+```nix
+{{#include ../../../modules/hardware/ntsync.nix:ntsync-options}}
 ```
 
 ## Scanner

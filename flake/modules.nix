@@ -199,6 +199,7 @@ in {
     laptop = ../modules/hardware/laptop/default.nix;
     powerspec-1710 = ../modules/hardware/laptop/powerspec-1710.nix;
     scanner = ../modules/hardware/scanner.nix;
+    ntsync = ../modules/hardware/ntsync.nix;
     smart = ../modules/hardware/smart.nix;
     tablet = ../modules/hardware/tablet.nix;
     ups = ../modules/hardware/ups.nix;
