@@ -1,5 +1,5 @@
 # modules/apps/gui/gaming/gamemode.nix
-# GameMode configuration for gaming performance optimization (NVIDIA-friendly)
+# GameMode configuration for gaming performance optimization
 {
   pkgs,
   lib,
@@ -9,6 +9,7 @@
   cfg = config.othrys.apps.gaming.gamemode;
   username = config.othrys.system.user.name;
   usersEnabled = config.othrys.system.users.enable;
+  nvidiaEnabled = config.othrys.hardware.nvidia.enable;
 in {
   options.othrys.apps.gaming.gamemode = {
     enable = lib.mkEnableOption "gamemode configuration for gaming optimization";
@@ -30,9 +31,10 @@ in {
         One default deserves a decision.
         `gpu.apply_gpu_optimisations = "accept-responsibility"` lets gamemode
         change GPU power settings as root at every game start, for members of
-        the `gamemode` group, which this module adds the primary user to. It
-        then sets the AMD `power_dpm_force_performance_level` to `high`, and
-        on an X11 session the NVIDIA PowerMizer mode to maximum performance.
+        the `gamemode` group, which this module adds the primary user to. On
+        an `othrys.hardware.nvidia` host it sets the PowerMizer mode to
+        maximum performance on an X11 session, and on any other host the AMD
+        `power_dpm_force_performance_level` to `high`.
         The NVIDIA step goes through nvidia-settings, which needs an X display
         and Coolbits, so it does nothing under a Wayland compositor. The value is spelled
         that way upstream because gamemode documents these GPU settings as
@@ -64,17 +66,26 @@ in {
             inhibit_screensaver = lib.mkDefault 1;
             renice = lib.mkDefault 15;
           };
-          gpu = {
-            # Upstream's literal for "change GPU power settings as root". The
-            # option description says what the value accepts.
-            apply_gpu_optimisations = lib.mkDefault "accept-responsibility";
-            gpu_device = lib.mkDefault 0;
-            # NVIDIA performance mode. Applied through nvidia-settings, so only
-            # on an X11 session.
-            nv_powermizer_mode = lib.mkDefault 1;
-            # Inert on NVIDIA hosts, present so an AMD host inherits a sane value.
-            amd_performance_level = lib.mkDefault "high";
-          };
+          gpu =
+            {
+              # Upstream's literal for "change GPU power settings as root". The
+              # option description says what the value accepts.
+              apply_gpu_optimisations = lib.mkDefault "accept-responsibility";
+              gpu_device = lib.mkDefault 0;
+            }
+            # Each vendor's key does nothing on the other's card, so only the
+            # one for this host's GPU is written.
+            // (
+              if nvidiaEnabled
+              then {
+                # NVIDIA performance mode. Applied through nvidia-settings, so
+                # only on an X11 session.
+                nv_powermizer_mode = lib.mkDefault 1;
+              }
+              else {
+                amd_performance_level = lib.mkDefault "high";
+              }
+            );
           custom = {
             start = lib.mkDefault "${pkgs.libnotify}/bin/notify-send 'GameMode' 'Performance optimizations active' --icon=applications-games";
             end = lib.mkDefault "${pkgs.libnotify}/bin/notify-send 'GameMode' 'Performance optimizations inactive' --icon=applications-games";

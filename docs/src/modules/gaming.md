@@ -7,7 +7,7 @@ Gaming modules under `othrys.apps.gaming.*`. Located in `modules/apps/gui/gaming
 | Module | Option | Description |
 |--------|--------|-------------|
 | Steam | `othrys.apps.gaming.steam` | Steam with FHS environment, Proton-GE, essential libraries |
-| GameMode | `othrys.apps.gaming.gamemode` | Performance optimizer with NVIDIA support |
+| GameMode | `othrys.apps.gaming.gamemode` | Performance optimizer, with the GPU setting for the host's card |
 | MangoHud | `othrys.apps.gaming.mangohud` | Vulkan and OpenGL overlay for FPS, temperatures and CPU/GPU usage |
 | PrismLauncher | `othrys.apps.gaming.prismlauncher` | Minecraft launcher with persistent instances |
 | osu! | `othrys.apps.gaming.osu` | osu!lazer with low-latency audio, and GameMode and a pen tablet on by default |
@@ -64,8 +64,10 @@ Enables `programs.gamemode` with renice support and writes these defaults into
 
 - `renice = 15`
 - Screensaver inhibit
-- GPU optimisations on device 0, which are NVIDIA PowerMizer performance mode
-  (`nv_powermizer_mode = 1`) and `amd_performance_level = "high"`
+- GPU optimisations on device 0, for the host's GPU only. An
+  `othrys.hardware.nvidia` host gets PowerMizer performance mode
+  (`nv_powermizer_mode = 1`), and any other host gets
+  `amd_performance_level = "high"`
 - Desktop notifications on start and stop
 
 `settings` is merged over those defaults and has the shape of `gamemode.ini`,

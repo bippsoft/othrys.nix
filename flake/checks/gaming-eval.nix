@@ -27,6 +27,7 @@
     ];
 
   managed = gaming {};
+  nvidiaHost = gaming {othrys.hardware.nvidia.enable = true;};
   noNtsync = gaming {othrys.hardware.ntsync.enable = false;};
   renamedNtsync = gaming {othrys.apps.gaming.steam.ntsync = false;};
 
@@ -73,6 +74,7 @@
 
   groupsOf = cfg: cfg.users.users.alice.extraGroups;
   general = cfg: cfg.programs.gamemode.settings.general;
+  gpu = cfg: cfg.programs.gamemode.settings.gpu;
 in
   mkExpectations "othrys-eval-gaming" {
     "the primary user is in the gamemode group" = builtins.elem "gamemode" (groupsOf managed);
@@ -111,4 +113,9 @@ in
       !osuNoGamemode.programs.gamemode.enable
       && !(lib.hasInfix "gamemoderun" (osuLauncher osuNoGamemode))
       && lib.hasInfix "/bin/osu!" (osuLauncher osuNoGamemode);
+
+    "an NVIDIA host gets the PowerMizer key and no AMD key" =
+      (gpu nvidiaHost).nv_powermizer_mode == 1 && !((gpu nvidiaHost) ? amd_performance_level);
+    "any other host gets the AMD key and no PowerMizer key" =
+      (gpu managed).amd_performance_level == "high" && !((gpu managed) ? nv_powermizer_mode);
   }
