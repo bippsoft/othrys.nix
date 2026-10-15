@@ -866,12 +866,13 @@
 
       # contract-guards covers where a secret may be referenced. This covers
       # content, scanning what is staged for anything shaped like a key or a
-      # token before it reaches a public history.
+      # token before it reaches a public history. git-hooks.nix ships the hook,
+      # and pre-commit appends its args to the entry, so the subcommand lives
+      # in args alone. Setting args replaces the upstream list.
       gitleaks = {
         enable = true;
-        name = "gitleaks";
-        entry = "${pkgs.gitleaks}/bin/gitleaks git --pre-commit --staged --redact --no-banner";
-        pass_filenames = false;
+        package = pkgs.gitleaks;
+        args = ["git" "--pre-commit" "--staged" "--redact" "--no-banner"];
       };
     };
 
