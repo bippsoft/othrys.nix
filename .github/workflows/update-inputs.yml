@@ -12,9 +12,8 @@ name: Update Inputs
 # workflow. build.yml skips its signature job for this branch, and the
 # maintainer who lands the bump signs it.
 #
-# TOKEN. This needs a token other than the default GITHUB_TOKEN, supplied as the
-# FLAKE_UPDATE_TOKEN secret. Two separate GitHub behaviours make the default
-# token insufficient:
+# TOKEN. This needs a token other than the default GITHUB_TOKEN. Two separate
+# GitHub behaviours make the default token insufficient:
 #
 #  1. Creating a PR at all requires "Allow GitHub Actions to create and approve
 #     pull requests" in the repository settings. Without it the run fails with
@@ -26,14 +25,17 @@ name: Update Inputs
 #     protection the PR can never merge. A bump that arrives with nothing run
 #     against it is the outcome to avoid.
 #
-# A PAT or GitHub App token raises events normally, so the checks attach on open.
-# The secret should be a fine-grained personal access token restricted to this
-# repository, with read and write on "Contents" and "Pull requests" and nothing
-# else. It is bound to the one step that opens the PR, so checkout and the Nix
-# install never see it. Checkout does not persist the default token either, and
-# the step that opens the PR pushes with the token it is given.
-# The workflow falls back to GITHUB_TOKEN when the secret is absent so the update
-# still happens, and the guard below says plainly that the PR arrived untested.
+# The token comes from a GitHub App installed on this repository alone and
+# minted per run by actions/create-github-app-token. It expires after an hour
+# and is scoped to this repository with write on Contents and Pull requests,
+# which is all the App holds. The App's client ID is the MAINTENANCE_CLIENT_ID
+# secret and its private key the MAINTENANCE_SECRET secret. The token is passed
+# only to the step that opens the PR, so checkout and the Nix install never see
+# it. Checkout does not persist the default token either, and the step that
+# opens the PR pushes with the token it is given.
+# The workflow falls back to GITHUB_TOKEN when the secrets are absent so the
+# update still happens, and the guard below says plainly that the PR arrived
+# untested.
 on:
   schedule:
     - cron: "0 5 * * 1"
@@ -55,18 +57,28 @@ jobs:
       # Resolved here rather than in the step below, since the `secrets` context
       # is not available in a step-level `if` and the guard would silently never
       # fire if it read the secret directly.
-      HAS_DEDICATED_TOKEN: ${{ secrets.FLAKE_UPDATE_TOKEN != '' }}
+      HAS_DEDICATED_TOKEN: ${{ secrets.MAINTENANCE_CLIENT_ID != '' && secrets.MAINTENANCE_SECRET != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install Nix
         uses: DeterminateSystems/determinate-nix-action@d0c908e6cbe9f89f36ed8205a3ab6f092636916a # v3
+      - name: Mint an App token
+        id: app-token
+        if: env.HAS_DEDICATED_TOKEN == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.MAINTENANCE_CLIENT_ID }}
+          private-key: ${{ secrets.MAINTENANCE_SECRET }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
       - name: Update flake.lock and open PR
         id: update
         uses: DeterminateSystems/update-flake-lock@da03c0f078bc4b2c37ee4f7e072d34bf8f188bb3 # v29
         with:
-          token: ${{ secrets.FLAKE_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           commit-msg: "chore(flake): update inputs"
           pr-title: "chore(flake): update inputs"
           pr-labels: |
@@ -85,6 +97,7 @@ jobs:
             echo "fired, so \`Core checks\` and \`Extended verdict\` will never report."
             echo "Branch protection requires both, so the PR cannot merge as it is."
             echo
-            echo "Close and reopen the PR to attach a run, or add a"
-            echo "\`FLAKE_UPDATE_TOKEN\` secret so future updates arrive tested."
+            echo "Close and reopen the PR to attach a run, or add the"
+            echo "\`MAINTENANCE_CLIENT_ID\` and \`MAINTENANCE_SECRET\` secrets so"
+            echo "future updates arrive tested."
           } >> "$GITHUB_STEP_SUMMARY"

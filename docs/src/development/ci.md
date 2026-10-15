@@ -146,9 +146,13 @@ more declares it on itself. The `deploy` job of `pages.yml` holds `pages: write`
 and `id-token: write`, while the `build` job beside it holds read access only.
 The `analysis` job of `scorecard.yml` holds `security-events: write` and
 `id-token: write`. The `update` job of `update-inputs.yml` holds
-`contents: write` and `pull-requests: write`. Every `actions/checkout` step sets
-`persist-credentials: false`, so no job leaves the token in `.git/config`. No
-job reads the pull request title or any other event text.
+`contents: write` and `pull-requests: write`, which only its fallback uses.
+It opens the pull request with a token minted from the maintenance GitHub App,
+scoped to this repository with write on Contents and Pull requests, since a
+pull request opened with `GITHUB_TOKEN` starts no workflow run. Every
+`actions/checkout` step sets `persist-credentials: false`, so no job leaves the
+token in `.git/config`. No job reads the pull request title or any other event
+text.
 
 ## Workflows
 

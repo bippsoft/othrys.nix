@@ -74,9 +74,12 @@ repository can reduce that set.
   is in `wheel` by default, which is sudo and nothing more.
 - **Release tags.** Tags from `v0.4.0` onward are signed. Earlier tags are not,
   and a consumer pinning one of them relies on GitHub alone.
-- **CI credentials.** `CACHIX_AUTH_TOKEN` can write to the CI cache, and
-  `FLAKE_UPDATE_TOKEN` can push branches and open pull requests here. Neither
-  can write to `main`, which is protected and needs passing checks.
+- **CI credentials.** `CACHIX_AUTH_TOKEN` can write to the CI cache.
+  `MAINTENANCE_CLIENT_ID` and `MAINTENANCE_SECRET` are the client ID and
+  private key of a GitHub App installed on this repository alone, and the
+  token minted from them can push branches and open pull requests here for
+  an hour. Neither can write to `main`, which is protected and needs passing
+  checks.
 
 The registry resolves `nixpkgs` to the host's own input. Channels are off on
 a host built from a flake, and the global flake registry is not fetched unless
