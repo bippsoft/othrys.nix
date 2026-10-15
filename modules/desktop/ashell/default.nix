@@ -422,6 +422,10 @@ in {
         serviceConfig = {
           ExecStart = "${cfg.package}/bin/ashell";
           Environment = "WGPU_BACKEND=vulkan";
+          # ashell draws through layer-shell and needs no X server. With
+          # DISPLAY inherited it opened a connection to xwayland-satellite,
+          # and Xlib aborts the process when that server restarts.
+          UnsetEnvironment = "DISPLAY";
           Slice = "session.slice";
           TimeoutStopSec = "5s";
           Restart = "on-failure";
