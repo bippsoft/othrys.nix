@@ -126,6 +126,7 @@ jobs:
             '.#checks.x86_64-linux.eval-bootloader' \
             '.#checks.x86_64-linux.eval-nvidia' \
             '.#checks.x86_64-linux.eval-hardware' \
+            '.#checks.x86_64-linux.eval-gaming' \
             '.#checks.x86_64-linux.eval-rustdesk' \
             '.#checks.x86_64-linux.eval-dev-shells' \
             '.#checks.x86_64-linux.eval-router-services' \
