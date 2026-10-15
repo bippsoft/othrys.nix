@@ -7,9 +7,11 @@
 }: let
   cfg = config.othrys.hardware.tablet;
 in {
+  # ANCHOR: tablet-options
   options.othrys.hardware.tablet = {
     enable = lib.mkEnableOption "pen tablet support through OpenTabletDriver";
   };
+  # ANCHOR_END: tablet-options
 
   config = lib.mkIf cfg.enable {
     # Installs the driver and its configuration GUI system-wide, and runs the

@@ -15,6 +15,7 @@ Hardware modules under `othrys.hardware.*`.
 | PowerSpec 1710 | `othrys.hardware.laptop.powerspec-1710` | Laptop-specific hardware quirks |
 | Scanner | `othrys.hardware.scanner` | SANE scanning (network discovery via airscan) |
 | SMART | `othrys.hardware.smart` | Disk health monitoring (smartd + notify hook) |
+| Tablet | `othrys.hardware.tablet` | Pen tablets through OpenTabletDriver |
 | UPS | `othrys.hardware.ups` | UPS monitoring and clean shutdown (NUT) |
 | Webcam | `othrys.hardware.webcam` | V4L2 utilities (`v4l-utils`) |
 | USB | `othrys.hardware.usb` | USB utilities (usbutils) |
@@ -199,6 +200,25 @@ pushed through `othrys-notify`.
 
 ```nix
 {{#include ../../../modules/hardware/smart.nix:smart-options}}
+```
+
+## Tablet
+
+`othrys.hardware.tablet.enable` runs OpenTabletDriver for a pen tablet, for
+drawing or for games. The daemon starts as a user unit in each graphical
+session, and the configuration GUI, `opentabletdriver`, is installed
+system-wide. The tablet area, bindings and filters it saves under
+`~/.config/OpenTabletDriver` are persisted. The daemon exits with code 143
+when systemd stops it, and the unit counts that as a clean stop.
+
+`othrys.apps.gaming.osu` turns the tablet on at `mkDefault`, so a host with
+osu! and no tablet sets `othrys.hardware.tablet.enable = false`. In osu!, turn
+off "High Precision Mouse/Tablet" so the driver handles input.
+
+### Options
+
+```nix
+{{#include ../../../modules/hardware/tablet.nix:tablet-options}}
 ```
 
 ## UPS
