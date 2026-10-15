@@ -20,8 +20,21 @@ in {
 
     acceleration = lib.mkOption {
       type = lib.types.enum ["cuda" "rocm" "vulkan" "cpu"];
-      default = "cuda";
-      description = "GPU acceleration backend for Ollama.";
+      default =
+        if config.othrys.hardware.nvidia.enable
+        then "cuda"
+        else if config.hardware.graphics.enable
+        then "vulkan"
+        else "cpu";
+      defaultText = lib.literalMD ''
+        `"cuda"` when `othrys.hardware.nvidia` is enabled, `"vulkan"` on any
+        other host with `hardware.graphics.enable`, and `"cpu"` otherwise
+      '';
+      description = ''
+        GPU acceleration backend for Ollama, which picks the package. The
+        default follows the host's GPU. Vulkan runs on AMD and Intel cards
+        alike, and an AMD host that wants ROCm names it here.
+      '';
     };
 
     loadModels = lib.mkOption {

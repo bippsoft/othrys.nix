@@ -8,7 +8,7 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 |--------|--------|-------------|
 | Claude Code | `othrys.apps.ai.claude-code` | Anthropic CLI assistant |
 | OpenCode | `othrys.apps.ai.opencode` | Open source terminal assistant for any provider |
-| Ollama | `othrys.apps.ai.ollama` | Local LLM inference server (CUDA/ROCm/Vulkan/CPU) |
+| Ollama | `othrys.apps.ai.ollama` | Local LLM inference server, with the backend chosen from the host's GPU |
 | MCP NixOS | `othrys.apps.ai.mcp.nixos` | NixOS MCP server |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
@@ -129,6 +129,17 @@ ephemeral root. The module pre-approves no MCP tool for OpenCode.
 
 The [generated option reference](../reference/options.md) lists the
 `othrys.apps.ai.opencode` options, their types and defaults.
+
+## Ollama
+
+`othrys.apps.ai.ollama` runs the Ollama server on `127.0.0.1:11434`, pulls the
+models in `loadModels` at start, and persists them. `acceleration` picks the
+package, and its default follows the host. An `othrys.hardware.nvidia` host
+gets `ollama-cuda`, any other host with `hardware.graphics.enable` gets
+`ollama-vulkan`, which runs on AMD and Intel cards, and a host without graphics
+gets `ollama-cpu`. An AMD host that wants ROCm sets `acceleration = "rocm"`.
+The CUDA build is unfree and pulls the CUDA toolkit, so a host without an
+NVIDIA card never gets it by default.
 
 ## MCP Servers
 

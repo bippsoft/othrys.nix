@@ -3,7 +3,9 @@
 # read back from evaluated hosts. A blocklist URL, an ACME storage path, a
 # repository URL and a provider name are all plain strings upstream, so a
 # value that should be refused evaluates cleanly, and an option that is
-# declared and never passed on does too.
+# declared and never passed on does too. Ollama's backend follows the GPU,
+# since a CUDA build on a host without an NVIDIA card evaluates and runs on
+# the CPU.
 {
   hostConfig,
   impermanenceModules,
@@ -202,6 +204,19 @@
       };
     }).othrys.services.ddns.provider;
 
+  ollamaOn = {othrys.apps.ai.ollama.enable = true;};
+  ollamaNvidia = host {
+    imports = [ollamaOn];
+    othrys.system.nix.allowUnfree = true;
+    othrys.hardware.nvidia.enable = true;
+  };
+  ollamaGraphics = host {
+    imports = [ollamaOn];
+    hardware.graphics.enable = true;
+  };
+  ollamaHeadless = host ollamaOn;
+  backendOf = cfg: cfg.othrys.apps.ai.ollama.acceleration;
+
   unbound = cfg: cfg.services.unbound.settings;
   resolver = cfg: cfg.services.traefik.staticConfigOptions.certificatesResolvers.letsencrypt.acme;
   tcpPorts = cfg: cfg.networking.firewall.allowedTCPPorts;
@@ -268,4 +283,8 @@ in
     "the headscale state directory is persisted as 0750" = modeOf "/var/lib/headscale" configured == "0750";
 
     "the alert rules pass through vmalert at build time" = (rules configured).name == "vmalert-othrys-rules.yml" && hasInfix "-dryRun" (rules configured).buildCommand;
+
+    "Ollama takes CUDA on an NVIDIA host" = backendOf ollamaNvidia == "cuda";
+    "Ollama takes Vulkan on another host with graphics" = backendOf ollamaGraphics == "vulkan" && !ollamaGraphics.othrys.hardware.nvidia.enable;
+    "Ollama takes the CPU build on a host without graphics" = backendOf ollamaHeadless == "cpu" && !ollamaHeadless.hardware.graphics.enable;
   }
