@@ -3,6 +3,7 @@
 {
   imports = [
     ./audio.nix
+    ./cpu.nix
     ./graphics
     ./laptop
     ./usb.nix

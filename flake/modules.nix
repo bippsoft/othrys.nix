@@ -189,6 +189,7 @@ in {
 
     # Hardware-specific
     audio = ../modules/hardware/audio.nix;
+    cpu = ../modules/hardware/cpu.nix;
     bluetooth = ../modules/hardware/wireless/bluetooth.nix;
     wifi = ../modules/hardware/wireless/wifi.nix;
     nvidia = ../modules/hardware/graphics/nvidia.nix;

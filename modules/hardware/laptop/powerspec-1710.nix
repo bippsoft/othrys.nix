@@ -13,6 +13,9 @@ in {
   # directly, from a nixos-hardware input of its own. common-gpu-nvidia stays out entirely, since it causes PRIME assertion
   # failures when loaded unconditionally, and othrys.hardware.nvidia.prime sets
   # proper bus IDs instead.
+  # The CPU option this module sets, so its export works on its own.
+  imports = [../cpu.nix];
+
   options.othrys.hardware.laptop.powerspec-1710 = {
     enable = lib.mkEnableOption "PowerSpec 1710 hardware optimizations";
   };
@@ -28,7 +31,6 @@ in {
     # Thunderbolt 3
     services.hardware.bolt.enable = lib.mkDefault true;
 
-    # Intel microcode
-    hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+    othrys.hardware.cpu.vendor = lib.mkDefault "intel";
   };
 }
