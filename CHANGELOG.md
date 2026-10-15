@@ -1,3 +1,9 @@
+## v0.19.0 (2026-10-14)
+
+### Feat
+
+- **vicinae**: add the vicinae launcher module
+
 ## v0.18.0 (2026-10-14)
 
 ### BREAKING CHANGE
