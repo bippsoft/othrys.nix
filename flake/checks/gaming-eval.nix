@@ -1,5 +1,5 @@
 # flake/checks/gaming-eval.nix
-# CORE. What the GameMode, Steam and ntsync modules grant the user, read
+# CORE. What the GameMode, Steam, osu! and ntsync modules grant the user, read
 # back from evaluated hosts. A user outside the gamemode group and a device
 # nobody can open both evaluate cleanly, and each leaves games on the slower
 # path without an error anyone sees.
@@ -44,6 +44,21 @@
   wineHost = ntsyncOnly {};
   ntsyncOldKernel = ntsyncOnly oldKernel;
 
+  # osu! alone, and osu! on a host that turns GameMode off.
+  osu = extra:
+    hostConfig [
+      functioningHost
+      {
+        othrys.system.nix.allowUnfree = true;
+        othrys.apps.gaming.osu.enable = true;
+      }
+      extra
+    ];
+  osuAlone = osu {};
+  osuNoGamemode = osu {othrys.apps.gaming.gamemode.enable = false;};
+  # The launcher script inside the wrapper osu! installs.
+  osuLauncher = cfg: cfg.othrys.apps.gaming.osu.package.launcher.text;
+
   # GameMode on a host whose account othrys does not manage.
   anonymous = hostConfig [
     bootBase
@@ -87,4 +102,13 @@ in
     "Steam on a kernel before 6.14 leaves ntsync off" =
       !steamOldKernel.othrys.hardware.ntsync.enable && !rejectedWith "othrys.hardware.ntsync" steamOldKernel;
     "ntsync on a kernel before 6.14 is rejected" = rejectedWith "ships with kernel 6.14" ntsyncOldKernel;
+
+    "osu! turns GameMode on by default and starts through gamemoderun" =
+      osuAlone.othrys.apps.gaming.gamemode.enable
+      && osuAlone.programs.gamemode.enable
+      && lib.hasInfix "/bin/gamemoderun " (osuLauncher osuAlone);
+    "osu! with GameMode off starts the game directly" =
+      !osuNoGamemode.programs.gamemode.enable
+      && !(lib.hasInfix "gamemoderun" (osuLauncher osuNoGamemode))
+      && lib.hasInfix "/bin/osu!" (osuLauncher osuNoGamemode);
   }

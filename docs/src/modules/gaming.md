@@ -10,7 +10,7 @@ Gaming modules under `othrys.apps.gaming.*`. Located in `modules/apps/gui/gaming
 | GameMode | `othrys.apps.gaming.gamemode` | Performance optimizer with NVIDIA support |
 | MangoHud | `othrys.apps.gaming.mangohud` | Vulkan and OpenGL overlay for FPS, temperatures and CPU/GPU usage |
 | PrismLauncher | `othrys.apps.gaming.prismlauncher` | Minecraft launcher with persistent instances |
-| osu! | `othrys.apps.gaming.osu` | osu!lazer with low-latency audio, and a pen tablet on by default |
+| osu! | `othrys.apps.gaming.osu` | osu!lazer with low-latency audio, and GameMode and a pen tablet on by default |
 | r2modman | `othrys.apps.gaming.r2modman` | Mod manager for Thunderstore games |
 
 ## Steam
@@ -119,7 +119,11 @@ impermanence, the second of which holds the logs that `F2` starts and stops.
 
 ## osu!
 
-- **Low-latency wrapper**: Injects `PIPEWIRE_LATENCY=64/48000` (1.3ms target) and launches through `gamemoderun`
+- **Low-latency wrapper**: Injects `PIPEWIRE_LATENCY=64/48000` (1.3ms target),
+  and launches through `gamemoderun` when GameMode is enabled
+- **GameMode**: Turns on `othrys.apps.gaming.gamemode` at `mkDefault`, since
+  `gamemoderun` needs its daemon. A host that sets
+  `othrys.apps.gaming.gamemode.enable = false` starts osu! directly
 - **Tablet**: Turns on `othrys.hardware.tablet` at `mkDefault`, which runs
   OpenTabletDriver, as [Hardware](./hardware.md#tablet) describes
 - **Persistence**: Auto-persists `~/.local/share/osu` (songs, skins, replays)
