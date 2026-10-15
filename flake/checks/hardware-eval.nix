@@ -175,6 +175,20 @@
   powerspec = hostConfig [bootBase nix {othrys.hardware.laptop.powerspec-1710.enable = true;}];
   cpuRefused = (builtins.tryEval (cpu "arm").othrys.hardware.cpu.vendor).success;
 
+  tablet = hostConfig [functioningHost {othrys.hardware.tablet.enable = true;}];
+  osu = extra:
+    hostConfig [
+      functioningHost
+      {
+        othrys.system.nix.allowUnfree = true;
+        othrys.apps.gaming.osu.enable = true;
+      }
+      extra
+    ];
+  osuDefault = osu {};
+  osuNoTablet = osu {othrys.apps.gaming.osu.enableTabletDriver = false;};
+  hasPackage = cfg: name: builtins.any (p: (p.pname or "") == name) cfg.environment.systemPackages;
+
   upsmon = equipped.systemd.services.upsmon;
   mountOptions = cfg: mountPoint: cfg.fileSystems.${mountPoint}.options;
   hasAll = wanted: have: builtins.all (o: builtins.elem o have) wanted;
@@ -230,6 +244,20 @@ in
       && !noCpu.hardware.enableRedistributableFirmware
       && !builtins.any (m: lib.hasPrefix "kvm-" m) noCpu.boot.kernelModules;
     "a vendor outside intel and amd is refused" = !cpuRefused;
+    "the tablet module runs the OpenTabletDriver daemon and installs its GUI" =
+      tablet.hardware.opentabletdriver.enable
+      && tablet.hardware.opentabletdriver.daemon.enable
+      && hasPackage tablet "OpenTabletDriver";
+    "a SIGTERM stop of the tablet daemon counts as success" =
+      tablet.systemd.user.services.opentabletdriver.serviceConfig.SuccessExitStatus == 143;
+    "the tablet settings are persisted" =
+      tablet.othrys.internal.persist."hardware.tablet".user.directories == [".config/OpenTabletDriver"];
+    "a tablet host gets no osu!" = !tablet.othrys.apps.gaming.osu.enable;
+    "osu! turns the tablet on by default" = osuDefault.othrys.hardware.tablet.enable;
+    "the old osu! option still turns the tablet off, with a rename warning" =
+      !osuNoTablet.othrys.hardware.tablet.enable
+      && !osuNoTablet.hardware.opentabletdriver.enable
+      && builtins.any (lib.hasInfix "othrys.hardware.tablet.enable") osuNoTablet.warnings;
     "the PowerSpec 1710 states an Intel CPU" =
       powerspec.othrys.hardware.cpu.vendor
       == "intel"
