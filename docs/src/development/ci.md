@@ -72,6 +72,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-gaming` | The `gamemode` group GameMode needs for its root helpers, the GameMode defaults, and the ntsync driver and device access Steam sets up |
 | `eval-hardware`, `eval-nvidia` | What the hardware, CPU, mount and disk modules write, and which NVIDIA driver a host gets |
 | `eval-desktop`, `eval-lock`, `eval-login` | What the desktop modules and terminals write, the session lock, and what greetd is handed |
+| `eval-vicinae` | The Vicinae settings, theme, unit and persisted directories, the launcher chord on Hyprland and Niri with Vicinae on and off, and the hosts it writes nothing to |
 | `eval-keyring` | The Secret Service provider each setting of `othrys.desktop.keyring` selects, the keyring written without a password, and the combinations the module refuses |
 | `eval-theme` | The palette, fonts and schemes of `othrys.theme` on hosts with no Stylix module, and what the Stylix adapter hands over and takes back |
 | `eval-wallpaper` | The wallpaper daemon's configuration for each form of `othrys.theme.wallpaper.source`, the hosts that get no daemon, and the image the Stylix adapter is handed |

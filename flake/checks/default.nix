@@ -261,6 +261,7 @@
         ashell.enable = true;
         compositors.hyprland.enable = true;
         idle.enable = true;
+        vicinae.enable = true;
         # The night light asks for a location, and these are placeholders.
         nightLight = {
           enable = true;
@@ -1142,6 +1143,13 @@
       eval-desktop = import ./desktop-eval.nix {
         inherit (inputs.nixpkgs) lib;
         inherit hostConfig mkExpectations rejectedWith bootBase functioningHost stylixModules;
+      };
+
+      # What the Vicinae module writes, persists and refuses, and the launcher
+      # chord on both compositors (see ./vicinae-eval.nix).
+      eval-vicinae = import ./vicinae-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit impermanenceModules stylixModules hostConfig mkExpectations rejectedWith bootCore functioningHost accountNoHomeManager;
       };
 
       # The Secret Service provider each keyring setting selects, and what the

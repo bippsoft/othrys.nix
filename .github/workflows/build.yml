@@ -165,6 +165,7 @@ jobs:
             '.#checks.x86_64-linux.eval-lock' \
             '.#checks.x86_64-linux.eval-login' \
             '.#checks.x86_64-linux.eval-desktop' \
+            '.#checks.x86_64-linux.eval-vicinae' \
             '.#checks.x86_64-linux.eval-keyring' \
             '.#checks.x86_64-linux.eval-theme' \
             '.#checks.x86_64-linux.eval-wallpaper' \
