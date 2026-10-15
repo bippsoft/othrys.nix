@@ -47,6 +47,20 @@ in {
   options.othrys.apps.gaming.steam = {
     enable = lib.mkEnableOption "Steam with gaming optimizations";
 
+    ntsync = lib.mkOption {
+      type = lib.types.bool;
+      default = lib.versionAtLeast config.boot.kernelPackages.kernel.version "6.14";
+      defaultText = lib.literalMD "`true` on a kernel from 6.14, which ships the driver";
+      description = ''
+        Load the ntsync driver and give the active session's user access to
+        `/dev/ntsync`. Proton 10 and later use it for Windows synchronization
+        primitives when the device is present and writable, which lowers the
+        CPU cost of games that wait on many objects. The kernel ships the
+        driver as a module that nothing loads, and no udev rule grants access
+        to it.
+      '';
+    };
+
     extraCompatPackages = lib.mkOption {
       type = lib.types.listOf lib.types.package;
       default = [];
@@ -186,6 +200,13 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    boot.kernelModules = lib.mkIf cfg.ntsync ["ntsync"];
+    # uaccess hands the device to whoever holds the active seat, as logind
+    # does for input and sound devices, rather than to every account.
+    services.udev.extraRules = lib.mkIf cfg.ntsync ''
+      KERNEL=="ntsync", MODE="0660", TAG+="uaccess"
+    '';
+
     # Persistence for Steam library and game saves
     othrys.internal.persist."apps.gaming.steam" = {
       user.directories = [
