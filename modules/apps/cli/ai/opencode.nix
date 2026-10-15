@@ -29,6 +29,8 @@
       # The package comes from the store, which the tool cannot replace.
       autoupdate = false;
 
+      inherit (cfg) share;
+
       # These rules are ergonomics, not a security boundary, for the reason
       # given in ./claude-code.nix. A pattern matches a command string and a
       # string has endless spellings. OpenCode's own default allows every
@@ -69,6 +71,18 @@ in {
     enable = lib.mkEnableOption "OpenCode AI assistant";
 
     package = lib.mkPackageOption pkgs "opencode" {};
+
+    share = lib.mkOption {
+      type = lib.types.enum ["manual" "auto" "disabled"];
+      default = "disabled";
+      description = ''
+        Session sharing mode. "manual" allows sharing through `/share`,
+        "auto" shares new conversations automatically, and "disabled"
+        prevents sharing. Shared sessions are uploaded to a public URL,
+        so this module disables sharing instead of OpenCode's "manual"
+        default. `settings.share` overrides this value.
+      '';
+    };
 
     claudeCompat = lib.mkOption {
       type = lib.types.bool;
