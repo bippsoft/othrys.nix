@@ -168,6 +168,13 @@
     }
   ];
 
+  cpu = vendor: hostConfig [bootBase nix {othrys.hardware.cpu.vendor = vendor;}];
+  intel = cpu "intel";
+  amd = cpu "amd";
+  noCpu = hostConfig [bootBase nix];
+  powerspec = hostConfig [bootBase nix {othrys.hardware.laptop.powerspec-1710.enable = true;}];
+  cpuRefused = (builtins.tryEval (cpu "arm").othrys.hardware.cpu.vendor).success;
+
   upsmon = equipped.systemd.services.upsmon;
   mountOptions = cfg: mountPoint: cfg.fileSystems.${mountPoint}.options;
   hasAll = wanted: have: builtins.all (o: builtins.elem o have) wanted;
@@ -206,4 +213,25 @@ in
     "nixpkgs still turns modesetting on through the module parameters" = primeSet.hardware.nvidia.moduleParams.nvidia-drm.modeset == 1;
     "video memory is preserved through the power management option" = primeSet.hardware.nvidia.powerManagement.enable && primeSet.hardware.nvidia.moduleParams.nvidia.NVreg_PreserveVideoMemoryAllocations == 1;
     "i915 is not blacklisted unless asked" = !builtins.elem "i915" primeSet.boot.blacklistedKernelModules;
+
+    "an Intel CPU gets microcode, firmware and kvm-intel" =
+      intel.hardware.cpu.intel.updateMicrocode
+      && intel.hardware.enableRedistributableFirmware
+      && builtins.elem "kvm-intel" intel.boot.kernelModules
+      && !intel.hardware.cpu.amd.updateMicrocode;
+    "an AMD CPU gets microcode, firmware and kvm-amd" =
+      amd.hardware.cpu.amd.updateMicrocode
+      && amd.hardware.enableRedistributableFirmware
+      && builtins.elem "kvm-amd" amd.boot.kernelModules
+      && !amd.hardware.cpu.intel.updateMicrocode;
+    "no vendor writes no microcode, firmware or KVM module" =
+      !noCpu.hardware.cpu.intel.updateMicrocode
+      && !noCpu.hardware.cpu.amd.updateMicrocode
+      && !noCpu.hardware.enableRedistributableFirmware
+      && !builtins.any (m: lib.hasPrefix "kvm-" m) noCpu.boot.kernelModules;
+    "a vendor outside intel and amd is refused" = !cpuRefused;
+    "the PowerSpec 1710 states an Intel CPU" =
+      powerspec.othrys.hardware.cpu.vendor
+      == "intel"
+      && powerspec.hardware.cpu.intel.updateMicrocode;
   }
