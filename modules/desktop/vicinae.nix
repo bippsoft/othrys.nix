@@ -184,6 +184,17 @@ in {
       '';
     };
 
+    exchangeRates.hourlyRefresh = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Let the calculator fetch currency exchange rates from
+        `api.vicinae.com` every hour. With false the server still fetches
+        them once when it starts, which no setting of Vicinae prevents, and
+        currency conversions use those rates for the rest of the session.
+      '';
+    };
+
     launcher = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -290,9 +301,12 @@ in {
           # seconds after "Quit Vicinae" in the tray menu has stopped it.
           Restart = lib.mkForce "on-failure";
           Slice = "session.slice";
-          Environment = lib.mkIf cfg.inputServer.enable [
-            "VICINAE_INPUT_SERVER_BIN=${config.security.wrapperDir}/vicinae-input-server"
-          ];
+          Environment =
+            lib.optional cfg.inputServer.enable "VICINAE_INPUT_SERVER_BIN=${config.security.wrapperDir}/vicinae-input-server"
+            # The calculator asks api.vicinae.com for exchange rates every
+            # hour. The variable stops the timer, and the one request made
+            # when the server starts has no switch.
+            ++ lib.optional (!cfg.exchangeRates.hourlyRefresh) "VICINAE_DISABLE_AUTO_RATE_REFRESH=1";
         };
       };
     };

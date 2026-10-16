@@ -80,6 +80,10 @@
     othrys.system.stylix.enable = true;
   };
   noSession = host on;
+  hourly = host {
+    imports = [niri on];
+    othrys.desktop.vicinae.exchangeRates.hourlyRefresh = true;
+  };
   vim = host {
     imports = [niri on];
     othrys.desktop.vicinae.keybinding = "vim";
@@ -202,6 +206,10 @@ in
     "the server stops with the graphical session" = (unit hyprlandOn).Unit.PartOf == ["graphical-session.target"];
     "the server runs only in a Wayland session" = (unit hyprlandOn).Unit.ConditionEnvironment == "WAYLAND_DISPLAY";
     "a server quit from the tray stays down" = (unit hyprlandOn).Service.Restart == "on-failure";
+    "the hourly exchange rate refresh is off" =
+      builtins.elem "VICINAE_DISABLE_AUTO_RATE_REFRESH=1" (unit hyprlandOn).Service.Environment;
+    "hourlyRefresh brings the refresh back" =
+      !(builtins.elem "VICINAE_DISABLE_AUTO_RATE_REFRESH=1" (unit hourly).Service.Environment);
     "the server reads the declared settings" = builtins.any (lib.hasInfix "VICINAE_OVERRIDES=") (unit hyprlandOn).Service.Environment;
 
     "the input helper is a capability wrapper" =

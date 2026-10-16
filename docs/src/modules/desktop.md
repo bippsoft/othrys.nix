@@ -149,6 +149,12 @@ prompt that runs a typed command, so `runCommand` is null and
 installs none of wofi, rofimoji and wtype. The emoji search copies the emoji
 and pastes it only with `inputServer.enable`.
 
+The calculator fetches currency exchange rates from `api.vicinae.com` once
+when the server starts and then every hour. The module stops the hourly
+requests, and `exchangeRates.hourlyRefresh` brings them back. No setting stops
+the request at start. Vicinae's update check never runs on Linux, and the
+extension stores reach `api.vicinae.com` only when they are opened.
+
 `keybinding` picks Vicinae's navigation preset, `"default"`, `"vim"` or
 `"emacs"`, and is written to the `keybinding` setting.
 
