@@ -162,9 +162,16 @@ and dark alike, with the variant of `othrys.theme.polarity`. Stylix's own
 Vicinae target is off while the module is on. Without a palette or a
 sans-serif font Vicinae keeps its own.
 
-`~/.config/vicinae` and `~/.local/share/vicinae` are persisted, the second at
-mode 0700, since it holds Vicinae's clipboard history. The bar's wipe at lock
-and logout does not touch that history. `inputServer.enable` installs the
+While ashell keeps its cliphist history, Vicinae's own clipboard monitoring is
+off. Vicinae's history would otherwise hold every entry past the bar's wipe at
+lock and logout, which does not reach it. A host without the bar's history
+keeps Vicinae's, and it is wiped by nothing.
+
+`~/.config/vicinae` is persisted, and so are `~/.local/share/vicinae` and
+`~/.local/state/vicinae` at mode 0700. The first of those holds the clipboard
+history, snippets and extension data, and the second the onboarding state,
+without which the onboarding screen returns after every boot. The file index
+in `~/.cache/vicinae` is rebuilt by Vicinae and is not persisted. `inputServer.enable` installs the
 input helper as a security wrapper with `cap_dac_override`, which any local
 account can run. Without it Vicinae copies where it would paste, and snippets
 do not expand.

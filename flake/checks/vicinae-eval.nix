@@ -79,6 +79,10 @@
     othrys.system.stylix.enable = true;
   };
   noSession = host on;
+  noHistory = host {
+    imports = [niri on];
+    othrys.desktop.ashell.clipboard.enable = false;
+  };
 
   # An account Home Manager does not manage, and a host with no named user.
   noHomeManager = hostConfig [
@@ -148,6 +152,9 @@ in
     "no favicon service is asked" = (settings hyprlandOn).favicon_service == "none";
     "the launcher opens at the root search" = (settings hyprlandOn).pop_to_root_on_close == true;
     "the input helper is off by default" = (settings hyprlandOn).input_server.enabled == false;
+    "Vicinae records no clipboard while cliphist does" = (settings hyprlandOn).providers.clipboard.preferences.monitoring == false;
+    "Vicinae records the clipboard without the bar's history" =
+      !((settings noHistory) ? providers) || !((settings noHistory).providers ? clipboard);
     "settings.json is left for Vicinae to write" =
       (vicinae hyprlandOn).mutableSettings
       && (home hyprlandOn).xdg.configFile ? "vicinae/home-manager.json"
@@ -216,6 +223,8 @@ in
 
     "settings.json is persisted" = persists persisted ".config/vicinae";
     "the clipboard history is persisted at mode 0700" = persistedAt persisted ".local/share/vicinae" "0700";
+    "the onboarding state is persisted at mode 0700" = persistedAt persisted ".local/state/vicinae" "0700";
+    "the cache is not persisted" = !(persists persisted ".cache/vicinae");
 
     "a host with no graphical session is refused" = rejectedWith "othrys.desktop.vicinae requires a graphical session" noSession;
     "a host without Home Manager gets no Home Manager configuration" =

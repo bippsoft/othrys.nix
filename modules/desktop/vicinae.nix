@@ -13,6 +13,11 @@
   colors = theme.colors.withHashtag;
   font = theme.fonts.sansSerif;
 
+  # cliphist keeps the history the bar and its chord show, and wipes it at
+  # lock and at logout. Vicinae's own history would hold the same entries
+  # past both, so it stops recording while cliphist runs.
+  cliphistRuns = config.othrys.desktop.ashell.enable && config.othrys.desktop.ashell.clipboard.enable;
+
   vicinae = lib.getExe cfg.package;
   # A chord that opens one command directly. `toggle` closes the window
   # when the chord is pressed while it is open.
@@ -68,6 +73,9 @@
       pop_to_root_on_close = lib.mkDefault true;
       input_server.enabled = lib.mkDefault cfg.inputServer.enable;
     }
+    (lib.mkIf cliphistRuns {
+      providers.clipboard.preferences.monitoring = lib.mkDefault false;
+    })
     (lib.mkIf themed {
       theme = {
         dark.name = lib.mkDefault "othrys";
@@ -109,6 +117,10 @@ in {
         `input_server.enabled` from `inputServer.enable`. With a palette in
         `othrys.theme` both theme names are `"othrys"`, and with
         `othrys.theme.fonts.sansSerif` set the interface font is that font.
+        While ashell keeps its cliphist history,
+        `providers.clipboard.preferences.monitoring` is false, so Vicinae
+        records no second history that the wipe at lock would miss. On a
+        host without that history Vicinae records the clipboard itself.
 
         The declared settings are merged over the file Vicinae writes from
         its settings window, key by key, each time the server loads them. A
@@ -206,6 +218,13 @@ in {
         # The clipboard history, snippets, shortcuts and extension data.
         {
           directory = ".local/share/vicinae";
+          mode = "0700";
+        }
+        # onboarding.json, without which the onboarding screen returns after
+        # every boot, beside the log. The file index under ~/.cache is
+        # rebuilt by Vicinae and is left to the wipe.
+        {
+          directory = ".local/state/vicinae";
           mode = "0700";
         }
       ];
