@@ -106,16 +106,15 @@
       special_workspace_colors = ["${colors.base08}"]
     ''}
 
-    # Bar surface and opacity live under [appearance.bar]. They were
-    # previously emitted as `style`/`opacity` directly under [appearance],
-    # where ashell's Appearance struct has no such fields, and since every
-    # field carries #[serde(default)] with no deny_unknown_fields, both keys
-    # parsed cleanly and were discarded. The bar therefore rendered with the
-    # BarSurface default (transparent, i.e. the per-group "islands" look) at
-    # full opacity, regardless of what was written here.
+    # Opacity is one table per surface under [appearance], and the surface
+    # of the bar sits under [appearance.bar]. ashell warns about a key it
+    # does not know and then ignores it, so a key in the wrong table leaves
+    # the bar at ashell's default. Menus keep ashell's opacity of 1.0.
+    [appearance.opacity]
+    bar = ${lib.strings.floatToString cfg.bar.opacity}
+
     [appearance.bar]
     surface = "${cfg.bar.surface}"
-    opacity = ${lib.strings.floatToString cfg.bar.opacity}
 
     ${lib.optionalString themed ''
       [appearance.background_color]
@@ -150,7 +149,6 @@
     ''}
 
     [appearance.menu]
-    opacity = 0.95
     backdrop = 0.3
 
     [workspaces]
@@ -209,8 +207,11 @@
     toast_max_height = 150
 
     [media_player]
-    max_title_length = 50
+    max_text_length = 50
     indicator_format = "IconAndTitle"
+
+    [animations]
+    enabled = ${lib.boolToString cfg.animations}
 
     [[CustomModule]]
     name = "launcher"
@@ -399,11 +400,42 @@ in {
         example = 0.92;
         description = ''
           Opacity of the bar surface. Below 1.0 ashell also asks the
-          compositor for background blur (its blur mode defaults to `auto`,
-          which engages exactly when opacity < 1); that needs
-          `ext-background-effect-v1`, and is a no-op where unsupported.
+          compositor to blur what is behind the bar, since its `blur` setting
+          defaults to `auto`. The request needs `ext-background-effect-v1`,
+          and a compositor without it draws no blur.
         '';
       };
+    };
+
+    animations = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      example = true;
+      description = ''
+        Animate the bar. ashell then slides menus and toasts in and out and
+        resizes modules and workspace buttons gradually. Each animation lasts
+        100 ms and draws a frame per refresh of the output, so it shows
+        stutter on a renderer that misses frames, as Vulkan does on NVIDIA
+        (see `renderer`). The default is ashell's own, which is off.
+      '';
+    };
+
+    renderer = lib.mkOption {
+      type = lib.types.enum ["vulkan" "gl"];
+      default =
+        if config.othrys.hardware.nvidia.enable
+        then "gl"
+        else "vulkan";
+      defaultText = lib.literalMD ''
+        `"gl"` when `othrys.hardware.nvidia.enable` is set, and `"vulkan"`
+        otherwise
+      '';
+      description = ''
+        The graphics API ashell draws with, written to `WGPU_BACKEND` on the
+        unit. Vulkan is ashell's default. On the NVIDIA driver it presents
+        frames late, and animations stutter while OpenGL draws them smoothly,
+        so an NVIDIA host gets `"gl"`.
+      '';
     };
   };
   # ANCHOR_END: ashell-options
@@ -436,7 +468,7 @@ in {
         unitConfig.ConditionEnvironment = "WAYLAND_DISPLAY";
         serviceConfig = {
           ExecStart = "${cfg.package}/bin/ashell";
-          Environment = "WGPU_BACKEND=vulkan";
+          Environment = "WGPU_BACKEND=${cfg.renderer}";
           # ashell draws through layer-shell and needs no X server. With
           # DISPLAY inherited it opened a connection to xwayland-satellite,
           # and Xlib aborts the process when that server restarts.

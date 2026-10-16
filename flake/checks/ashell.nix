@@ -69,6 +69,11 @@
       dmenuCommand = ["fuzzel" "--dmenu"];
     };
   };
+  # An NVIDIA desktop with the animations on.
+  nvidia = host {
+    othrys.hardware.nvidia.enable = true;
+    othrys.desktop.ashell.animations = true;
+  };
   hyprland = hostConfig [
     functioningHost
     {
@@ -82,6 +87,7 @@
   binds = cfg: (home cfg).programs.niri.settings.binds;
   spawnOf = chord: cfg: (binds cfg).${chord}.action.spawn or null;
   installs = name: cfg: builtins.any (p: (p.pname or "") == name) (home cfg).home.packages;
+  unitEnv = cfg: cfg.systemd.user.services.ashell.serviceConfig.Environment;
   hyprlandLua = cfg: (home cfg).xdg.configFile."hypr/hyprland.lua".text;
 in
   mkExpectations "othrys-eval-ashell" {
@@ -102,6 +108,13 @@ in
     "a host's own region wins, and the sensor can follow it" = has ''region = "de_DE"'' metric && !lib.hasInfix "units = " (tomlOf metric);
     "without a region the key is left out" = !lib.hasInfix "region = " (tomlOf localeUnits);
     "a host can hide the airplane button on a laptop" = has "remove_airplane_btn = true" custom;
+    "the bar opacity is written to the opacity table" = has "[appearance.opacity]\nbar = 1.000000" desktop;
+    "no key is written where ashell does not read it" =
+      !lib.hasInfix "max_title_length" (tomlOf desktop) && !lib.hasInfix "\nopacity = " (tomlOf desktop);
+    "the animations are off by default" = has "[animations]\nenabled = false" desktop;
+    "a host can turn the animations on" = has "[animations]\nenabled = true" nvidia;
+    "the bar draws with Vulkan by default" = unitEnv desktop == "WGPU_BACKEND=vulkan";
+    "an NVIDIA host draws the bar with OpenGL" = unitEnv nvidia == "WGPU_BACKEND=gl";
 
     "the emoji chord runs rofimoji by default" = builtins.head (spawnOf "Mod+E" desktop) == "rofimoji";
     "the run chord runs wofi by default" = spawnOf "Mod+Shift+D" desktop == ["wofi" "--show" "run"];

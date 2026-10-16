@@ -28,6 +28,13 @@ without `DISPLAY`. It draws through layer-shell and needs no X server, and with
 `DISPLAY` set it would hold a connection to the session's Xwayland server,
 which aborts the bar whenever that server restarts.
 
+`renderer` sets the graphics API the bar draws with, through `WGPU_BACKEND` on
+the unit. It is `"vulkan"`, ashell's own default, unless
+`othrys.hardware.nvidia.enable` is set, and then `"gl"`. On the NVIDIA driver
+Vulkan presents frames late, so menus, toasts and resizing modules stutter,
+while OpenGL draws them smoothly. `animations = true` turns those animations on,
+and ashell leaves them off by default.
+
 The lock button runs `othrys.desktop.lockCommand`, whose locker every
 compositor host already has. The launcher chord and the launcher button run
 `othrys.desktop.launcherCommand`, which is wofi unless another module or the
