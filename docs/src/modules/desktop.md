@@ -158,7 +158,10 @@ through `VICINAE_OVERRIDES`. `settings.json` stays writable for the settings
 window, and a key declared here wins over the window's value for that key.
 
 With a palette the module writes the theme `othrys` and selects it for light
-and dark alike, with the variant of `othrys.theme.polarity`. Stylix's own
+and dark alike, with the variant of `othrys.theme.polarity`. The theme colours
+list rows as well, hovered rows in `base01` and the selected row in `base02`.
+With `othrys.theme.opacity` set the launcher window takes the opacity of
+popups. Stylix's own
 Vicinae target is off while the module is on. Without a palette or a
 sans-serif font Vicinae keeps its own.
 

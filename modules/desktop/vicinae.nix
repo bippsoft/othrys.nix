@@ -53,6 +53,15 @@
         purple = colors.base0E;
         magenta = colors.base0E;
       };
+      # The rows of a list, which the inherited theme would otherwise colour
+      # from its own palette. The same slots as Stylix's Vicinae target.
+      list.item = {
+        hover.background = colors.base01;
+        selection = {
+          background = colors.base02;
+          secondary_background = colors.base03;
+        };
+      };
     };
   };
 
@@ -84,6 +93,10 @@
     })
     (lib.mkIf (font != null) {
       font.normal.family = lib.mkDefault font.name;
+    })
+    # The launcher is a popup, as Stylix's Vicinae target counts it.
+    (lib.mkIf (theme.opacity != null) {
+      launcher_window.opacity = lib.mkDefault theme.opacity.popups;
     })
   ];
 in {
@@ -117,6 +130,8 @@ in {
         `input_server.enabled` from `inputServer.enable`. With a palette in
         `othrys.theme` both theme names are `"othrys"`, and with
         `othrys.theme.fonts.sansSerif` set the interface font is that font.
+        With `othrys.theme.opacity` set, the launcher window takes the
+        opacity of popups.
         While ashell keeps its cliphist history,
         `providers.clipboard.preferences.monitoring` is false, so Vicinae
         records no second history that the wipe at lock would miss. On a

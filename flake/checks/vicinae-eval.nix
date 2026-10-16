@@ -64,6 +64,7 @@
     othrys.theme = {
       inherit palette;
       fonts.sansSerif.name = "Example Sans";
+      opacity.popups = 0.9;
     };
   };
   unthemed = host {
@@ -174,6 +175,8 @@ in
       && t.colors.core.accent == "#0d0d0d"
       && t.colors.accents.red == "#080808"
       && t.colors.accents.purple == "#0e0e0e"
+      && t.colors.list.item.hover.background == "#010101"
+      && t.colors.list.item.selection.background == "#020202"
       && t.meta.variant == "dark"
       && t.meta.inherits == "vicinae-dark";
     "both theme names select the othrys theme" =
@@ -181,6 +184,8 @@ in
     "the sans-serif font is the interface font" = (settings themed).font.normal.family == "Example Sans";
     "no palette writes no theme and selects none" = (vicinae unthemed).themes == {} && !((settings unthemed) ? theme);
     "no font leaves Vicinae its own" = !((settings unthemed) ? font);
+    "the launcher takes the opacity of popups" = (settings themed).launcher_window.opacity == 0.9;
+    "no theme opacity leaves the window opaque" = !((settings hyprlandOn) ? launcher_window) || !((settings hyprlandOn).launcher_window ? opacity);
     "Stylix's own Vicinae target is off" = !(home stylix).stylix.targets.vicinae.enable;
     "the othrys theme is selected under Stylix" = (settings stylix).theme.dark.name == "othrys";
 
