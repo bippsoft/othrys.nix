@@ -184,6 +184,9 @@ in
     "the sans-serif font is the interface font" = (settings themed).font.normal.family == "Example Sans";
     "no palette writes no theme and selects none" = (vicinae unthemed).themes == {} && !((settings unthemed) ? theme);
     "no font leaves Vicinae its own" = !((settings unthemed) ? font);
+    "Hyprland takes the keyboard on demand" =
+      (settings hyprlandOn).launcher_window.layer_shell.keyboard_interactivity == "on_demand";
+    "Niri keeps Vicinae's exclusive keyboard" = !((settings niriOn) ? launcher_window);
     "the launcher takes the opacity of popups" = (settings themed).launcher_window.opacity == 0.9;
     "no theme opacity leaves the window opaque" = !((settings hyprlandOn) ? launcher_window) || !((settings hyprlandOn).launcher_window ? opacity);
     "Stylix's own Vicinae target is off" = !(home stylix).stylix.targets.vicinae.enable;

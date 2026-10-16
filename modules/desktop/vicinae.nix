@@ -94,6 +94,13 @@
     (lib.mkIf (font != null) {
       font.normal.family = lib.mkDefault font.name;
     })
+    # Vicinae holds the keyboard exclusively by default, and on Hyprland
+    # that leaves popups inside the window without mouse input. Upstream
+    # names on_demand for Hyprland. A host with both compositors has one
+    # settings file for the two sessions, so it gets on_demand on Niri too.
+    (lib.mkIf config.othrys.desktop.compositors.hyprland.enable {
+      launcher_window.layer_shell.keyboard_interactivity = lib.mkDefault "on_demand";
+    })
     # The launcher is a popup, as Stylix's Vicinae target counts it.
     (lib.mkIf (theme.opacity != null) {
       launcher_window.opacity = lib.mkDefault theme.opacity.popups;
@@ -131,7 +138,9 @@ in {
         `othrys.theme` both theme names are `"othrys"`, and with
         `othrys.theme.fonts.sansSerif` set the interface font is that font.
         With `othrys.theme.opacity` set, the launcher window takes the
-        opacity of popups.
+        opacity of popups. On a host with Hyprland the layer-shell keyboard
+        mode is `"on_demand"`, since the exclusive default leaves popups
+        inside the window without mouse input there.
         While ashell keeps its cliphist history,
         `providers.clipboard.preferences.monitoring` is false, so Vicinae
         records no second history that the wipe at lock would miss. On a

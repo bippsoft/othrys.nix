@@ -161,7 +161,12 @@ With a palette the module writes the theme `othrys` and selects it for light
 and dark alike, with the variant of `othrys.theme.polarity`. The theme colours
 list rows as well, hovered rows in `base01` and the selected row in `base02`.
 With `othrys.theme.opacity` set the launcher window takes the opacity of
-popups. Stylix's own
+popups.
+
+On a host with Hyprland, `launcher_window.layer_shell.keyboard_interactivity`
+is `"on_demand"`. Vicinae's `"exclusive"` default leaves popups inside the
+window without mouse input on Hyprland. A host with both compositors writes
+one settings file, so its Niri session gets `"on_demand"` as well. Stylix's own
 Vicinae target is off while the module is on. Without a palette or a
 sans-serif font Vicinae keeps its own.
 
