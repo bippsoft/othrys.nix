@@ -13,6 +13,11 @@
   colors = theme.colors.withHashtag;
   font = theme.fonts.sansSerif;
 
+  vicinae = lib.getExe cfg.package;
+  # A chord that opens one command directly. `toggle` closes the window
+  # when the chord is pressed while it is open.
+  deeplink = command: [vicinae "vicinae://launch/${command}?toggle=true"];
+
   # The theme file Home Manager writes to ~/.local/share/vicinae/themes. Every
   # key left out is derived by Vicinae from the core colours or taken from
   # the built-in theme named by `inherits`.
@@ -139,7 +144,9 @@ in {
         `othrys.desktop.launcherCommand`. The chord that runs it, `Mod+D` on
         Niri and `$mainMod + D` on Hyprland, and the launcher button of the
         bar both belong to `othrys.desktop.ashell`, so a host without the bar
-        binds the command itself. With false the launcher stays wofi.
+        binds the command itself. With false the launcher stays wofi. The
+        emoji, clipboard menu, file search and run signals beside it follow
+        Vicinae either way, and a host sets any of them to keep its own.
       '';
     };
 
@@ -168,7 +175,17 @@ in {
 
     # A default rather than a plain definition, so a host that sets the
     # launcher command itself wins without lib.mkForce.
-    othrys.desktop.launcherCommand = lib.mkIf cfg.launcher (lib.mkDefault [(lib.getExe cfg.package) "toggle"]);
+    othrys.desktop.launcherCommand = lib.mkIf cfg.launcher (lib.mkDefault [vicinae "toggle"]);
+
+    # The pickers follow the launcher's pattern. Each opens one Vicinae
+    # command, and pressing the chord again closes it. The emoji search
+    # copies the emoji unless the input server is on, since pasting goes
+    # through it. Vicinae has no prompt that runs a typed command, so the
+    # run chord is left unbound and the root search starts programs.
+    othrys.desktop.emojiCommand = lib.mkDefault (deeplink "core/search-emojis");
+    othrys.desktop.dmenuCommand = lib.mkDefault [vicinae "dmenu"];
+    othrys.desktop.fileSearchCommand = lib.mkDefault (deeplink "files/search");
+    othrys.desktop.runCommand = lib.mkDefault null;
 
     # The same wrapper Vicinae's own NixOS module installs. The server finds
     # it through VICINAE_INPUT_SERVER_BIN, set on the unit below.

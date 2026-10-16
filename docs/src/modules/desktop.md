@@ -140,6 +140,15 @@ through the compositor's `extraBinds`. Vicinae's own `global_shortcuts`
 setting needs a hotkey protocol of Vicinae's on Wayland, and the module does
 not rely on it.
 
+The module also sets the picker signals at `mkDefault`, whatever `launcher`
+holds. `Super + E` opens Vicinae's emoji search and `Super + Shift + F` its
+file search, and pressing either chord again closes the window. The clipboard
+chord and button show the cliphist history in `vicinae dmenu`. Vicinae has no
+prompt that runs a typed command, so `runCommand` is null and
+`Super + Shift + D` is unbound. A host that sets none of the signals itself
+installs none of wofi, rofimoji and wtype. The emoji search copies the emoji
+and pastes it only with `inputServer.enable`.
+
 `settings` is merged over four curated keys one key at a time. Telemetry is
 off, `pop_to_root_on_close` is true and `input_server.enabled` follows
 `inputServer.enable`. `favicon_service` is `"none"`, so links show a

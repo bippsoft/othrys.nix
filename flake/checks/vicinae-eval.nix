@@ -136,6 +136,9 @@
   niriLauncher = cfg: (home cfg).programs.niri.settings.binds."Mod+D".action.spawn;
   isToggle = argv: builtins.length argv == 2 && lib.hasSuffix "/bin/vicinae" (builtins.head argv) && lib.last argv == "toggle";
   wofiBind = ''hl.bind((mainMod .. " + D"), (hl.dsp.exec_cmd("wofi --show drun")))'';
+  niriSpawn = chord: cfg: (home cfg).programs.niri.settings.binds.${chord}.action.spawn or null;
+  opens = command: argv: lib.hasSuffix "/bin/vicinae" (builtins.head argv) && lib.last argv == "vicinae://launch/${command}?toggle=true";
+  installs = name: cfg: builtins.any (p: (p.pname or "") == name) (home cfg).home.packages;
 in
   mkExpectations "othrys-eval-vicinae" {
     "Vicinae is in the user's packages" = builtins.any isVicinae (home hyprlandOn).home.packages;
@@ -198,6 +201,18 @@ in
     "the bar keeps wofi without Vicinae" = lib.hasInfix "command = \"wofi --show drun\"\n" (ashellToml niriOff);
     "launcher = false keeps wofi with Vicinae on" = lib.hasInfix wofiBind (hyprlandLua launcherOff);
     "a host's own launcher command wins over Vicinae" = niriLauncher hostLauncher == ["fuzzel"];
+
+    "the emoji chord opens Vicinae's emoji search" = opens "core/search-emojis" (niriSpawn "Mod+E" niriOn);
+    "the file search chord opens Vicinae's file search" = opens "files/search" (niriSpawn "Mod+Shift+F" niriOn);
+    "the clipboard history is shown in vicinae dmenu" =
+      lib.hasInfix "/bin/vicinae dmenu | " (lib.last (niriSpawn "Mod+Shift+V" niriOn))
+      && lib.hasInfix "/bin/vicinae dmenu | " (ashellToml niriOn);
+    "the run chord is unbound with Vicinae" = niriSpawn "Mod+Shift+D" niriOn == null;
+    "Hyprland's emoji chord opens Vicinae" = lib.hasInfix "vicinae://launch/core/search-emojis?toggle=true" (hyprlandLua hyprlandOn);
+    "Vicinae leaves wofi, rofimoji and wtype uninstalled" =
+      !(installs "wofi" niriOn || installs "rofimoji" niriOn || installs "wtype" niriOn);
+    "launcher = false keeps wofi installed for the launcher alone" =
+      installs "wofi" launcherOff && !(installs "rofimoji" launcherOff);
 
     "settings.json is persisted" = persists persisted ".config/vicinae";
     "the clipboard history is persisted at mode 0700" = persistedAt persisted ".local/share/vicinae" "0700";
