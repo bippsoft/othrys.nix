@@ -34,6 +34,22 @@
   launcherArgv = config.othrys.desktop.launcherCommand;
   launcherCmd = lib.escapeShellArgs launcherArgv;
 
+  # The pickers come from signals beside the launcher, and each chord is
+  # bound only while its signal holds a command. The clipboard history stays
+  # cliphist's, and only the menu it is shown in follows dmenuCommand.
+  inherit (config.othrys.desktop) emojiCommand runCommand fileSearchCommand dmenuCommand;
+  clipboardCmd = "${cliphist} list | ${lib.escapeShellArgs dmenuCommand} | ${cliphist} decode | wl-copy";
+
+  # wofi, rofimoji and wtype are installed while a command the bar or a
+  # chord runs still names them, so a host that has moved every picker to
+  # another program carries none of them.
+  commandWords = lib.concatLists (
+    [launcherArgv]
+    ++ lib.filter (c: c != null) [emojiCommand runCommand fileSearchCommand]
+    ++ lib.optional cfg.clipboard.enable dmenuCommand
+  );
+  named = word: builtins.elem word commandWords;
+
   # What a laptop adds to the bar. Each entry is listed only when the host runs
   # the service the indicator reads, so nothing sits in the bar empty.
   laptop = config.othrys.hardware.laptop.enable;
@@ -205,7 +221,7 @@
       [[CustomModule]]
       name = "clipboard"
       icon = "󰅍"
-      command = "cliphist list | wofi --dmenu | cliphist decode | wl-copy"
+      command = ${builtins.toJSON clipboardCmd}
     ''}
   '';
 in {
@@ -289,8 +305,9 @@ in {
         type = lib.types.bool;
         default = true;
         description = ''
-          Keep a clipboard history with cliphist and show the bar button that
-          picks from it. The history is a plain file under `~/.cache/cliphist`
+          Keep a clipboard history with cliphist, and show the bar button and
+          bind the `Mod+Shift+V` chord that pick from it through
+          `othrys.desktop.dmenuCommand`. The history is a plain file under `~/.cache/cliphist`
           holding everything copied, apart from entries a password manager
           marks as sensitive. It is capped at `maxItems`, wiped each time
           the session locks through `othrys.desktop.lockCommand` and wiped
@@ -433,12 +450,10 @@ in {
 
       othrys.internal.homeConfig."desktop.ashell" = {
         home.packages =
-          [
-            cfg.package
-            pkgs.wofi
-            pkgs.rofimoji
-            pkgs.wtype
-          ]
+          [cfg.package]
+          ++ lib.optional (named "wofi") pkgs.wofi
+          ++ lib.optional (named "rofimoji") pkgs.rofimoji
+          ++ lib.optional (named "wtype") pkgs.wtype
           # The locker is installed at system level above, beside its PAM
           # service. Idle management lives in othrys.desktop.idle, not here.
           ++ lib.optional hyprlandEnabled pkgs.hyprpicker;
@@ -476,32 +491,46 @@ in {
         };
 
         wayland.windowManager.hyprland.settings = lib.mkIf hyprlandEnabled {
-          bind = map hlLua.mkBind [
-            {
-              key = "$mainMod + D";
-              dispatcher = hlLua.execCmd launcherCmd;
-            }
-            {
+          bind = map hlLua.mkBind (
+            [
+              {
+                key = "$mainMod + D";
+                dispatcher = hlLua.execCmd launcherCmd;
+              }
+            ]
+            ++ lib.optional (runCommand != null) {
               key = "$mainMod + SHIFT + D";
-              dispatcher = hlLua.execCmd "wofi --show run";
+              dispatcher = hlLua.execCmd (lib.escapeShellArgs runCommand);
             }
-            {
+            ++ lib.optional (emojiCommand != null) {
               key = "$mainMod + E";
-              dispatcher = hlLua.execCmd "rofimoji --selector wofi --clipboarder wl-copy --typer wtype --action type";
+              dispatcher = hlLua.execCmd (lib.escapeShellArgs emojiCommand);
             }
-            {
-              key = "$mainMod + SHIFT + C";
-              dispatcher = hlLua.execCmd "hyprpicker -a";
+            ++ lib.optional cfg.clipboard.enable {
+              key = "$mainMod + SHIFT + V";
+              dispatcher = hlLua.execCmd clipboardCmd;
             }
-          ];
+            ++ lib.optional (fileSearchCommand != null) {
+              key = "$mainMod + SHIFT + F";
+              dispatcher = hlLua.execCmd (lib.escapeShellArgs fileSearchCommand);
+            }
+            ++ [
+              {
+                key = "$mainMod + SHIFT + C";
+                dispatcher = hlLua.execCmd "hyprpicker -a";
+              }
+            ]
+          );
         };
 
-        # Same launcher chords on niri (hyprpicker is hyprland-only).
-        programs.niri.settings.binds = lib.mkIf niriEnabled {
-          "Mod+D".action.spawn = launcherArgv;
-          "Mod+Shift+D".action.spawn = ["wofi" "--show" "run"];
-          "Mod+E".action.spawn = ["rofimoji" "--selector" "wofi" "--clipboarder" "wl-copy" "--typer" "wtype" "--action" "type"];
-        };
+        # Same chords on niri (hyprpicker is hyprland-only).
+        programs.niri.settings.binds = lib.mkIf niriEnabled (lib.mkMerge [
+          {"Mod+D".action.spawn = launcherArgv;}
+          (lib.mkIf (runCommand != null) {"Mod+Shift+D".action.spawn = runCommand;})
+          (lib.mkIf (emojiCommand != null) {"Mod+E".action.spawn = emojiCommand;})
+          (lib.mkIf cfg.clipboard.enable {"Mod+Shift+V".action.spawn = ["sh" "-c" clipboardCmd];})
+          (lib.mkIf (fileSearchCommand != null) {"Mod+Shift+F".action.spawn = fileSearchCommand;})
+        ]);
       };
     })
   ];

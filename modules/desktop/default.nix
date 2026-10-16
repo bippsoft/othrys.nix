@@ -101,6 +101,66 @@ in {
     '';
   };
 
+  # The pickers beside the launcher, consumed by ashell's chords and its
+  # clipboard button in the same way. The defaults are the tools ashell
+  # installs, and ashell installs each of them only while a command here
+  # still names it. A module that provides a picker sets these at mkDefault,
+  # as the Vicinae module does.
+  options.othrys.desktop.emojiCommand = lib.mkOption {
+    type = lib.types.nullOr (lib.types.nonEmptyListOf lib.types.str);
+    default = ["rofimoji" "--selector" "wofi" "--clipboarder" "wl-copy" "--typer" "wtype" "--action" "type"];
+    defaultText = lib.literalMD ''
+      Vicinae's emoji search when `othrys.desktop.vicinae` is enabled, and
+      rofimoji through wofi, typing with wtype, otherwise
+    '';
+    example = ["rofimoji" "--action" "copy"];
+    description = ''
+      The emoji picker as a program and its arguments, run by ashell's
+      `Mod+E` chord on Niri and Hyprland. With null the chord is not bound.
+    '';
+  };
+
+  options.othrys.desktop.dmenuCommand = lib.mkOption {
+    type = lib.types.nonEmptyListOf lib.types.str;
+    default = ["wofi" "--dmenu"];
+    defaultText = lib.literalMD ''
+      `vicinae dmenu` when `othrys.desktop.vicinae` is enabled, and
+      `["wofi" "--dmenu"]` otherwise
+    '';
+    example = ["fuzzel" "--dmenu"];
+    description = ''
+      A menu that reads choices on standard input and prints the chosen
+      line. ashell's clipboard button and its `Mod+Shift+V` chord pipe the
+      cliphist history through it.
+    '';
+  };
+
+  options.othrys.desktop.runCommand = lib.mkOption {
+    type = lib.types.nullOr (lib.types.nonEmptyListOf lib.types.str);
+    default = ["wofi" "--show" "run"];
+    defaultText = lib.literalMD ''
+      null when `othrys.desktop.vicinae` is enabled, and
+      `["wofi" "--show" "run"]` otherwise
+    '';
+    description = ''
+      A prompt that runs a command typed into it, bound by ashell to
+      `Mod+Shift+D`. With null the chord is not bound.
+    '';
+  };
+
+  options.othrys.desktop.fileSearchCommand = lib.mkOption {
+    type = lib.types.nullOr (lib.types.nonEmptyListOf lib.types.str);
+    default = null;
+    defaultText = lib.literalMD ''
+      Vicinae's file search when `othrys.desktop.vicinae` is enabled, and
+      null otherwise
+    '';
+    description = ''
+      A file search, bound by ashell to `Mod+Shift+F`. With null the chord
+      is not bound.
+    '';
+  };
+
   # Shell lines the default lock command runs before the locker starts. A
   # module that keeps session data which should not outlive an unlocked
   # session adds its cleanup here, as ashell does for the clipboard history.

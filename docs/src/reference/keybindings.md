@@ -58,7 +58,7 @@ othrys.desktop.compositors.hyprland.extraBinds = [
 | `Super + Return` | Terminal (the `terminal` option) |
 | `Super + F` | Browser (the `browser` option) |
 
-Launcher, emoji-picker, and color-picker binds are added by the [ashell module](../modules/desktop.md#ashell) when enabled.
+Launcher, run-prompt, emoji-picker, clipboard, file-search and color-picker binds are added by the [ashell module](../modules/desktop.md#ashell) when enabled.
 
 ### Media
 
@@ -134,8 +134,10 @@ its scratchpad.
 | `Mod + F` | `binds.browser` | Browser (the `browser` option) |
 
 The [ashell module](../modules/desktop.md#ashell) adds `Mod + D` for the
-launcher, `Mod + Shift + D` for the run prompt and `Mod + E` for the emoji
-picker. The color picker is Hyprland only.
+launcher, `Mod + Shift + D` for the run prompt, `Mod + E` for the emoji picker,
+`Mod + Shift + V` for the clipboard history and `Mod + Shift + F` for file
+search. Each picker chord is bound only while its signal holds a command. The
+color picker is Hyprland only.
 
 ### Media
 

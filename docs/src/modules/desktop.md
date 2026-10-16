@@ -28,11 +28,24 @@ without `DISPLAY`. It draws through layer-shell and needs no X server, and with
 `DISPLAY` set it would hold a connection to the session's Xwayland server,
 which aborts the bar whenever that server restarts.
 
-The module installs wofi, rofimoji as the emoji picker and, on Hyprland,
-hyprpicker. The lock button runs `othrys.desktop.lockCommand`, whose locker
-every compositor host already has. The launcher chord and the
-launcher button run `othrys.desktop.launcherCommand`, which is wofi unless
-another module or the host names a launcher, as [Vicinae](#vicinae) does. The audio
+The lock button runs `othrys.desktop.lockCommand`, whose locker every
+compositor host already has. The launcher chord and the launcher button run
+`othrys.desktop.launcherCommand`, which is wofi unless another module or the
+host names a launcher, as [Vicinae](#vicinae) does. The pickers beside it come
+from four more signals in `othrys.desktop`, set the same way.
+
+| Signal | Chord | Default |
+|--------|-------|---------|
+| `emojiCommand` | `Mod + E` | rofimoji through wofi, typing with wtype |
+| `dmenuCommand` | `Mod + Shift + V` and the clipboard button | `wofi --dmenu` |
+| `runCommand` | `Mod + Shift + D` | `wofi --show run` |
+| `fileSearchCommand` | `Mod + Shift + F` | null |
+
+A null signal leaves its chord unbound. The clipboard chord and button pipe the
+cliphist history through `dmenuCommand`, so the history stays cliphist's
+whichever menu shows it. wofi, rofimoji and wtype are installed only while one
+of these commands or the launcher names them, and hyprpicker is installed on
+Hyprland. The audio
 buttons open pavucontrol, which `othrys.hardware.audio` installs on a graphical
 host.
 
@@ -96,8 +109,10 @@ The battery indicator reads UPower, which the laptop module enables.
 | Binding | Action |
 |---------|--------|
 | `Super + D` | Launcher (`othrys.desktop.launcherCommand`, wofi drun by default) |
-| `Super + Shift + D` | Command runner (wofi run) |
-| `Super + E` | Emoji picker (rofimoji) |
+| `Super + Shift + D` | Command runner (`runCommand`, wofi run by default) |
+| `Super + E` | Emoji picker (`emojiCommand`, rofimoji by default) |
+| `Super + Shift + V` | Clipboard history (cliphist through `dmenuCommand`) |
+| `Super + Shift + F` | File search (`fileSearchCommand`, unbound by default) |
 | `Super + Shift + C` | Color picker to clipboard (hyprpicker) |
 
 ## Vicinae

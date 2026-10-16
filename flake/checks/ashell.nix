@@ -49,6 +49,40 @@
     };
   };
   localeUnits = host {othrys.desktop.ashell.region = null;};
+
+  # Every picker moved off wofi, the run prompt and the history dropped.
+  ownPickers = host {
+    othrys.desktop = {
+      launcherCommand = ["fuzzel"];
+      emojiCommand = ["fuzzel" "--emoji"];
+      runCommand = null;
+      fileSearchCommand = ["fsearch"];
+      ashell.clipboard.enable = false;
+    };
+  };
+  # A dmenu other than wofi, with the history kept.
+  ownMenu = host {
+    othrys.desktop = {
+      launcherCommand = ["fuzzel"];
+      emojiCommand = null;
+      runCommand = null;
+      dmenuCommand = ["fuzzel" "--dmenu"];
+    };
+  };
+  hyprland = hostConfig [
+    functioningHost
+    {
+      othrys.desktop.compositors.hyprland.enable = true;
+      othrys.desktop.ashell.enable = true;
+      othrys.desktop.fileSearchCommand = ["fsearch"];
+    }
+  ];
+
+  home = cfg: cfg.home-manager.users.${cfg.othrys.system.user.name};
+  binds = cfg: (home cfg).programs.niri.settings.binds;
+  spawnOf = chord: cfg: (binds cfg).${chord}.action.spawn or null;
+  installs = name: cfg: builtins.any (p: (p.pname or "") == name) (home cfg).home.packages;
+  hyprlandLua = cfg: (home cfg).xdg.configFile."hypr/hyprland.lua".text;
 in
   mkExpectations "othrys-eval-ashell" {
     "a desktop keeps the indicators it always had" = has ''indicators = ["IdleInhibitor", "PeripheralBattery", "Audio", "Microphone"]'' desktop;
@@ -68,4 +102,26 @@ in
     "a host's own region wins, and the sensor can follow it" = has ''region = "de_DE"'' metric && !lib.hasInfix "units = " (tomlOf metric);
     "without a region the key is left out" = !lib.hasInfix "region = " (tomlOf localeUnits);
     "a host can hide the airplane button on a laptop" = has "remove_airplane_btn = true" custom;
+
+    "the emoji chord runs rofimoji by default" = builtins.head (spawnOf "Mod+E" desktop) == "rofimoji";
+    "the run chord runs wofi by default" = spawnOf "Mod+Shift+D" desktop == ["wofi" "--show" "run"];
+    "the clipboard chord pipes cliphist through wofi" = let
+      argv = spawnOf "Mod+Shift+V" desktop;
+    in
+      lib.take 2 argv == ["sh" "-c"] && lib.hasInfix " list | wofi --dmenu | " (lib.last argv);
+    "the clipboard button runs the same pipeline" = lib.hasInfix " list | wofi --dmenu | " (tomlOf desktop);
+    "no file search chord is bound by default" = spawnOf "Mod+Shift+F" desktop == null;
+    "wofi, rofimoji and wtype are installed by default" = installs "wofi" desktop && installs "rofimoji" desktop && installs "wtype" desktop;
+
+    "a host's own pickers are bound" =
+      spawnOf "Mod+E" ownPickers == ["fuzzel" "--emoji"] && spawnOf "Mod+Shift+F" ownPickers == ["fsearch"];
+    "a null run command leaves its chord unbound" = spawnOf "Mod+Shift+D" ownPickers == null;
+    "no history leaves the clipboard chord and button out" =
+      spawnOf "Mod+Shift+V" ownPickers == null && !lib.hasInfix "name = \"clipboard\"" (tomlOf ownPickers);
+    "a host that names no wofi tool installs none" =
+      !(installs "wofi" ownPickers || installs "rofimoji" ownPickers || installs "wtype" ownPickers);
+    "the history follows the host's own menu" = lib.hasInfix " list | fuzzel --dmenu | " (lib.last (spawnOf "Mod+Shift+V" ownMenu));
+    "a null emoji command leaves its chord unbound" = spawnOf "Mod+E" ownMenu == null;
+    "Hyprland binds the clipboard and file search chords" =
+      lib.hasInfix "SHIFT + V" (hyprlandLua hyprland) && lib.hasInfix "exec_cmd(\"fsearch\")" (hyprlandLua hyprland);
   }
