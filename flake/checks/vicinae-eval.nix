@@ -80,6 +80,10 @@
     othrys.system.stylix.enable = true;
   };
   noSession = host on;
+  vim = host {
+    imports = [niri on];
+    othrys.desktop.vicinae.keybinding = "vim";
+  };
   noHistory = host {
     imports = [niri on];
     othrys.desktop.ashell.clipboard.enable = false;
@@ -184,6 +188,8 @@ in
     "the sans-serif font is the interface font" = (settings themed).font.normal.family == "Example Sans";
     "no palette writes no theme and selects none" = (vicinae unthemed).themes == {} && !((settings unthemed) ? theme);
     "no font leaves Vicinae its own" = !((settings unthemed) ? font);
+    "the keybinding preset is Vicinae's default" = (settings hyprlandOn).keybinding == "default";
+    "a host's preset is written" = (settings vim).keybinding == "vim";
     "Hyprland takes the keyboard on demand" =
       (settings hyprlandOn).launcher_window.layer_shell.keyboard_interactivity == "on_demand";
     "Niri keeps Vicinae's exclusive keyboard" = !((settings niriOn) ? launcher_window);

@@ -149,7 +149,10 @@ prompt that runs a typed command, so `runCommand` is null and
 installs none of wofi, rofimoji and wtype. The emoji search copies the emoji
 and pastes it only with `inputServer.enable`.
 
-`settings` is merged over four curated keys one key at a time. Telemetry is
+`keybinding` picks Vicinae's navigation preset, `"default"`, `"vim"` or
+`"emacs"`, and is written to the `keybinding` setting.
+
+`settings` is merged over the curated keys one key at a time. Telemetry is
 off, `pop_to_root_on_close` is true and `input_server.enabled` follows
 `inputServer.enable`. `favicon_service` is `"none"`, so links show a
 placeholder icon and no third party learns their host names. The declared

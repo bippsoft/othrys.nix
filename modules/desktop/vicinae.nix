@@ -81,6 +81,7 @@
       # closed on.
       pop_to_root_on_close = lib.mkDefault true;
       input_server.enabled = lib.mkDefault cfg.inputServer.enable;
+      keybinding = lib.mkDefault cfg.keybinding;
     }
     (lib.mkIf cliphistRuns {
       providers.clipboard.preferences.monitoring = lib.mkDefault false;
@@ -169,6 +170,17 @@ in {
         `programs.vicinae.extensions`. Home Manager's `config.lib.vicinae`
         builds them, and that attribute exists only inside the user's Home
         Manager configuration.
+      '';
+    };
+
+    keybinding = lib.mkOption {
+      type = lib.types.enum ["default" "vim" "emacs"];
+      default = "default";
+      example = "vim";
+      description = ''
+        The keybinding preset Vicinae navigates with, one of the three it
+        ships. It is written to the `keybinding` setting at mkDefault, so
+        `settings.keybinding` still wins.
       '';
     };
 
