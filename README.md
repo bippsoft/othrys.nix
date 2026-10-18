@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/src/images/othrys-header.svg" alt="Mount Othrys" width="480">
+</p>
+
 <h1 align="center">othrys.nix</h1>
 
 <p align="center">

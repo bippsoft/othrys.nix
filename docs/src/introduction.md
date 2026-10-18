@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/othrys-header.svg" alt="Mount Othrys" width="480">
+</p>
+
 # othrys.nix
 
 A reusable NixOS module library of composable, opt-in modules under a unified `othrys.*` namespace, spanning workstation, server, router and security. It is consumed as a flake input by a private fleet repository that holds the actual host configurations.
