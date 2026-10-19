@@ -90,7 +90,7 @@ jobs:
       - name: Reclaim disk space
         uses: wimpysworld/nothing-but-nix@687c797a730352432950c707ab493fcc951818d7 # v10
       - name: Install Nix
-        uses: DeterminateSystems/determinate-nix-action@d0c908e6cbe9f89f36ed8205a3ab6f092636916a # v3
+        uses: DeterminateSystems/determinate-nix-action@e847f25223456b3058e12f7fc9d777b6a6f25060 # v3
         with:
           # Retry flaky substitutions, then fall back to building from source.
           extra-conf: |
@@ -182,7 +182,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Nix
-        uses: DeterminateSystems/determinate-nix-action@d0c908e6cbe9f89f36ed8205a3ab6f092636916a # v3
+        uses: DeterminateSystems/determinate-nix-action@e847f25223456b3058e12f7fc9d777b6a6f25060 # v3
         with:
           extra-conf: |
             fallback = true
@@ -251,7 +251,7 @@ jobs:
           sudo swapon /swapfile
           swapon --show
       - name: Install Nix
-        uses: DeterminateSystems/determinate-nix-action@d0c908e6cbe9f89f36ed8205a3ab6f092636916a # v3
+        uses: DeterminateSystems/determinate-nix-action@e847f25223456b3058e12f7fc9d777b6a6f25060 # v3
         with:
           # Retry flaky substitutions, then fall back to building from source.
           extra-conf: |
