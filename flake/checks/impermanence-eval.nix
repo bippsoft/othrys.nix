@@ -66,7 +66,6 @@
   hasInfix = needle: s: builtins.match ".*${needle}.*" s != null;
 in
   mkExpectations "othrys-eval-impermanence" {
-    "impermanence turns the systemd initrd on" = plain.boot.initrd.systemd.enable;
     "the wipe unit is rendered into the initrd" = plain.boot.initrd.systemd.units ? "root-wipe.service";
     "findutils is on the stage-1 PATH" = builtins.any (p: p.pname or "" == "findutils") plain.boot.initrd.systemd.initrdBin;
     "the unit requires the LUKS mapping by default" = (unitOf plain).requires == ["dev-mapper-cryptroot.device"];

@@ -41,10 +41,9 @@ it writes does not exist.
 1. A fresh empty root subvolume is created
 1. Old roots older than `retentionDays` are deleted, and a delete that fails is reported and the entry kept
 
-The module turns the systemd initrd on, since the unit exists only there. It
-waits for the device named by `othrys.system.impermanence.device` and runs after
-a resume from hibernation would have taken over, so a resumed system never meets
-a wiped root.
+The unit waits for the device named by `othrys.system.impermanence.device` and
+runs after a resume from hibernation would have taken over, so a resumed system
+never meets a wiped root.
 
 ## The device
 

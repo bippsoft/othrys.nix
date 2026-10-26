@@ -168,10 +168,6 @@ in {
     (lib.mkIf configured {
       environment.systemPackages = [oldRoots];
 
-      # The wipe is a systemd stage-1 unit. The scripted initrd ignores
-      # boot.initrd.systemd.services without an error, so a host that did not
-      # turn the systemd initrd on for another reason kept its root forever.
-      boot.initrd.systemd.enable = true;
       # The stage-1 PATH is coreutils, util-linux and btrfs-progs. The prune
       # loop below needs nothing else, and findutils is here so a later edit
       # that reaches for `find` keeps working in stage 1 too.
