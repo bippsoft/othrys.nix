@@ -146,38 +146,29 @@ othrys.services.security.crowdsec = {
 };
 ```
 
-### Upstream workarounds
+### Upstream module
 
-nixpkgs' `services.crowdsec` cannot start on a host with no pre-existing
-`/var/lib/crowdsec`. The othrys module carries five workarounds, each commented
-in place with its upstream issue: the Local API is off with a null credentials
-path so the daemon exits with `no API client section in configuration`
-([#445342](https://github.com/NixOS/nixpkgs/issues/445342)); nothing writes
-`/etc/crowdsec/config.yaml`, so bare `cscli`, including the bouncer's own
-register unit, fails to read its config
-([#469519](https://github.com/NixOS/nixpkgs/issues/469519)); `DynamicUser=true`
-on units that also declare a static `crowdsec` account migrates the state
-directory into `/var/lib/private` and locks the engine out of it from the second
-boot on ([#520206](https://github.com/NixOS/nixpkgs/issues/520206)); and the
-bouncer `Requires=` its register unit without ordering after it, so it dies at
-step `CREDENTIALS` reading an API key that does not exist yet
-([#526506](https://github.com/NixOS/nixpkgs/issues/526506)). A fifth defect
-surfaces only later: the daily hub-update unit reloads the engine as an
-unprivileged user, so the timer leaves a failed unit on every host within a
-day ([#473707](https://github.com/NixOS/nixpkgs/issues/473707)). The missing
-`ExecReload` that went with it
-([#541058](https://github.com/NixOS/nixpkgs/issues/541058)) is fixed at the
-pinned nixpkgs revision, and the module no longer carries that override.
+nixpkgs rewrote `services.crowdsec` in October 2026. The rewrite starts on a
+fresh host without help, so the workarounds this module carried for the old one
+are gone. Three things remain.
 
-A sixth shows only during a switch. The engine's pre-start step fetches the hub
-index and a failed fetch is fatal, while `After=network-online.target` protects
-boot and nothing else. On a host that resolves through its own
-`othrys.services.unbound`, a switch restarts the resolver and the engine in one
-transaction, the fetch lands while the resolver is down, and both the engine and
-the bouncer are left failed. The module orders `crowdsec.service` after
-`unbound.service` whenever othrys Unbound is on, which a restart transaction
-honours. `eval-router-services` reads that ordering back.
+The rewrite moved the data directory from `/var/lib/crowdsec/state` to
+`/var/lib/crowdsec/data`. The module pins the old path, which keeps the decision
+database, the hub and the machine credentials of a host that ran the old module.
 
-The `crowdsec-test` VM check boots a fresh machine, runs the update timer,
-restores a host from the broken `/var/lib/private` layout, and reboots; remove a
-workaround only when that check still passes without it.
+The rewrite also dropped `services.crowdsec.openFirewall`. The othrys option of
+that name now opens the port of
+`services.crowdsec.settings.config.api.server.listen_uri` itself. Since that
+address is on loopback by default, the option matters only beside a changed
+`listen_uri`.
+
+The hub index is fetched by `crowdsec-setup.service`, and the engine waits on
+that unit. `After=network-online.target` protects boot and nothing else. On a
+host that resolves through its own `othrys.services.unbound`, a switch can
+restart the resolver and the setup unit in one transaction, and the fetch then
+lands while the resolver is down. The module orders `crowdsec-setup.service`
+after `unbound.service` whenever othrys Unbound is on, which a restart
+transaction honours. `eval-router-services` reads that ordering back.
+
+The `crowdsec-test` VM check boots a fresh machine, runs the update timer and
+reboots.

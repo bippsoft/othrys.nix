@@ -87,7 +87,7 @@
         collections = [];
       };
       othrys.services.unbound.enable = unbound;
-    }).systemd.services.crowdsec.after;
+    }).systemd.services.crowdsec-setup.after;
 
   crowdsecOn = extra:
     host {
@@ -118,6 +118,7 @@
     };
   warnsAbout = needle: cfg: builtins.any (hasInfix needle) cfg.warnings;
   withTraefik = crowdsecOn {othrys.services.traefik.enable = true;};
+  withOpenFirewall = crowdsecOn {othrys.services.security.crowdsec.openFirewall = true;};
   hasInfix = needle: s: builtins.match ".*${needle}.*" s != null;
   bouncerTable = cfg: family: cfg.networking.nftables.tables.${family}.content;
 in
@@ -144,8 +145,8 @@ in
     "an af-packet suricata carries no placeholder" = (capture afPacket).pcap == null && builtins.length (capture afPacket).af-packet == 1;
     "crowdsec beside Tailscale SSH warns that those logins are not watched" = warnsAbout "those logins are not watched" (besideTailscale true);
     "crowdsec beside Tailscale without its SSH server does not warn" = !warnsAbout "those logins are not watched" (besideTailscale false);
-    "crowdsec starts after the local resolver when othrys unbound is on" = builtins.elem "unbound.service" (crowdsecAfter true);
-    "crowdsec is not ordered after a resolver the host does not run" = !(builtins.elem "unbound.service" (crowdsecAfter false));
+    "crowdsec setup starts after the local resolver when othrys unbound is on" = builtins.elem "unbound.service" (crowdsecAfter true);
+    "crowdsec setup is not ordered after a resolver the host does not run" = !(builtins.elem "unbound.service" (crowdsecAfter false));
     "on a router the bouncer's ipv4 table gains a forward hook on its set" = hasInfix "hook forward" (bouncerTable onRouter "crowdsec") && hasInfix "ip saddr @crowdsec-blacklists drop" (bouncerTable onRouter "crowdsec");
     "on a router the bouncer's ipv6 table gains a forward hook on its set" = hasInfix "ip6 saddr @crowdsec6-blacklists drop" (bouncerTable onRouter "crowdsec6");
     "the forward hook comes after the set it reads" = let
@@ -154,7 +155,10 @@ in
     in
       at "set crowdsec-blacklists" < at "hook forward";
     "off a router the bouncer keeps its input hook alone" = !hasInfix "hook forward" (bouncerTable alone "crowdsec");
-    "traefik on the host adds its acquisition and collection" = builtins.elem "crowdsecurity/traefik" withTraefik.services.crowdsec.hub.collections && builtins.any (a: (a.labels.type or "") == "traefik") withTraefik.services.crowdsec.localConfig.acquisitions;
+    "traefik on the host adds its acquisition and collection" = builtins.elem "crowdsecurity/traefik" withTraefik.services.crowdsec.hub.collections && builtins.any (a: (a.labels.type or "") == "traefik") withTraefik.services.crowdsec.settings.acquisitions;
     "traefik on the host writes its access log for the parser" = withTraefik.services.traefik.staticConfigOptions.accessLog.format == "json";
-    "without traefik nothing is added" = !builtins.any (a: (a.labels.type or "") == "traefik") alone.services.crowdsec.localConfig.acquisitions;
+    "without traefik nothing is added" = !builtins.any (a: (a.labels.type or "") == "traefik") alone.services.crowdsec.settings.acquisitions;
+    "openFirewall opens the local API port" = builtins.elem 8080 withOpenFirewall.networking.firewall.allowedTCPPorts;
+    "the local API port stays closed by default" = !builtins.elem 8080 alone.networking.firewall.allowedTCPPorts;
+    "crowdsec keeps the state directory of the old nixpkgs module" = alone.services.crowdsec.settings.config.config_paths.data_dir == "/var/lib/crowdsec/state";
   }

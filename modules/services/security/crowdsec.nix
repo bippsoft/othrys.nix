@@ -9,14 +9,11 @@
 # step, `cscli console enroll <key>` with a key from your secrets provider,
 # and is intentionally left to the fleet.
 #
-# As shipped, nixpkgs' `services.crowdsec` cannot start on a host that has no
-# pre-existing /var/lib/crowdsec. Four independent upstream defects each abort
-# one of the three units (no local API, no cscli config, a
-# DynamicUser/StateDirectory cascade, an unordered bouncer dependency), and a
-# fifth fails the daily hub-update timer a day later. Every workaround below
-# sits at the config block that repairs it and names its upstream issue, and the
-# `crowdsec-test` check in flake/checks/crowdsec.nix boots a fresh VM and is the
-# regression guard, so drop a workaround only when that test still passes.
+# The nixpkgs module was rewritten in October 2026 and now boots a fresh
+# host on its own. What remains here keeps the state directory of hosts that
+# ran the old module, restores `openFirewall`, which upstream dropped, and
+# orders the setup unit after a local resolver. The `crowdsec-test` check in
+# flake/checks/crowdsec.nix boots a fresh VM and is the regression guard.
 #
 # On a router the bouncer's own chains hook input only, so a banned address
 # could still be forwarded to the LAN. This module adds a forward hook to the
@@ -26,7 +23,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }: let
   cfg = config.othrys.services.security.crowdsec;
@@ -34,8 +30,7 @@
   traefikEnabled = config.othrys.services.traefik.enable;
   bouncer = config.services.crowdsec-firewall-bouncer.settings;
   forwardHook = cfg.firewallBouncer.enable && routerEnabled && bouncer.mode == "nftables";
-
-  stateDir = "/var/lib/crowdsec/state";
+  lapiUri = config.services.crowdsec.settings.config.api.server.listen_uri;
 
   # A chain in the bouncer's own table, where its set lives, hooked on forward
   # just ahead of the router's chain. mkAfter keeps it behind the set
@@ -46,11 +41,6 @@
       ${family} saddr @${set} drop
     }
   '';
-
-  # The very file nixpkgs generates for the daemon's `crowdsec -c …` (same
-  # name and value, so the same store path), regenerated here because
-  # the module keeps it private. See the cscli workaround below.
-  configFile = (pkgs.formats.yaml {}).generate "crowdsec.yaml" config.services.crowdsec.settings.general;
 in {
   # ANCHOR: crowdsec-options
   options.othrys.services.security.crowdsec = {
@@ -110,9 +100,8 @@ in {
     services.crowdsec = {
       enable = true;
       autoUpdateService = cfg.autoUpdate;
-      inherit (cfg) openFirewall;
       hub.collections = cfg.collections ++ lib.optional traefikEnabled "crowdsecurity/traefik";
-      localConfig.acquisitions =
+      settings.acquisitions =
         cfg.acquisitions
         ++ lib.optional traefikEnabled {
           source = "journalctl";
@@ -120,19 +109,20 @@ in {
           labels.type = "traefik";
         };
 
-      # A single-host engine is its own Local API, so the agent authenticates to
-      # it with machine credentials, and the bouncer reads decisions from it
-      # over loopback. nixpkgs leaves the LAPI off AND the credentials path
-      # null, so the daemon dies at startup with
-      #   loading api client: no API client section in configuration
-      # i.e. `services.crowdsec.enable = true` alone never boots (nixpkgs
-      # #445342). Credentials are minted on first start by the module's own
-      # `cscli machine add --auto` step, which only runs when the LAPI is on.
-      settings = {
-        general.api.server.enable = true;
-        lapi.credentialsFile = "${stateDir}/local_api_credentials.yaml";
-      };
+      # The rewritten nixpkgs module keeps its data in /var/lib/crowdsec/data,
+      # and the one before it used /var/lib/crowdsec/state. Pinning the old
+      # path keeps the decision database, the hub and the machine credentials
+      # of a host that ran it, and the hub, the database and the credentials
+      # all derive their paths from this one.
+      settings.config.config_paths.data_dir = "/var/lib/crowdsec/state";
     };
+
+    # The engine serves its Local API on loopback unless listen_uri says
+    # otherwise, so this matters only beside a changed listen_uri. nixpkgs
+    # dropped its own openFirewall in the rewrite.
+    networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [
+      (lib.toInt (lib.last (lib.splitString ":" lapiUri)))
+    ];
 
     services.crowdsec-firewall-bouncer = lib.mkIf cfg.firewallBouncer.enable {
       enable = true;
@@ -140,15 +130,12 @@ in {
       registerBouncer.enable = true;
     };
 
-    # /var/lib/crowdsec is the engine's StateDirectory (pinned to the static
-    # account below, so it is a real directory and not a /var/lib/private
-    # symlink). Under it sit the hub, the decision database and the machine
-    # credentials minted on first start. The bouncer's API key lives in the
-    # register unit's own StateDirectory, and the two go together. The engine
-    # database records the bouncer as registered, and the register unit
-    # refuses to start when that record exists and the key file does not,
-    # with "Bouncer registered but API key is not present". Persisting one
-    # without the other leaves the bouncer failed from the second boot on.
+    # /var/lib/crowdsec holds the hub, the decision database and the machine
+    # credentials minted on first start. The bouncer's API key lives in
+    # /var/lib/crowdsec-firewall-bouncer-register, and the two go together.
+    # The engine database records the bouncer as registered, and when the
+    # key file is gone the register unit deletes that record and registers
+    # the bouncer again under a new key on every boot.
     othrys.internal.persist."services.security.crowdsec" = {
       directories =
         [
@@ -176,87 +163,12 @@ in {
     # when asked. JSON to stdout lands in the journal the acquisition reads.
     services.traefik.staticConfigOptions.accessLog = lib.mkIf traefikEnabled (lib.mkDefault {format = "json";});
 
-    # `cscli` defaults to /etc/crowdsec/config.yaml, but nixpkgs only ever
-    # passes `-c <store path>`, and nothing populates that path, so every cscli
-    # call that is not the module's own wrapper fails with
-    #   while reading yaml file: open /etc/crowdsec/config.yaml: no such file
-    # That includes the bouncer's register unit, which invokes the raw binary
-    # (nixpkgs #469519, with a revert pending in #500515). Link the daemon's own
-    # config into place, and the tmpfiles ordering prefix keeps this after the
-    # module's own 10-crowdsec rules, which create the directory.
-    systemd.tmpfiles.settings."20-crowdsec-cscli"."/etc/crowdsec/config.yaml".link = {
-      type = "L+";
-      argument = "${configFile}";
-    };
-
-    systemd.services = let
-      # nixpkgs runs the engine under DynamicUser=true even though the module
-      # declares a static `crowdsec` account and chowns /etc/crowdsec and
-      # /var/lib/crowdsec to it. systemd honours DynamicUser over User=, so the
-      # units run as a transient UID that owns none of that, and the register
-      # unit, the only one declaring StateDirectory=, migrates
-      # /var/lib/crowdsec into /var/lib/private (0700 root). From the next boot
-      # on, the engine (no StateDirectory=) cannot even create its hub dir:
-      #   mkdir: cannot create directory '/var/lib/crowdsec': Permission denied
-      # Pinning the units to the declared account makes on-disk ownership
-      # coherent again, and systemd migrates the state dir back out of
-      # /var/lib/private on the next start (nixpkgs #520206).
-      staticUser = {
-        DynamicUser = lib.mkForce false;
-        StateDirectory = "crowdsec";
-      };
-    in {
-      # The engine's ExecStartPre fetches the hub index, and nixpkgs makes a
-      # failed fetch fatal. `After=network-online.target` covers boot and
-      # nothing else. During a switch on a host that resolves through its own
-      # unbound, systemd restarts both in one transaction with no order between
-      # them, the fetch lands while the resolver is down, and the engine and
-      # the bouncer are left failed. Restart transactions honour After=, so
-      # this makes the resolver come back first.
-      crowdsec.after = lib.optional config.othrys.services.unbound.enable "unbound.service";
-
-      # nixpkgs used to clear the packaged unit's ExecReload without
-      # providing one (nixpkgs #541058); the pinned revision ships its own,
-      # so the override that once lived here is gone.
-      crowdsec.serviceConfig = staticUser;
-
-      crowdsec-update-hub = lib.mkIf cfg.autoUpdate {
-        serviceConfig =
-          staticUser
-          // {
-            # `cscli hub update` succeeds and then the unit dies in
-            # ExecStartPost reloads crowdsec.service as the unprivileged
-            # crowdsec user, which systemd refuses (Access denied,
-            # status=4/NOPERMISSION), so the daily timer leaves a failed unit
-            # on every host (nixpkgs #473707). `+` runs that one command with
-            # full privileges, which is what it needs.
-            ExecStartPost = lib.mkForce "+systemctl reload crowdsec.service";
-          };
-      };
-
-      crowdsec-firewall-bouncer-register = lib.mkIf cfg.firewallBouncer.enable {
-        # StateDirectory= is already correct here (it also owns the api-key
-        # credential), and only the identity needs fixing. DynamicUser= implied a
-        # few hardening knobs, so restate them rather than lose them.
-        serviceConfig = {
-          DynamicUser = lib.mkForce false;
-          ProtectSystem = "strict";
-          PrivateTmp = true;
-          RemoveIPC = true;
-          NoNewPrivileges = true;
-          RestrictSUIDSGID = true;
-        };
-      };
-
-      # nixpkgs gives the bouncer Requires= on the register unit but no
-      # ordering, so on a fresh host the two race and the bouncer loses, since its
-      # LoadCredential= names the API key the register unit has not written
-      # yet, and it dies at step CREDENTIALS with no retry (the symptom
-      # reported in nixpkgs #526506). The After=nftables.service ordering this
-      # module used to add (nixpkgs #476253) is upstream now, so it is gone.
-      crowdsec-firewall-bouncer = lib.mkIf cfg.firewallBouncer.enable {
-        after = ["crowdsec-firewall-bouncer-register.service"];
-      };
-    };
+    # crowdsec-setup fetches the hub index, and the engine waits on it.
+    # `After=network-online.target` covers boot and nothing else. During a
+    # switch on a host that resolves through its own unbound, systemd restarts
+    # both in one transaction with no order between them, and the fetch lands
+    # while the resolver is down. Restart transactions honour After=, so this
+    # makes the resolver come back first.
+    systemd.services.crowdsec-setup.after = lib.optional config.othrys.services.unbound.enable "unbound.service";
   };
 }
