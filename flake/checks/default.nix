@@ -226,7 +226,6 @@
       othrys.apps = {
         ai.claude-code.enable = true;
         ai.mcp.context7.enable = true;
-        ai.mcp.nixos.enable = true;
         ai.ollama.enable = true;
         comma.enable = true;
         chromium.enable = true;

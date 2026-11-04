@@ -18,7 +18,7 @@
       {
         othrys.apps.ai = {
           opencode.enable = true;
-          mcp.nixos.enable = true;
+          mcp.context7.enable = true;
           skills.shared-skill = skillText "shared-skill";
           opencode.skills.opencode-only = skillText "opencode-only";
         };
@@ -98,7 +98,7 @@ in
     "the catch-all is the first pattern written" = builtins.head (builtins.attrNames settings.permission.bash) == "*";
     "the tool does not update itself" = !settings.autoupdate;
     "the shared context is the global AGENTS.md" = hm.programs.opencode.context == alone.othrys.apps.ai.context.text && lib.hasInfix "/nix/store" hm.programs.opencode.context;
-    "the declared MCP servers are handed over" = hm.programs.opencode.enableMcpIntegration && hm.programs.mcp.servers ? nixos;
+    "the declared MCP servers are handed over" = hm.programs.opencode.enableMcpIntegration && hm.programs.mcp.servers ? context7;
     "a shared skill and a skill for the tool both reach OpenCode" = hm.programs.opencode.skills ? shared-skill && hm.programs.opencode.skills ? opencode-only;
     "beside Claude Code a shared skill is written once" = !(withClaude.programs.opencode.skills ? shared-skill) && withClaude.programs.claude-code.skills ? shared-skill && withClaude.programs.opencode.skills ? opencode-only;
     "Claude Code's files are read by default" = !(hm.home.sessionVariables ? OPENCODE_DISABLE_CLAUDE_CODE);

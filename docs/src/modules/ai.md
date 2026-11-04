@@ -9,7 +9,6 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 | Claude Code | `othrys.apps.ai.claude-code` | Anthropic CLI assistant |
 | OpenCode | `othrys.apps.ai.opencode` | Open source terminal assistant for any provider |
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server, with the backend chosen from the host's GPU |
-| MCP NixOS | `othrys.apps.ai.mcp.nixos` | NixOS MCP server |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
 ## What the Claude Code permission lists are for
@@ -143,12 +142,15 @@ NVIDIA card never gets it by default.
 
 ## MCP Servers
 
-Model Context Protocol servers provide AI assistants with live tool access:
+Model Context Protocol servers provide AI assistants with live tool access.
+`othrys.apps.ai.mcp.context7` serves up-to-date library documentation and code
+examples, and takes no credential.
 
-- **NixOS**: Package search, option lookup, flake input queries
-- **Context7**: Up-to-date library documentation and code examples
-
-Neither server takes a credential.
+The NixOS MCP server is gone. It depended on `fastmcp`, which nixpkgs marked
+broken, and the nix CLI answers the same questions. `nix search nixpkgs` finds
+packages, and `man configuration.nix` and `man home-configuration.nix` list the
+options. A host that still sets `othrys.apps.ai.mcp.nixos` fails evaluation
+with that advice.
 
 ## GitHub
 
