@@ -48,13 +48,21 @@ in
         };
       };
 
-      client = {
+      client = {lib, ...}: {
         imports = [testStubs];
+        # The key exists only once the server mints it, so a boot-time run
+        # of the registration unit can only log in interactively. Once
+        # tailscaled is ordered after network-online.target, that run
+        # reaches the server, and tailscale takes a second noise dial within
+        # two minutes as a sign that port 80 is blocked and moves to TLS,
+        # which a plain-HTTP server cannot answer. The test starts the unit
+        # itself once the key is in place.
+        systemd.services.tailscaled-autoconnect.wantedBy = lib.mkForce [];
         othrys.services.tailscale = {
           enable = true;
           baseURL = "http://server:8080";
           # Minted on the server during the test and written here, after
-          # which the registration unit is started again.
+          # which the test starts the registration unit.
           authKeyFile = "/run/tailscale-auth-key";
           acceptDns = false;
         };
