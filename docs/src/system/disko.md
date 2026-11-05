@@ -31,6 +31,12 @@ undeclared option namespace fails whatever guards it.
   - `persist` → `/persist` (all persistent state)
   - `nix` → `/nix` (Nix store)
 
+With `luks.fido2.enable`, the root's crypttab entry carries
+`fido2-device=auto`, so the initrd tries a FIDO2 token before it asks for the
+passphrase. Stage 1 runs systemd on every host, so the option turns nothing
+else on. The keyslot itself is enrolled out of band, as
+[Secrets](./secrets.md) describes.
+
 ## Options
 
 ```nix

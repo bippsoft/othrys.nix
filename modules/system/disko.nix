@@ -165,13 +165,11 @@ in {
     # sets the option itself wins without mkForce.
     othrys.system.impermanence.device = lib.mkDefault "/dev/mapper/${cfg.luks.name}";
 
-    # FIDO2/YubiKey unlock, which tells the (systemd) initrd to try a FIDO2 token for
-    # the root device before prompting for the passphrase. The keyslot itself is
-    # added out-of-band via `just luks-enroll` (it lives in the LUKS2 header).
-    boot.initrd = lib.mkIf cfg.luks.fido2.enable {
-      systemd.enable = true;
-      luks.devices.${cfg.luks.name}.crypttabExtraOpts = ["fido2-device=auto"];
-    };
+    # FIDO2/YubiKey unlock, which tells the systemd initrd to try a FIDO2 token
+    # for the root device before prompting for the passphrase. Stage 1 is
+    # always systemd now, so nothing else needs turning on. The keyslot itself
+    # is added out-of-band via `just luks-enroll` (it lives in the LUKS2 header).
+    boot.initrd.luks.devices.${cfg.luks.name}.crypttabExtraOpts = lib.mkIf cfg.luks.fido2.enable ["fido2-device=auto"];
 
     disko.devices = {
       disk = {

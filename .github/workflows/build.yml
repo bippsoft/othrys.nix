@@ -119,6 +119,7 @@ jobs:
             '.#checks.x86_64-linux.eval-host-server-account' \
             '.#checks.x86_64-linux.eval-host-app-no-hm' \
             '.#checks.x86_64-linux.eval-host-app-no-hm-full' \
+            '.#checks.x86_64-linux.eval-host-encrypted' \
             '.#checks.x86_64-linux.eval-pairs' \
             '.#checks.x86_64-linux.eval-contract' \
             '.#checks.x86_64-linux.eval-inputs' \

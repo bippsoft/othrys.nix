@@ -1237,6 +1237,38 @@
         }
       ];
 
+      # The disk shape of an encrypted workstation, the disko layout with FIDO2
+      # unlock beside impermanence, built to its top level so every assertion
+      # runs. A removed nixpkgs option set by one of these modules shows only
+      # as a failed assertion, which no expectation-only check reads.
+      eval-host-encrypted = mkHostEval "othrys-eval-host-encrypted" [
+        functioningHost
+        impermanenceModules
+        diskoModules
+        {
+          fileSystems = {
+            "/nix" = {
+              device = "/dev/disk/by-label/nix";
+              fsType = "btrfs";
+            };
+            "/persist" = {
+              device = "/dev/disk/by-label/persist";
+              fsType = "btrfs";
+            };
+          };
+          othrys.system.impermanence.enable = true;
+          # The layout's filesystems would collide with the fixture's root, so
+          # disko declares none, and the LUKS device it would name is named here.
+          disko.enableConfig = false;
+          boot.initrd.luks.devices.cryptroot.device = "/dev/disk/by-id/example-part3";
+          othrys.system.disko = {
+            enable = true;
+            device = "/dev/disk/by-id/example";
+            luks.fido2.enable = true;
+          };
+        }
+      ];
+
       # Desktop-session surface with MODULE DEFAULTS, covering compositor, bar, login,
       # session manager, prompt, none of which eval-default covers. Notably
       # hyprland is evaluated with its default (unnamed) monitor config, which

@@ -142,6 +142,7 @@
 
   withLayout = hostEval [functioningHost layout];
   withLayoutRenamed = hostEval [functioningHost layout {othrys.system.disko.luks.name = "vault";}];
+  withFido2 = hostEval [functioningHost layout {othrys.system.disko.luks.fido2.enable = true;}];
 
   withSecrets = hostEval [functioningHost secrets];
   # The secrets plumbing decrypts with the persisted ssh host key on an
@@ -185,6 +186,8 @@ in
     "Stylix is on there" = stylixAlone.config.stylix.enable;
 
     "a host built from the aggregate alone evaluates" = evaluates aggregate;
+    "FIDO2 unlock asks the initrd for a token" = withFido2.config.boot.initrd.luks.devices.cryptroot.crypttabExtraOpts == ["fido2-device=auto"];
+    "FIDO2 unlock sets no initrd option nixpkgs removed" = !builtins.any (a: !a.assertion && inputs.nixpkgs.lib.hasInfix "no longer has any effect" a.message) withFido2.config.assertions;
     "the aggregate declares all five upstream namespaces" = aggregate.options ? home-manager && aggregate.options.environment ? persistence && aggregate.options ? disko && aggregate.options ? sops && aggregate.options ? stylix;
     "the aggregate manages the account through Home Manager" = aggregate.config.othrys.system.users.homeManaged && aggregate.config.home-manager.users ? alice;
     "the aggregate leaves the four switches off" = !aggregate.config.othrys.system.impermanence.enable && !aggregate.config.othrys.system.disko.enable && !aggregate.config.othrys.system.secrets.enable && !aggregate.config.othrys.system.stylix.enable;
