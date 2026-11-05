@@ -147,6 +147,7 @@ in
     "a skill for the tool replaces a shared one of the same name" = inputs.nixpkgs.lib.hasInfix "from the tool" claudeSkills.both;
     "a shared skill whose name the format refuses is rejected" = rejectedWith "cannot name a skill" (withSkills {othrys.apps.ai.skills.Bad_Name = "x";});
     "the package is llm-agents' claude-code built without telemetry" = same hm.programs.claude-code.package (llmAgents.claude-code.override {disableTelemetry = true;});
+    "the settings file stays writable and declared values win" = hm.programs.claude-code.mutableSettings;
     "telemetry can be left on" = same (packageOf telemetryOn) (llmAgents.claude-code.override {disableTelemetry = false;});
     "the host trusts the cache the package comes from" = builtins.elem "https://cache.numtide.com" host.nix.settings.substituters;
     "a host that admits no unfree software is refused" = rejectedWith "marks it free so nixpkgs never checks" unfreeOff;

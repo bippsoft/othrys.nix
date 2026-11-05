@@ -148,6 +148,12 @@ in {
         # still wins over it.
         package = lib.mkDefault cfg.package;
         enableMcpIntegration = true;
+        # The declared settings are merged into a writable settings.json at
+        # each activation, and declared values win. Claude Code and the
+        # programs it runs add keys of their own, such as Orca's status hooks,
+        # which a read-only file refuses. At default priority, so a host that
+        # wants the file read-only sets Home Manager's own option.
+        mutableSettings = lib.mkDefault true;
 
         settings = {
           # These lists are ergonomics, not a security boundary. The boundary

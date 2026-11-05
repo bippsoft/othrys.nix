@@ -110,6 +110,14 @@ Under impermanence the module persists `~/.config/Orca`, `~/.orca` and
 permission setting above, the API key files, and the worktrees with the
 agents' uncommitted work.
 
+## Claude Code's settings file
+
+Claude Code's `settings.json` is merged at each activation rather than linked
+read-only. The declared settings win, while keys that Claude Code or a program
+it runs adds itself stay in place, such as the status hooks Orca writes. A
+host that wants the file read-only sets
+`home-manager.users.<name>.programs.claude-code.mutableSettings = false`.
+
 ## What the Claude Code permission lists are for
 
 `othrys.apps.ai.claude-code` ships an allow-list and a deny-list, and it is
