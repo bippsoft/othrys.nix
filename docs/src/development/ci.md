@@ -82,6 +82,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-claude-code` | The settings, pre-approved tools, skills and context the AI modules hand Claude Code |
 | `eval-claude-desktop` | The package, the graphical and unfree refusals, what the module persists, and the local MCP servers its activation step merges into the app's config |
 | `claude-desktop-activation` | The claude-desktop activation step, run against a config holding the app's own keys, no config, invalid JSON, whitespace and an unreadable file |
+| `eval-orca` | The wrapped package and its telemetry switch, what the module persists, the graphical refusal, and the runtime port that opens on Tailscale's interface alone |
 | `eval-codex` | The package, telemetry switches, sign-in store, skills, context and MCP servers the codex module hands Codex, and what it persists |
 | `agent-config` | The committed Claude Code configuration under `.claude/`, which is the settings file, the hooks behind their dev-shell gate, the agent, skill and command frontmatter, and the hook program's refusals under pytest |
 | `eval-gh` | The `gh` settings and credential helper, the wrapper a token file installs, and the read-only commands pre-approved for Claude Code |

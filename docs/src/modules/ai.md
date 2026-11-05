@@ -9,13 +9,15 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 | Claude Code | `othrys.apps.ai.claude-code` | Anthropic CLI assistant |
 | Codex | `othrys.apps.ai.codex` | OpenAI CLI assistant |
 | Claude Desktop | `othrys.apps.ai.claude-desktop` | Anthropic's desktop app, which also runs Claude Code sessions |
+| Orca | `othrys.apps.ai.orca` | Desktop app that runs coding agents side by side in git worktrees |
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server, with the backend chosen from the host's GPU |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
 ## Where the AI packages come from
 
-The packages of `othrys.apps.ai.claude-code`, `othrys.apps.ai.codex` and
-`othrys.apps.ai.claude-desktop` default to the builds in the
+The packages of `othrys.apps.ai.claude-code`, `othrys.apps.ai.codex`,
+`othrys.apps.ai.claude-desktop` and `othrys.apps.ai.orca` default to the
+builds in the
 [llm-agents](https://github.com/numtide/llm-agents.nix) flake this library
 locks. That flake follows each vendor's releases within hours, while nixpkgs
 typically trails by days. It builds against its own nixpkgs, so its packages
@@ -73,6 +75,40 @@ at launch, so a running app picks up a change after a restart.
 Under impermanence the module persists `~/.config/Claude` at mode `0700`,
 which holds the app's profile, its logs and the config file. The sign-in sits
 in the desktop keyring.
+
+## Orca
+
+By default, Orca starts Claude Code with `--dangerously-skip-permissions` and
+Codex with `--dangerously-bypass-approvals-and-sandbox`. Every permission
+prompt is then gone for the sessions it starts, Claude Code's deny list no
+longer applies, and Codex runs outside its sandbox. The setting lives in
+Orca's own state, which no module can declare, so turn it off once per user
+in **Settings → Agents → Agent Permissions → Manual**. The choice persists
+with the rest of Orca's state.
+
+`othrys.apps.ai.orca` installs Orca for the user and needs a graphical
+session. Each task runs in its own git worktree under `~/orca/workspaces`.
+Orca finds Claude Code, Codex and the other agents on the login shell's
+`PATH` and bundles none of them. It writes status hooks into Claude Code's
+and Codex's settings, which is why both keep their settings writable.
+
+`disableTelemetry`, on by default, wraps the package so that Orca starts with
+`ORCA_TELEMETRY_DISABLED` set, since a new install otherwise reports usage to
+PostHog. Orca still shows a notice when a newer release exists and downloads
+nothing.
+
+Orca's runtime port, 6768 by default, binds to loopback until network pairing
+is turned on in the app. The module opens it on no interface by default.
+`othrys.apps.ai.orca.tailscale.enable` opens it on Tailscale's interface
+alone, and refuses a host without othrys Tailscale. A client then passes the
+tailnet's ACLs and Orca's per-client pairing token, and the tailnet's ACL
+policy should limit that port to the user's own devices. The port is never
+opened on the LAN, and Orca's own documentation advises against exposing it.
+
+Under impermanence the module persists `~/.config/Orca`, `~/.orca` and
+`~/orca/workspaces`, each at mode `0700`. They hold the profiles and the
+permission setting above, the API key files, and the worktrees with the
+agents' uncommitted work.
 
 ## What the Claude Code permission lists are for
 
