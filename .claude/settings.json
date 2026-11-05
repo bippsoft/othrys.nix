@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(nix build *)",
+      "Bash(nix eval *)",
+      "Bash(nix flake check *)",
+      "Bash(nix-build *)",
+      "Bash(nix develop *)",
+      "Bash(nixos-rebuild *)",
+      "Bash(just *)"
+    ],
+    "allow": [
+      "Bash(check-one *)",
+      "Bash(hygiene-scan *)",
+      "Bash(module-coverage *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v othrys-agent-hook >/dev/null 2>&1 || { echo 'othrys-agent-hook is not on PATH. Start Claude Code inside nix develop so that writes can be scanned.' >&2; exit 2; }; exec othrys-agent-hook pre-tool-use",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v othrys-agent-hook >/dev/null 2>&1 || exit 0; exec othrys-agent-hook pre-tool-use",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v othrys-agent-hook >/dev/null 2>&1 || exit 0; exec othrys-agent-hook post-tool-use",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

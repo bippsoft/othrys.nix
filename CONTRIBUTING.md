@@ -480,5 +480,5 @@ and never accept an option design that puts one in the Nix store.
 
 Contributions made with AI assistance are subject to [AI_POLICY.md](AI_POLICY.md).
 
-`AGENTS.md`, `opencode.json` and `.opencode/` configure agent sessions in this
-repository. `docs/src/development/agents.md` describes them.
+`AGENTS.md` and `.claude/` configure agent sessions in this repository.
+`docs/src/development/agents.md` describes them.

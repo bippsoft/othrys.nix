@@ -10,6 +10,11 @@ docs/book/
 .direnv/
 .envrc.local
 
+# Claude Code writes these per user. The tracked .claude/ holds only the
+# settings, agents, skills and commands any contributor's session shares.
+.claude/settings.local.json
+.claude/worktrees/
+
 # Written into the working tree by the git-hooks shellHook on `nix develop`.
 # The hook definitions live in flake/dev-shells.nix.
 .pre-commit-config.yaml

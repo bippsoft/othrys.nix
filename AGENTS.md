@@ -59,10 +59,11 @@ placeholders.
 
 ## Agent Sessions
 
-Start the session inside `nix develop`. The shell provides `nixd`, `treefmt`
-and the three commands below, and the plugin in `.opencode/plugins/` refuses
-every write when it cannot find them. The session is already in the shell, so
-call each command by its name. `nix develop` is denied inside a session.
+Start the session inside `nix develop`. The shell provides `nixd`, `treefmt`,
+the three commands below and `othrys-agent-hook`, which the hooks in
+`.claude/settings.json` run, and every write is refused when the hook is not
+on `PATH`. The session is already in the shell, so call each command by its
+name. `nix develop` is denied inside a session.
 
 - `check-one <name>` builds one check named in `flake/checks/default.nix`. It
   is the only way an agent evaluates this flake. `nix build`, `nix eval`,
@@ -82,12 +83,14 @@ A change to a module is finished when its check and its page changed with it.
 An agent works on a branch made from `main` with `git switch -c <type>/<name>`,
 and commits there with `git commit --no-gpg-sign`, one logical change per
 commit. It never commits on `main`, renames a branch onto it or points it
-anywhere else, and the plugin refuses each of those. It never pushes, tags,
-signs or merges. Every commit on `main` carries a maintainer's signature, which
-the maintainer adds when landing the branch.
+anywhere else, and inside the dev shell the hook refuses each of those.
+Pushing, tagging, signing
+and merging follow the user's own configuration. Every commit on `main`
+carries a maintainer's signature, which the maintainer adds when landing the
+branch.
 
-`.opencode/` holds the agents, skills and commands for this repository, and
-`docs/src/development/agents.md` describes them.
+`.claude/` holds the settings, agents, skills and commands for this
+repository, and `docs/src/development/agents.md` describes them.
 
 ## Writing for the History
 

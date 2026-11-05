@@ -841,12 +841,24 @@
       '';
     };
 
-    # The validator the opencode-config check runs (./opencode-config.py).
-    opencodeConfig = pkgs.writeShellApplication {
-      name = "opencode-config";
+    # The validator the agent-config check runs (./agent-config.py).
+    agentConfig = pkgs.writeShellApplication {
+      name = "agent-config";
       runtimeInputs = [(pkgs.python3.withPackages (ps: [ps.pyyaml]))];
       text = ''
-        exec python3 ${./opencode-config.py} "$@"
+        exec python3 ${./agent-config.py} "$@"
+      '';
+    };
+
+    # The hooks .claude/settings.json runs before and after every write and
+    # shell command in a Claude Code session (./agent-hook.py). It is a store
+    # path like check-one, so a session cannot edit what it is held to, and it
+    # carries the scan, the coverage report and the formatter it calls.
+    agentHook = pkgs.writeShellApplication {
+      name = "othrys-agent-hook";
+      runtimeInputs = [pkgs.python3 pkgs.git hygieneScan moduleCoverage config.treefmt.build.wrapper];
+      text = ''
+        exec python3 ${./agent-hook.py} "$@"
       '';
     };
 
@@ -932,9 +944,10 @@
     # x86_64-linux.
     _module.args = {
       inherit portableHooks repositoryHooks;
-      # The three commands an agent session runs in place of bare nix builds
-      # (see ../dev-shells.nix and AGENTS.md).
-      agentTools = [hygieneScan moduleCoverage checkOne];
+      # The three commands an agent session runs in place of bare nix builds,
+      # and the hook program its settings call (see ../dev-shells.nix and
+      # AGENTS.md).
+      agentTools = [hygieneScan moduleCoverage checkOne agentHook];
     };
 
     # ANCHOR: checks
@@ -1358,16 +1371,17 @@
       eval-exposure = import ./exposure-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost;};
       eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost bootBase inputs;};
 
-      # The committed OpenCode configuration, read as files. Every skill name
-      # matches its directory, every agent and command carries a description,
-      # and every agent a file names exists (see ./opencode-config.py).
-      opencode-config =
-        pkgs.runCommand "othrys-opencode-config" {
-          nativeBuildInputs = [opencodeConfig hygieneScan moduleCoverage pkgs.git pkgs.bun (pkgs.python3.withPackages (ps: [ps.pyyaml]))];
+      # The committed Claude Code configuration, read as files, and the hook
+      # program it runs. Every agent, skill and command carries a description
+      # and known keys, every skill name matches its directory, the hooks sit
+      # behind the dev-shell gate (see ./agent-config.py), and the hook refuses
+      # what it must (see ./agent-hook-test.py).
+      agent-config =
+        pkgs.runCommand "othrys-agent-config" {
+          nativeBuildInputs = [agentConfig agentHook hygieneScan pkgs.git (pkgs.python3.withPackages (ps: [ps.pytest]))];
         } ''
-          opencode-config ${inputs.self}
-          python3 ${./opencode-regressions.py} ${inputs.self}
-          OTHRYS_ROOT=${inputs.self} bun test ${./othrys-plugin.test.js}
+          agent-config ${inputs.self}
+          HOME=$TMPDIR OTHRYS_ROOT=${inputs.self} python3 -m pytest -q -p no:cacheprovider ${./agent-hook-test.py}
           touch $out
         '';
       # What the gh module renders, wraps and pre-approves (see ./gh-eval.nix).

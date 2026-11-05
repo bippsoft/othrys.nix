@@ -33,7 +33,7 @@ These rules apply only to outside contributions to othrys.nix. Maintainers
 are exempt from these rules and may use AI tools at their discretion;
 they've proven themselves trustworthy to apply good judgment.
 
-The repository carries an agent configuration in `AGENTS.md` and `.opencode/`.
+The repository carries an agent configuration in `AGENTS.md` and `.claude/`.
 It is maintainer tooling, and using it relaxes none of the rules above.
 
 ## There are Humans Here
