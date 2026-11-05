@@ -226,6 +226,7 @@
       othrys.apps = {
         ai.claude-code.enable = true;
         ai.codex.enable = true;
+        ai.claude-desktop.enable = true;
         ai.mcp.context7.enable = true;
         ai.ollama.enable = true;
         comma.enable = true;
@@ -1373,6 +1374,10 @@
       eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost bootBase inputs system;};
       # What the codex module hands Codex (see ./codex-eval.nix).
       eval-codex = import ./codex-eval.nix {inherit hostConfig mkExpectations functioningHost inputs system;};
+      # What the claude-desktop module installs, refuses and merges (see ./claude-desktop-eval.nix).
+      eval-claude-desktop = import ./claude-desktop-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost inputs system;};
+      # The claude-desktop activation step, run against fixture files (see ./claude-desktop-activation.nix).
+      claude-desktop-activation = import ./claude-desktop-activation.nix {inherit pkgs hostConfig functioningHost;};
 
       # The committed Claude Code configuration, read as files, and the hook
       # program it runs. Every agent, skill and command carries a description

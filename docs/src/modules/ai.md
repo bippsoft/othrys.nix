@@ -8,13 +8,14 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 |--------|--------|-------------|
 | Claude Code | `othrys.apps.ai.claude-code` | Anthropic CLI assistant |
 | Codex | `othrys.apps.ai.codex` | OpenAI CLI assistant |
+| Claude Desktop | `othrys.apps.ai.claude-desktop` | Anthropic's desktop app, which also runs Claude Code sessions |
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server, with the backend chosen from the host's GPU |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
 ## Where the AI packages come from
 
-The packages of `othrys.apps.ai.claude-code` and `othrys.apps.ai.codex`
-default to the builds in the
+The packages of `othrys.apps.ai.claude-code`, `othrys.apps.ai.codex` and
+`othrys.apps.ai.claude-desktop` default to the builds in the
 [llm-agents](https://github.com/numtide/llm-agents.nix) flake this library
 locks. That flake follows each vendor's releases within hours, while nixpkgs
 typically trails by days. It builds against its own nixpkgs, so its packages
@@ -27,9 +28,10 @@ non-essential traffic, and `othrys.apps.ai.claude-code.disableTelemetry =
 false` builds it without. A package set by hand is used as given.
 
 llm-agents marks its unfree packages as free, so nixpkgs never asks whether
-the host admits them. Claude Code is unfree, so the module refuses a host
-that admits no unfree software, through `othrys.system.nix.allowUnfree` or
-the host's own `allowUnfreePredicate` or `allowUnfreePackages`.
+the host admits them. Claude Code and Claude Desktop are unfree, so their
+modules refuse a host that admits no unfree software, through
+`othrys.system.nix.allowUnfree` or the host's own `allowUnfreePredicate` or
+`allowUnfreePackages`.
 
 ## Codex
 
@@ -50,6 +52,27 @@ rather than linked read-only, since Codex records trusted directories there
 itself. Under impermanence the module persists `~/.codex` at mode `0700`,
 which holds the sign-in file, the sessions, the history and the state
 database.
+
+## Claude Desktop
+
+`othrys.apps.ai.claude-desktop` installs Anthropic's desktop app for the user,
+repackaged from Anthropic's own Linux build. It needs a graphical session and
+refuses a host without one. Cowork's virtual machines need `qemu` and KVM from
+the host, which the module does not provide.
+
+The app reads local MCP servers, the ones with a command, from
+`~/.config/Claude/claude_desktop_config.json`. It keeps its preferences in
+the same file, so the file stays writable, and each activation sets its
+`mcpServers` key to the local servers under `programs.mcp.servers`. Remote
+servers such as Context7 are added in the app's own settings. With no local
+server declared, the file is left as the app keeps it, so removing the last
+local server leaves the entries the previous activation wrote, to be removed
+in the app or by hand. The app reads the file
+at launch, so a running app picks up a change after a restart.
+
+Under impermanence the module persists `~/.config/Claude` at mode `0700`,
+which holds the app's profile, its logs and the config file. The sign-in sits
+in the desktop keyring.
 
 ## What the Claude Code permission lists are for
 

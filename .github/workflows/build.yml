@@ -136,6 +136,8 @@ jobs:
             '.#checks.x86_64-linux.eval-exposure' \
             '.#checks.x86_64-linux.eval-claude-code' \
             '.#checks.x86_64-linux.eval-codex' \
+            '.#checks.x86_64-linux.eval-claude-desktop' \
+            '.#checks.x86_64-linux.claude-desktop-activation' \
             '.#checks.x86_64-linux.agent-config' \
             '.#checks.x86_64-linux.eval-gh' \
             '.#checks.x86_64-linux.eval-k3s' \
