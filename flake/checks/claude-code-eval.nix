@@ -18,10 +18,7 @@
   aiModules = {
     othrys.apps.ai = {
       claude-code.enable = true;
-      mcp = {
-        nixos.enable = true;
-        context7.enable = true;
-      };
+      mcp.context7.enable = true;
     };
   };
   # The shared context is rendered from the host's impermanence setting, so
@@ -62,10 +59,7 @@
       othrys.system.nix.allowUnfree = true;
       othrys.apps.ai = {
         claude-code.enable = true;
-        mcp = {
-          nixos.enable = true;
-          context7.enable = true;
-        };
+        mcp.context7.enable = true;
       };
     }
   ];
