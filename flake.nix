@@ -40,6 +40,20 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Packages for AI agents and their desktop clients, the default of the
+    # package options of the claude-code, codex, claude-desktop and orca
+    # modules. Like hyprland it does not follow nixpkgs. Upstream builds and
+    # tests against its own pin, and cache.numtide.com serves those exact
+    # derivations, so following ours would put every consumer on a local
+    # build of each package.
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
+      # Only upstream's own outputs and checks read these, so following ours
+      # leaves the package hashes alone and drops a copy from the lock.
+      inputs.flake-parts.follows = "flake-parts";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+    };
+
     # Niri compositor, packages plus the typed programs.niri.settings module
     # (build-time-validated KDL config). Self-contained, since the compositor
     # module imports its NixOS module directly, and its auto-cache is disabled in

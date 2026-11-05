@@ -148,7 +148,8 @@ in {
         serve any store path, so it is a trust root, and this one is added
         only when a host asks. The hyprland and niri caches are added with
         their compositors, since those flakes build nothing from
-        cache.nixos.org.
+        cache.nixos.org, and cache.numtide.com with the AI modules whose
+        package comes from the llm-agents input.
       '';
     };
 
@@ -188,6 +189,17 @@ in {
         description = "Path to file containing Cachix auth token for pushing.";
       };
     };
+  };
+
+  # Set by each module whose package defaults to the llm-agents input. That
+  # flake builds against its own nixpkgs, so cache.numtide.com is the only
+  # place its packages come prebuilt from, and the cache is trusted on a host
+  # only when one of those modules is on.
+  options.othrys.internal.llmAgentsCache = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    internal = true;
+    description = "Trust cache.numtide.com, for the packages of the llm-agents input.";
   };
 
   config = lib.mkIf cfg.enable {
@@ -252,6 +264,7 @@ in {
         ++ lib.optionals config.othrys.desktop.compositors.niri.enable [
           "https://niri.cachix.org"
         ]
+        ++ lib.optional config.othrys.internal.llmAgentsCache "https://cache.numtide.com"
         ++ lib.optional cfg.cachix.enable "https://${cfg.cachix.name}.cachix.org"
         ++ cfg.extraSubstituters;
 
@@ -264,6 +277,7 @@ in {
         ++ lib.optionals config.othrys.desktop.compositors.niri.enable [
           "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
         ]
+        ++ lib.optional config.othrys.internal.llmAgentsCache "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
         ++ lib.optional cfg.cachix.enable cfg.cachix.publicKey
         ++ cfg.extraTrustedPublicKeys;
     };

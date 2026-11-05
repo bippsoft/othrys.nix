@@ -48,9 +48,9 @@
   # What the modules take from this flake's own lock, as module arguments.
   # A module can only reach flake inputs through an argument, and reading them
   # from the consumer's `inputs` made every consuming flake declare an input
-  # named `ashell`, `hyprland`, `nixvim` and `nix-index-database`. Only the
-  # four the modules use are named, so a module cannot grow a dependency on
-  # another input unnoticed.
+  # named `ashell`, `hyprland`, `nixvim`, `nix-index-database` and
+  # `llm-agents`. Only the five the modules use are named, so a module cannot
+  # grow a dependency on another input unnoticed.
   #
   # `inputs` is given an empty default beside them. modules/system/nix.nix
   # reads the consumer's `inputs.nixpkgs` and modules/system/secrets.nix the
@@ -64,7 +64,7 @@
   args = {
     key = "othrys.nix/flake/modules.nix#args";
     _module.args = {
-      othrysInputs = {inherit (inputs) ashell hyprland nixvim nix-index-database;};
+      othrysInputs = {inherit (inputs) ashell hyprland nixvim nix-index-database llm-agents;};
       inputs = inputs.nixpkgs.lib.mkDefault {};
     };
   };

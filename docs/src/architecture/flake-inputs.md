@@ -16,6 +16,7 @@ All external dependencies are declared in `flake.nix`:
 | `home-manager` | Declarative user environment management, written into by the optional `nixosModules.home` export |
 | `hyprland` | Wayland compositor (pinned, not following nixpkgs), the default of `othrys.desktop.compositors.hyprland.package` and `portalPackage` |
 | `niri` | niri-flake, the typed `programs.niri.settings` module the Niri compositor module imports |
+| `llm-agents` | Packages for AI agents and their desktop clients (pinned, not following nixpkgs), the default package of the AI modules that name it |
 | `disko` | Declarative disk partitioning, written into by the optional `nixosModules.disko` export |
 | `nix-index-database` | Prebuilt database for `comma` and `nix-locate`, as the Home Manager module `othrys.apps.comma` imports |
 | `impermanence` | Opt-in state persistence, written into by the optional `nixosModules.impermanence` export |
@@ -32,7 +33,7 @@ The private `secrets` input is declared only in the consuming fleet flake, never
 
 A consuming flake declares `othrys`, `nixpkgs` and the inputs whose modules it imports itself. `home-manager`, `impermanence`, `disko`, `sops-nix` and `stylix` are for a host that imports the matching othrys export, and none of them is required. Each is typically written as `follows = "othrys/<name>"`, so hosts build against the exact versions this library is locked to (see [Host Configuration](./host-configuration.md)). A flake whose hosts import `nixosModules.full` declares none of the five, since that export imports each upstream module from this flake's lock.
 
-It declares none of `ashell`, `hyprland`, `nixvim`, `nix-index-database` or `niri`. `flake/modules.nix` hands the first four to the modules from this flake's lock, as a module argument named `othrysInputs`, and imports niri-flake's module directly. An input of one of those names in the consuming flake is not read by any module.
+It declares none of `ashell`, `hyprland`, `nixvim`, `nix-index-database`, `llm-agents` or `niri`. `flake/modules.nix` hands the first five to the modules from this flake's lock, as a module argument named `othrysInputs`, and imports niri-flake's module directly. An input of one of those names in the consuming flake is not read by any module.
 
 A consumer changes what a module builds from in one of two ways.
 
@@ -50,3 +51,5 @@ inputs = {
 ```
 
 The Hyprland input deliberately does not follow nixpkgs, so its packages match what hyprland.cachix.org serves. A `follows` that replaces it, or a `package` from another source, gives up those cache hits.
+
+The llm-agents input does not follow nixpkgs either, for the same reason. Upstream builds and tests against its own pin, and cache.numtide.com serves those derivations. A host trusts that cache only while a module whose package comes from the input is on.

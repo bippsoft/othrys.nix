@@ -36,6 +36,8 @@
     };
   };
   cachixEmpty = host {othrys.system.nix.cachix.enable = true;};
+  numtide = host {othrys.internal.llmAgentsCache = true;};
+  numtideKey = "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=";
   withUser = hostConfig [functioningHost];
   nonAdmin = hostConfig [functioningHost {othrys.system.users.wheel = false;}];
 in
@@ -45,6 +47,8 @@ in
     "the community cache is not trusted by default" = !builtins.any (s: builtins.match ".*nix-community.*" s != null) (settings plain).substituters && !builtins.any (k: builtins.match "nix-community.*" k != null) (settings plain).trusted-public-keys;
     "the community cache is trusted when asked" = builtins.elem "https://nix-community.cachix.org" (settings community).substituters;
     "cache.nixos.org stays" = builtins.elem "https://cache.nixos.org" (settings plain).substituters;
+    "the llm-agents cache is not trusted by default" = !builtins.elem "https://cache.numtide.com" (settings plain).substituters && !builtins.elem numtideKey (settings plain).trusted-public-keys;
+    "the llm-agents cache and its key are trusted beside a module that uses it" = builtins.elem "https://cache.numtide.com" (settings numtide).substituters && builtins.elem numtideKey (settings numtide).trusted-public-keys;
     "an enabled cachix adds its substituter and key" = builtins.elem "https://example.cachix.org" (settings cachix).substituters && builtins.elem "example.cachix.org-1:AAAA" (settings cachix).trusted-public-keys;
     "an enabled cachix with empty values is rejected" = rejectedWith "set name and publicKey" cachixEmpty;
     "the registry pins nixpkgs to the host's input" = plain.nix.registry.nixpkgs.flake == inputs.nixpkgs;

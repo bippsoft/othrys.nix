@@ -64,7 +64,9 @@ repository can reduce that set.
 - **Binary caches.** A substituter with a trusted public key can serve any store
   path. Every host trusts `cache.nixos.org`. `othrys.system.nix.communityCache`
   adds `nix-community.cachix.org` when a host asks, the hyprland and niri
-  caches come with their compositor modules, and `othrys.system.nix.cachix.*`
+  caches come with their compositor modules, `cache.numtide.com` comes with
+  the AI modules whose package is taken from the llm-agents input, and
+  `othrys.system.nix.cachix.*`
   lets a consumer add their own cache. The cache this repository's CI pushes
   to is a build cache for CI and is not meant for hosts.
 - **Trusted Nix users.** `nix.settings.trusted-users` is root alone by
