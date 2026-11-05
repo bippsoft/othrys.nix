@@ -1358,8 +1358,6 @@
       eval-exposure = import ./exposure-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost;};
       eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost bootBase inputs;};
 
-      eval-opencode = import ./opencode-eval.nix {inherit hostConfig mkExpectations functioningHost inputs;};
-
       # The committed OpenCode configuration, read as files. Every skill name
       # matches its directory, every agent and command carries a description,
       # and every agent a file names exists (see ./opencode-config.py).

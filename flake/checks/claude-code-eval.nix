@@ -135,6 +135,7 @@ in
     "a shared skill and a skill for the tool both reach Claude Code" = claudeSkills ? shared-skill && claudeSkills ? claude-only;
     "a skill for the tool replaces a shared one of the same name" = inputs.nixpkgs.lib.hasInfix "from the tool" claudeSkills.both;
     "a shared skill whose name the format refuses is rejected" = rejectedWith "cannot name a skill" (withSkills {othrys.apps.ai.skills.Bad_Name = "x";});
+    "a host that still enables OpenCode is told to use Claude Code" = rejectedWith "no longer supports OpenCode" (hostConfig [functioningHost {othrys.apps.ai.opencode.enable = true;}]);
     "the host's own lines follow the NixOS text" = inputs.nixpkgs.lib.hasSuffix "\nHouse rules" (contextOf {extra = "House rules";}) && inputs.nixpkgs.lib.hasInfix "/nix/store" (contextOf {extra = "House rules";});
     "the NixOS text can be left out" =
       contextOf {
