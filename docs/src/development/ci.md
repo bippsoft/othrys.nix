@@ -80,6 +80,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-floorp`, `eval-rustdesk` | The Floorp and Discord settings, and what RustDesk persists and launches |
 | `eval-chromium` | Chromium's user package, wrapper arguments, extension manifests, persistence, registry guards and typed refusals |
 | `eval-claude-code` | The settings, pre-approved tools, skills and context the AI modules hand Claude Code |
+| `eval-codex` | The package, telemetry switches, sign-in store, skills, context and MCP servers the codex module hands Codex, and what it persists |
 | `agent-config` | The committed Claude Code configuration under `.claude/`, which is the settings file, the hooks behind their dev-shell gate, the agent, skill and command frontmatter, and the hook program's refusals under pytest |
 | `eval-gh` | The `gh` settings and credential helper, the wrapper a token file installs, and the read-only commands pre-approved for Claude Code |
 | `yubikey-onboard-builds` | The onboarding script's package, whose build runs shellcheck and `bash -n` over the script |

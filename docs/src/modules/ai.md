@@ -7,14 +7,16 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 | Module | Option | Description |
 |--------|--------|-------------|
 | Claude Code | `othrys.apps.ai.claude-code` | Anthropic CLI assistant |
+| Codex | `othrys.apps.ai.codex` | OpenAI CLI assistant |
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server, with the backend chosen from the host's GPU |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
 ## Where the AI packages come from
 
-The package of `othrys.apps.ai.claude-code` defaults to the build in the
+The packages of `othrys.apps.ai.claude-code` and `othrys.apps.ai.codex`
+default to the builds in the
 [llm-agents](https://github.com/numtide/llm-agents.nix) flake this library
-locks. That flake follows Anthropic's releases within hours, while nixpkgs
+locks. That flake follows each vendor's releases within hours, while nixpkgs
 typically trails by days. It builds against its own nixpkgs, so its packages
 come prebuilt from `cache.numtide.com`, and a host trusts that cache and its
 key only while such a module is on. `package` takes any other build, such as
@@ -28,6 +30,26 @@ llm-agents marks its unfree packages as free, so nixpkgs never asks whether
 the host admits them. Claude Code is unfree, so the module refuses a host
 that admits no unfree software, through `othrys.system.nix.allowUnfree` or
 the host's own `allowUnfreePredicate` or `allowUnfreePackages`.
+
+## Codex
+
+`othrys.apps.ai.codex` wraps Home Manager's `programs.codex`. It receives the
+shared skills, the shared context as its global `AGENTS.md`, and every server
+under `programs.mcp.servers`. `othrys.apps.ai.codex.skills` holds skills for
+Codex alone.
+
+`disableTelemetry`, on by default, turns off Codex's analytics and the
+metrics exporter that follows them, `/feedback` uploads, and the startup
+check that asks GitHub for a newer release a Nix-managed binary cannot
+install. `othrys.apps.ai.codex.settings` is merged over what the module
+writes and wins over it.
+
+The sign-in goes to the desktop keyring where one answers and to
+`~/.codex/auth.json` otherwise. `config.toml` is merged at each activation
+rather than linked read-only, since Codex records trusted directories there
+itself. Under impermanence the module persists `~/.codex` at mode `0700`,
+which holds the sign-in file, the sessions, the history and the state
+database.
 
 ## What the Claude Code permission lists are for
 

@@ -1,0 +1,65 @@
+# flake/checks/codex-eval.nix
+# CORE. What the codex module hands Codex, read back from the rendered Home
+# Manager configuration of an evaluated host. The package, the telemetry
+# switches and the sign-in store are settings nothing reads at evaluation, so
+# a module that dropped one would still evaluate.
+{
+  hostConfig,
+  mkExpectations,
+  functioningHost,
+  inputs,
+  system,
+}: let
+  same = a: b: a.outPath == b.outPath;
+  host = extra:
+    hostConfig [
+      functioningHost
+      {
+        othrys.apps.ai = {
+          codex.enable = true;
+          mcp.context7.enable = true;
+          skills.shared-skill = "---\nname: shared-skill\ndescription: shared\n---\nshared\n";
+          codex.skills.codex-only = "---\nname: codex-only\ndescription: own\n---\nown\n";
+        };
+      }
+      extra
+    ];
+  hmOf = h: h.home-manager.users.${h.othrys.system.user.name};
+  plain = host {};
+  hm = hmOf plain;
+  settings = hm.programs.codex.settings;
+  telemetryOn = (hmOf (host {othrys.apps.ai.codex.disableTelemetry = false;})).programs.codex.settings;
+  overridden = (hmOf (host {othrys.apps.ai.codex.settings.analytics.enabled = true;})).programs.codex.settings;
+  swapped = hostConfig [
+    functioningHost
+    ({pkgs, ...}: {
+      othrys.apps.ai.codex = {
+        enable = true;
+        package = pkgs.hello;
+      };
+    })
+  ];
+  off = hostConfig [functioningHost];
+in
+  mkExpectations "othrys-eval-codex" {
+    "the package is llm-agents' codex" = same hm.programs.codex.package inputs.llm-agents.packages.${system}.codex;
+    "a host can set the package" = (hmOf swapped).programs.codex.package.pname == "hello";
+    "analytics, the metrics exporter, feedback and the update check are off" = !settings.analytics.enabled && settings.otel.metrics_exporter == "none" && !settings.feedback.enabled && !settings.check_for_update_on_startup;
+    "telemetry can be left on" = !(telemetryOn ? analytics) && !(telemetryOn ? check_for_update_on_startup);
+    "a host's settings win over the module's" = overridden.analytics.enabled && !overridden.feedback.enabled;
+    "the sign-in uses the keyring and falls back to a file" = settings.cli_auth_credentials_store == "auto";
+    "config.toml stays writable and declared values win" = hm.programs.codex.mutableSettings;
+    "the MCP servers are handed over" = hm.programs.codex.enableMcpIntegration && hm.programs.mcp.servers ? context7;
+    "the shared context is the global AGENTS.md" = hm.programs.codex.context == plain.othrys.apps.ai.context.text;
+    "a shared skill and a skill for the tool both reach Codex" = hm.programs.codex.skills ? shared-skill && hm.programs.codex.skills ? codex-only;
+    "~/.codex is persisted at 0700" =
+      plain.othrys.internal.persist."apps.ai.codex".user.directories
+      == [
+        {
+          directory = ".codex";
+          mode = "0700";
+        }
+      ];
+    "the host trusts the cache the package comes from" = builtins.elem "https://cache.numtide.com" plain.nix.settings.substituters;
+    "a host without the module writes nothing for it" = !(off.othrys.internal.homeConfig ? "apps.ai.codex") && !(off.othrys.internal.persist ? "apps.ai.codex") && !builtins.elem "https://cache.numtide.com" off.nix.settings.substituters;
+  }

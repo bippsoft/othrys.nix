@@ -121,6 +121,7 @@ in
     "Plexamp is persisted at 0700" = userMode ".config/Plexamp" == "0700";
     "PrismLauncher is persisted at 0700" = userMode ".local/share/PrismLauncher" == "0700";
     "claude-code is persisted at 0700" = userMode ".claude" == "0700";
+    "codex is persisted at 0700" = userMode ".codex" == "0700";
     "OBS is persisted at 0700" = userMode ".config/obs-studio" == "0700";
     "the bluetooth tree is persisted at 0700" = modeOf systemDirs "/var/lib/bluetooth" == "0700";
 

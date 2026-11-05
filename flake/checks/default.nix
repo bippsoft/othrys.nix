@@ -225,6 +225,7 @@
 
       othrys.apps = {
         ai.claude-code.enable = true;
+        ai.codex.enable = true;
         ai.mcp.context7.enable = true;
         ai.ollama.enable = true;
         comma.enable = true;
@@ -1370,6 +1371,8 @@
       eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
       eval-exposure = import ./exposure-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost;};
       eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost bootBase inputs system;};
+      # What the codex module hands Codex (see ./codex-eval.nix).
+      eval-codex = import ./codex-eval.nix {inherit hostConfig mkExpectations functioningHost inputs system;};
 
       # The committed Claude Code configuration, read as files, and the hook
       # program it runs. Every agent, skill and command carries a description
