@@ -13,7 +13,7 @@ No desktop environment required, so these are usable on servers and headless sys
 | Nixvim | `othrys.apps.nixvim` | Neovim configured via Nix (sub-modules for plugins/languages) |
 | Languages | `othrys.apps.languages.<name>` | Per-language toolchains shared by the PATH and both editors |
 | Development | `othrys.apps.development` | Development tools bundle, direnv with its allow database persisted |
-| GitHub CLI | `othrys.apps.gh` | `gh` with its settings, the git credential helper, a token file for a headless host and read-only commands pre-approved for Claude Code |
+| GitHub CLI | `othrys.apps.gh` | `gh` with its settings, the git credential helper, a token file for a headless host and read-only commands pre-approved for Claude Code and Codex |
 | Yazi | `othrys.apps.yazi` | Terminal file manager |
 | Comma | `othrys.apps.comma` | Run uninstalled programs with nix-index, whose `command-not-found` handler names the package for a missing command |
 
@@ -133,6 +133,11 @@ edits, merges, closes or comments stays prompted, and so do `gh auth` and
 leaves the entries out. The lists are a convenience and not a boundary, as
 [AI Assistants](./ai.md#what-the-claude-code-permission-lists-are-for)
 explains.
+
+When `othrys.apps.ai.codex` is enabled, the same twelve commands become
+`allow` rules in Codex's `othrys-gh.rules`. Codex runs an allowed command
+outside its sandbox, which has no network, so this is what lets Codex read
+GitHub without asking. `codex.allowReadOnly = false` leaves the rules out.
 
 ### Kitty
 

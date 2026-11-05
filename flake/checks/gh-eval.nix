@@ -22,6 +22,7 @@
       };
       othrys.apps = {
         ai.claude-code.enable = true;
+        ai.codex.enable = true;
         gh = {
           enable = true;
           aliases.co = "pr checkout";
@@ -42,11 +43,13 @@
       othrys.system.nix.allowUnfree = true;
       othrys.apps = {
         ai.claude-code.enable = true;
+        ai.codex.enable = true;
         gh = {
           enable = true;
           inherit tokenFile;
           credentialHelper.hosts = ["https://github.example.com"];
           claudeCode.allowReadOnly = false;
+          codex.allowReadOnly = false;
         };
       };
     }
@@ -88,6 +91,8 @@
 
   # settings.permissions is absent on a host without Claude Code.
   allow = h: (hm h).programs.claude-code.settings.permissions.allow or [];
+  codexRules = h: (hm h).programs.codex.rules.othrys-gh or "";
+  ruleLines = h: builtins.filter (l: lib.hasPrefix "prefix_rule(" l) (lib.splitString "\n" (codexRules h));
   ghEntries = h: builtins.filter (lib.hasPrefix "Bash(gh ") (allow h);
   readOnly = map (command: "Bash(gh ${command}:*)") [
     "issue view"
@@ -130,6 +135,10 @@ in
     "gh api and the writing commands are not pre-approved" = !builtins.any writes (allow configured);
     "allowReadOnly off pre-approves no gh command" = ghEntries withToken == [];
     "a host without Claude Code carries no gh entry" = ghEntries plain == [];
+    "the read-only commands are allowed for Codex" = lib.hasInfix ''prefix_rule(pattern = ["gh","pr","view"], decision = "allow")'' (codexRules configured) && builtins.length (ruleLines configured) == builtins.length readOnly;
+    "gh api and the writing commands are not allowed for Codex" = !lib.hasInfix ''"api"'' (codexRules configured) && !lib.hasInfix ''"merge"'' (codexRules configured);
+    "codex.allowReadOnly off allows no gh command for Codex" = codexRules withToken == "";
+    "a host without Codex carries no gh rule" = codexRules plain == "";
 
     "a headless host without Home Manager evaluates with the module on" = headless.system.build.toplevel.drvPath != null;
   }

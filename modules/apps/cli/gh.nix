@@ -190,6 +190,18 @@ in {
       '';
     };
 
+    codex.allowReadOnly = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      example = false;
+      description = ''
+        Whether read-only `gh` commands are allowed for Codex when
+        `othrys.apps.ai.codex.enable` is on. An allowed command runs outside
+        Codex's sandbox, which has no network, so this is what lets Codex
+        read issues, pull requests and workflow runs without asking.
+      '';
+    };
+
     claudeCode.allowReadOnly = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -243,6 +255,16 @@ in {
         # with the one the Claude Code module writes.
         claude-code = lib.mkIf (cfg.claudeCode.allowReadOnly && config.othrys.apps.ai.claude-code.enable) {
           settings.permissions.allow = map (command: "Bash(${command}:*)") readOnlyCommands;
+        };
+
+        # A rules file of its own beside the codex module's, since Home
+        # Manager writes one file per name.
+        codex = lib.mkIf (cfg.codex.allowReadOnly && config.othrys.apps.ai.codex.enable) {
+          rules.othrys-gh =
+            lib.concatMapStrings (command: ''
+              prefix_rule(pattern = ${builtins.toJSON (lib.splitString " " command)}, decision = "allow")
+            '')
+            readOnlyCommands;
         };
       };
     };

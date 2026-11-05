@@ -48,6 +48,36 @@ check that asks GitHub for a newer release a Nix-managed binary cannot
 install. `othrys.apps.ai.codex.settings` is merged over what the module
 writes and wins over it.
 
+### How Codex's permissions follow Claude Code's
+
+Codex confines commands with a sandbox where Claude Code prompts for them,
+so the module carries Claude Code's choices over in Codex's own terms.
+
+- **Mode.** `permissions.mode` takes Claude Code's two mode names. With
+  `"default"` the workspace stays read-only and every edit asks first. With
+  `"acceptEdits"` Codex edits the workspace without asking and also runs
+  commands without asking, inside a sandbox with no network that writes only
+  to the workspace. Codex has no mode that applies edits freely while
+  prompting for every command. In both modes, leaving the sandbox asks first.
+- **Read denials.** `permissions.denyRead` keeps sandboxed commands from
+  reading `.env`, `.env.*` and `secrets/**`, as Claude Code's deny list does.
+  Codex expresses that only through its permission profiles, which it marks
+  as Beta, so the module writes a profile named `othrys` that extends the
+  built-in one the mode names. A command run outside the sandbox is not bound
+  by it.
+- **Command rules.** `sudo` and `rm -rf` are `forbidden` in `othrys.rules`,
+  which blocks them under every mode. `permissions.extraRules` appends lines
+  in Codex's rule syntax. An `allow` rule runs its command outside the
+  sandbox, so the only allow rules the modules write are the read-only `gh`
+  commands, which need the network the sandbox withholds. Codex appends the
+  commands a user chooses to always allow to `default.rules`, which the
+  modules leave alone.
+- **Commit attribution.** Codex adds a `Co-authored-by: Codex` trailer when
+  the ChatGPT account's commit attribution setting is on. That setting lives
+  on OpenAI's servers, and no `config.toml` key turns it off, so turn it off
+  in the account's Codex settings. An instruction in `AGENTS.md` does not
+  override it.
+
 The sign-in goes to the desktop keyring where one answers and to
 `~/.codex/auth.json` otherwise. `config.toml` is merged at each activation
 rather than linked read-only, since Codex records trusted directories there

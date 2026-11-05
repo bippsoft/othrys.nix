@@ -40,6 +40,10 @@
     })
   ];
   off = hostConfig [functioningHost];
+  accepting = (hmOf (host {othrys.apps.ai.codex.permissions.mode = "acceptEdits";})).programs.codex.settings;
+  withRule = (hmOf (host {othrys.apps.ai.codex.permissions.extraRules = ''prefix_rule(pattern = ["cargo", "test"], decision = "allow")'';})).programs.codex.rules.othrys;
+  rules = hm.programs.codex.rules.othrys;
+  profile = settings.permissions.othrys;
 in
   mkExpectations "othrys-eval-codex" {
     "the package is llm-agents' codex" = same hm.programs.codex.package inputs.llm-agents.packages.${system}.codex;
@@ -47,6 +51,19 @@ in
     "analytics, the metrics exporter, feedback and the update check are off" = !settings.analytics.enabled && settings.otel.metrics_exporter == "none" && !settings.feedback.enabled && !settings.check_for_update_on_startup;
     "telemetry can be left on" = !(telemetryOn ? analytics) && !(telemetryOn ? check_for_update_on_startup);
     "a host's settings win over the module's" = overridden.analytics.enabled && !overridden.feedback.enabled;
+    "the permission profile is the module's own, asking before leaving the sandbox" = settings.default_permissions == "othrys" && settings.approval_policy == "on-request";
+    "the default mode keeps the workspace read-only" = profile.extends == ":read-only";
+    "acceptEdits lets the workspace be written" = accepting.permissions.othrys.extends == ":workspace";
+    "the files Claude Code may not read are denied to sandboxed commands" =
+      profile.filesystem.":workspace_roots"
+      == {
+        ".env" = "deny";
+        ".env.*" = "deny";
+        "secrets/**" = "deny";
+      };
+    "sudo and rm -rf are forbidden" = inputs.nixpkgs.lib.hasInfix ''prefix_rule(pattern = ["sudo"], decision = "forbidden"'' rules && inputs.nixpkgs.lib.hasInfix ''prefix_rule(pattern = ["rm", "-rf"], decision = "forbidden"'' rules;
+    "a host's own rules follow the module's" = inputs.nixpkgs.lib.hasInfix ''pattern = ["cargo", "test"]'' withRule;
+    "the rules leave default.rules to Codex" = !(hm.programs.codex.rules ? default);
     "the sign-in uses the keyring and falls back to a file" = settings.cli_auth_credentials_store == "auto";
     "config.toml stays writable and declared values win" = hm.programs.codex.mutableSettings;
     "the MCP servers are handed over" = hm.programs.codex.enableMcpIntegration && hm.programs.mcp.servers ? context7;

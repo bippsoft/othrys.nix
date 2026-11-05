@@ -64,6 +64,44 @@ in {
         the shared one for this tool.
       '';
     };
+
+    permissions = {
+      mode = lib.mkOption {
+        type = lib.types.enum ["default" "acceptEdits"];
+        default = "default";
+        description = ''
+          How freely Codex works, named after Claude Code's modes. "default"
+          keeps the workspace read-only, so every edit asks first.
+          "acceptEdits" lets Codex edit the workspace without asking, and it
+          also runs commands without asking, inside a sandbox with no
+          network that writes only to the workspace. Codex has no mode that
+          applies edits freely while prompting for every command. Either way,
+          leaving the sandbox asks first.
+        '';
+      };
+
+      denyRead = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [".env" ".env.*" "secrets/**"];
+        description = ''
+          Paths and globs, relative to the workspace root, that sandboxed
+          commands may not read. The list matches Claude Code's read denials.
+          Codex marks the permission profiles that carry it as Beta, and a
+          command run outside the sandbox, through an allow rule or an
+          approved escalation, is not bound by it.
+        '';
+      };
+
+      extraRules = lib.mkOption {
+        type = lib.types.lines;
+        default = "";
+        example = ''prefix_rule(pattern = ["cargo", "test"], decision = "allow")'';
+        description = ''
+          Lines appended to the module's command rules, in Codex's Starlark
+          rule syntax. An `allow` rule runs its command outside the sandbox.
+        '';
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -93,9 +131,30 @@ in {
             # The keyring the graphical hosts run, and the file where none
             # answers.
             cli_auth_credentials_store = "auto";
+
+            # Codex's own presets pair each built-in profile with on-request,
+            # which asks when a command needs to leave the sandbox. The
+            # profile extends the built-in one the mode names and adds the
+            # read denials, which only a permission profile can express.
+            approval_policy = "on-request";
+            default_permissions = "othrys";
+            permissions.othrys = {
+              extends =
+                if cfg.permissions.mode == "acceptEdits"
+                then ":workspace"
+                else ":read-only";
+              filesystem.":workspace_roots" = lib.genAttrs cfg.permissions.denyRead (_: "deny");
+            };
           }
           // lib.optionalAttrs cfg.disableTelemetry quiet)
         cfg.settings;
+        # Not named default.rules, which is where Codex appends the commands
+        # a user chooses to always allow, and which must stay writable.
+        rules.othrys = ''
+          prefix_rule(pattern = ["sudo"], decision = "forbidden", justification = "Run privileged commands yourself.")
+          prefix_rule(pattern = ["rm", "-rf"], decision = "forbidden", justification = "Remove trees yourself.")
+          ${cfg.permissions.extraRules}
+        '';
         context = aiCfg.context.text;
         # The shared skills first, so a skill declared for this tool under
         # the same name replaces the shared one.
