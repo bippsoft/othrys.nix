@@ -10,6 +10,25 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server, with the backend chosen from the host's GPU |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
+## Where the AI packages come from
+
+The package of `othrys.apps.ai.claude-code` defaults to the build in the
+[llm-agents](https://github.com/numtide/llm-agents.nix) flake this library
+locks. That flake follows Anthropic's releases within hours, while nixpkgs
+typically trails by days. It builds against its own nixpkgs, so its packages
+come prebuilt from `cache.numtide.com`, and a host trusts that cache and its
+key only while such a module is on. `package` takes any other build, such as
+`pkgs.claude-code`.
+
+The default is built with `disableTelemetry`, which turns off telemetry and
+non-essential traffic, and `othrys.apps.ai.claude-code.disableTelemetry =
+false` builds it without. A package set by hand is used as given.
+
+llm-agents marks its unfree packages as free, so nixpkgs never asks whether
+the host admits them. Claude Code is unfree, so the module refuses a host
+that admits no unfree software, through `othrys.system.nix.allowUnfree` or
+the host's own `allowUnfreePredicate` or `allowUnfreePackages`.
+
 ## What the Claude Code permission lists are for
 
 `othrys.apps.ai.claude-code` ships an allow-list and a deny-list, and it is

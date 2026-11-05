@@ -3,16 +3,41 @@
 {
   config,
   lib,
+  pkgs,
+  othrysInputs,
   ...
 }: let
   cfg = config.othrys.apps.ai.claude-code;
   aiCfg = config.othrys.apps.ai;
+  llmAgents = import ./llm-agents.nix {inherit lib pkgs othrysInputs;};
 
   # Type for file content that can be inline string or path
   fileContentType = lib.types.either lib.types.str lib.types.path;
 in {
   options.othrys.apps.ai.claude-code = {
     enable = lib.mkEnableOption "Claude Code AI assistant";
+
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = (llmAgents.package "claude-code").override {inherit (cfg) disableTelemetry;};
+      defaultText = lib.literalMD "the `claude-code` package of the llm-agents flake this library locks, built with `disableTelemetry`";
+      example = lib.literalExpression "pkgs.claude-code";
+      description = ''
+        The Claude Code package. The default tracks Anthropic's releases
+        within hours and comes from cache.numtide.com, which the host then
+        trusts. A package set here is used as given, and `disableTelemetry`
+        no longer applies to it.
+      '';
+    };
+
+    disableTelemetry = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Build the default package with telemetry and non-essential traffic
+        turned off, through its own `disableTelemetry` argument.
+      '';
+    };
 
     theme = lib.mkOption {
       type = lib.types.enum ["dark" "light" "dark-daltonized" "light-daltonized" "dark-ansi" "light-ansi"];
@@ -86,6 +111,15 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = llmAgents.unfreeAllowed "claude-code";
+        message = llmAgents.unfreeMessage "othrys.apps.ai.claude-code" "claude-code";
+      }
+    ];
+
+    othrys.internal.llmAgentsCache = true;
+
     othrys.internal.persist."apps.ai.claude-code" = {
       user = {
         # .claude holds the OAuth credentials beside the sessions, so the
@@ -110,6 +144,9 @@ in {
     othrys.internal.homeConfig."apps.ai.claude" = {
       programs.claude-code = {
         enable = true;
+        # At default priority, so a host that sets Home Manager's own option
+        # still wins over it.
+        package = lib.mkDefault cfg.package;
         enableMcpIntegration = true;
 
         settings = {

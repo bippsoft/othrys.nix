@@ -1369,7 +1369,7 @@
       eval-headscale = import ./headscale-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase;};
       eval-tailscale = import ./tailscale-eval.nix {inherit hostConfig mkExpectations bootBase;};
       eval-exposure = import ./exposure-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase functioningHost;};
-      eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost bootBase inputs;};
+      eval-claude-code = import ./claude-code-eval.nix {inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost bootBase inputs system;};
 
       # The committed Claude Code configuration, read as files, and the hook
       # program it runs. Every agent, skill and command carries a description

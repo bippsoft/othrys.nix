@@ -14,6 +14,7 @@
   functioningHost,
   bootBase,
   inputs,
+  system,
 }: let
   aiModules = {
     othrys.apps.ai = {
@@ -89,6 +90,22 @@
   skillsHost = withSkills {};
   claudeSkills = skillsHost.home-manager.users.${skillsHost.othrys.system.user.name}.programs.claude-code.skills;
   contextOf = extra: (withSkills {othrys.apps.ai.context = extra;}).othrys.apps.ai.context.text;
+  llmAgents = inputs.llm-agents.packages.${system};
+  same = a: b: a.outPath == b.outPath;
+  with' = extra:
+    hostConfig [
+      functioningHost
+      {othrys.apps.ai.claude-code.enable = true;}
+      extra
+    ];
+  telemetryOn = with' {
+    othrys.system.nix.allowUnfree = true;
+    othrys.apps.ai.claude-code.disableTelemetry = false;
+  };
+  unfreeOff = with' {};
+  allowlisted = with' {nixpkgs.config.allowUnfreePredicate = pkg: (pkg.pname or "") == "claude-code";};
+  listed = with' {nixpkgs.config.allowUnfreePackages = ["claude-code"];};
+  packageOf = h: h.home-manager.users.${h.othrys.system.user.name}.programs.claude-code.package;
   user = host.othrys.system.user.name;
   hm = host.home-manager.users.${user};
   settings = hm.programs.claude-code.settings;
@@ -129,6 +146,12 @@ in
     "a shared skill and a skill for the tool both reach Claude Code" = claudeSkills ? shared-skill && claudeSkills ? claude-only;
     "a skill for the tool replaces a shared one of the same name" = inputs.nixpkgs.lib.hasInfix "from the tool" claudeSkills.both;
     "a shared skill whose name the format refuses is rejected" = rejectedWith "cannot name a skill" (withSkills {othrys.apps.ai.skills.Bad_Name = "x";});
+    "the package is llm-agents' claude-code built without telemetry" = same hm.programs.claude-code.package (llmAgents.claude-code.override {disableTelemetry = true;});
+    "telemetry can be left on" = same (packageOf telemetryOn) (llmAgents.claude-code.override {disableTelemetry = false;});
+    "the host trusts the cache the package comes from" = builtins.elem "https://cache.numtide.com" host.nix.settings.substituters;
+    "a host that admits no unfree software is refused" = rejectedWith "marks it free so nixpkgs never checks" unfreeOff;
+    "a host's own allowlist admits it" = !rejectedWith "marks it free so nixpkgs never checks" allowlisted;
+    "a host's own list of unfree packages admits it" = !rejectedWith "marks it free so nixpkgs never checks" listed;
     "a host that still enables OpenCode is told to use Claude Code" = rejectedWith "no longer supports OpenCode" (hostConfig [functioningHost {othrys.apps.ai.opencode.enable = true;}]);
     "the host's own lines follow the NixOS text" = inputs.nixpkgs.lib.hasSuffix "\nHouse rules" (contextOf {extra = "House rules";}) && inputs.nixpkgs.lib.hasInfix "/nix/store" (contextOf {extra = "House rules";});
     "the NixOS text can be left out" =
