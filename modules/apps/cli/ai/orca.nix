@@ -97,16 +97,17 @@ in {
 
     othrys.internal.llmAgentsCache = true;
 
-    # ~/.config/Orca holds the profiles, the database, the logs and the agent
-    # permission setting, ~/.orca the API key files, and ~/orca/workspaces the
-    # git worktrees with the agents' uncommitted work.
+    # ~/.config/orca holds the profiles, the databases, the logs and the agent
+    # permission setting, ~/.orca the API key files and agent hooks, and
+    # ~/orca/workspaces the git worktrees with the agents' uncommitted work.
+    # The Linux build names its Electron profile directory in lower case.
     othrys.internal.persist."apps.ai.orca" = {
       user.directories =
         map (directory: {
           inherit directory;
           mode = "0700";
         }) [
-          ".config/Orca"
+          ".config/orca"
           ".orca"
           "orca/workspaces"
         ];

@@ -135,7 +135,7 @@ tailnet's ACLs and Orca's per-client pairing token, and the tailnet's ACL
 policy should limit that port to the user's own devices. The port is never
 opened on the LAN, and Orca's own documentation advises against exposing it.
 
-Under impermanence the module persists `~/.config/Orca`, `~/.orca` and
+Under impermanence the module persists `~/.config/orca`, `~/.orca` and
 `~/orca/workspaces`, each at mode `0700`. They hold the profiles and the
 permission setting above, the API key files, and the worktrees with the
 agents' uncommitted work.

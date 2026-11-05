@@ -53,7 +53,7 @@ in
       plain.othrys.internal.persist."apps.ai.orca".user.directories
       == [
         {
-          directory = ".config/Orca";
+          directory = ".config/orca";
           mode = "0700";
         }
         {

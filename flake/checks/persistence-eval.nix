@@ -124,6 +124,7 @@ in
     "codex is persisted at 0700" = userMode ".codex" == "0700";
     "Claude Desktop is persisted at 0700" = userMode ".config/Claude" == "0700";
     "Orca's worktrees are persisted at 0700" = userMode "orca/workspaces" == "0700";
+    "Orca's profile directory is persisted at 0700" = userMode ".config/orca" == "0700";
     "OBS is persisted at 0700" = userMode ".config/obs-studio" == "0700";
     "the bluetooth tree is persisted at 0700" = modeOf systemDirs "/var/lib/bluetooth" == "0700";
 
