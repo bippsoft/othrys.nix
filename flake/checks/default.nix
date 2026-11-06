@@ -812,10 +812,13 @@
     # build runs under one job and inside a memory-capped scope where the user
     # manager can make one, and a second call fails while the first holds the
     # lock. It is a store path, so nothing a session edits can change what it
-    # runs. nix and systemd-run come from the caller's PATH.
+    # runs. nix and systemd-run come from the caller's PATH. A Mac has no
+    # systemd-run, so the build runs there without the memory cap. The lock
+    # comes from the flock package rather than util-linux, which does not
+    # build for darwin.
     checkOne = pkgs.writeShellApplication {
       name = "check-one";
-      runtimeInputs = [pkgs.util-linux pkgs.coreutils];
+      runtimeInputs = [pkgs.flock pkgs.coreutils];
       text = ''
         name=''${1:-}
         if ! [[ $name =~ ^[a-z0-9][a-z0-9-]*$ ]] || [ $# -ne 1 ]; then
@@ -917,12 +920,11 @@
       };
     };
 
-    # x86_64-linux runs every check. Any other system keeps the host
-    # evaluations that hold no platform-bound package, which is what shows the
-    # module tree evaluates there. The VM tests need a hypervisor for that
-    # system, the desktop fixtures pull x86-only packages such as Steam, the
-    # template names x86_64-linux itself, and the lint checks do not vary by
-    # platform.
+    # x86_64-linux runs every check. aarch64-linux keeps the host evaluations
+    # that hold no platform-bound package, which is what shows the module tree
+    # evaluates there. The VM tests need a hypervisor for that system, the
+    # desktop fixtures pull x86-only packages such as Steam, the template
+    # names x86_64-linux itself, and the lint checks do not vary by platform.
     portableChecks = [
       "eval-host-min"
       "eval-host-headless"
@@ -937,14 +939,32 @@
       "eval-ssh"
       "eval-dev-shells"
     ];
+
+    # aarch64-darwin keeps the checks that evaluate no NixOS host, since
+    # nixosSystem cannot evaluate for a darwin system. They are the commit
+    # hooks, the secret scan, the documentation links, the dev shells and the
+    # agent hook, which a session on a Mac runs as well. comment-hygiene and
+    # contract-guards stay out, as pre-commit-check runs both, and the darwin
+    # host evaluations join this list with the darwin exports.
+    darwinChecks = [
+      "pre-commit-check"
+      "secret-scan"
+      "docs-includes"
+      "eval-dev-shells"
+      "agent-config"
+    ];
+
+    checksBySystem = {
+      aarch64-linux = portableChecks;
+      aarch64-darwin = darwinChecks;
+    };
     onThisSystem = all:
       if system == "x86_64-linux"
       then all
-      else inputs.nixpkgs.lib.filterAttrs (name: _: builtins.elem name portableChecks) all;
+      else inputs.nixpkgs.lib.filterAttrs (name: _: builtins.elem name checksBySystem.${system}) all;
   in {
     # Handed to ../dev-shells.nix as module arguments. It cannot read them off
-    # config.checks, which holds no pre-commit-check on a system other than
-    # x86_64-linux.
+    # config.checks, which holds no pre-commit-check on aarch64-linux.
     _module.args = {
       inherit portableHooks repositoryHooks;
       # The three commands an agent session runs in place of bare nix builds,
@@ -956,7 +976,7 @@
     # ANCHOR: checks
     # Checks are split into two tiers. The GitHub workflow runs CORE on every PR
     # and EXTENDED only on main + manual dispatch (see .github/workflows).
-    # `nix flake check` locally still runs all of them.
+    # `nix flake check` on x86_64-linux still runs all of them.
     checks = onThisSystem {
       # CORE, fast, every PR
 

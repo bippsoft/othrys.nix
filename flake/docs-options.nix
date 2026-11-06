@@ -67,14 +67,18 @@
         };
     };
   in {
-    packages.options-doc = pkgs.runCommand "othrys-options-doc" {} ''
-      {
-        echo "# Module Options"
-        echo
-        echo "Every \`othrys.*\` option, generated from the module tree. Do not edit by hand."
-        echo
-        cat ${optionsDoc.optionsCommonMark}
-      } > "$out"
-    '';
+    # The reference is rendered from a NixOS evaluation, which a darwin
+    # system cannot run, so only the Linux systems have it.
+    packages = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+      options-doc = pkgs.runCommand "othrys-options-doc" {} ''
+        {
+          echo "# Module Options"
+          echo
+          echo "Every \`othrys.*\` option, generated from the module tree. Do not edit by hand."
+          echo
+          cat ${optionsDoc.optionsCommonMark}
+        } > "$out"
+      '';
+    };
   };
 }

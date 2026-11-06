@@ -206,6 +206,53 @@ jobs:
             '.#checks.aarch64-linux.eval-traefik' \
             '.#checks.aarch64-linux.eval-ssh' \
             '.#checks.aarch64-linux.eval-dev-shells'
+  # The darwin checks on an Apple Silicon runner, a required status like the
+  # x86 core tier. They are the checks named in darwinChecks in flake/checks,
+  # the treefmt check, every dev shell and the formatter. The macOS runner
+  # has no disk to reclaim and keeps its swap, so the job has no Reclaim disk
+  # space or Grow swap step. Nix leaves the build sandbox off on macOS unless told,
+  # and the job turns it on so a build sees what it would see on Linux.
+  core-darwin:
+    name: Core checks (darwin)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@f296148a827001a9a82d3685b53210c06e5d3b67 # v3
+        with:
+          extra-conf: |
+            fallback = true
+            download-attempts = 10
+            sandbox = true
+      - name: Setup Cachix
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: othrys-nix
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          extraPullNames: nix-community
+          pushFilter: '(-source$|-man$|\.tar\.gz$|\.xz$)'
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+        continue-on-error: true
+      - name: Build the darwin checks, dev shells and formatter
+        run: |
+          nix build --no-link --print-build-logs \
+            '.#checks.aarch64-darwin.pre-commit-check' \
+            '.#checks.aarch64-darwin.secret-scan' \
+            '.#checks.aarch64-darwin.docs-includes' \
+            '.#checks.aarch64-darwin.eval-dev-shells' \
+            '.#checks.aarch64-darwin.agent-config' \
+            '.#checks.aarch64-darwin.treefmt' \
+            '.#devShells.aarch64-darwin.default' \
+            '.#devShells.aarch64-darwin.consumer' \
+            '.#devShells.aarch64-darwin.javascript' \
+            '.#devShells.aarch64-darwin.python' \
+            '.#devShells.aarch64-darwin.golang' \
+            '.#devShells.aarch64-darwin.java' \
+            '.#devShells.aarch64-darwin.iac' \
+            '.#devShells.aarch64-darwin.rust' \
+            '.#formatter.aarch64-darwin'
   # EXTENDED tier, heavy (full-tree eval + enable matrix + runtime VM tests).
   # Runs on every pull request, every push to main and manual dispatch, so a
   # pull request reports the whole suite before it can land. Nothing in the

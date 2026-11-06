@@ -20,6 +20,10 @@ tier reports early while the whole suite still gates what lands:
   `ubuntu-24.04-arm` runner. It builds the portable host evaluations for
   `aarch64-linux`, which is every check named in `portableChecks` in
   `flake/checks/default.nix`. It is not required by branch protection.
+- **Core on darwin** (`core-darwin` job) runs on every PR/push/dispatch on a
+  `macos-latest` runner, which is Apple Silicon. It builds the checks named in
+  `darwinChecks` in `flake/checks/default.nix`, the `treefmt` check, every dev
+  shell and the formatter for `aarch64-darwin`. Branch protection requires it.
 - **Extended** (`extended` job) runs on every PR/push/dispatch. Neither the
   changed paths nor the pull request title decides whether it runs. A matrix fans the suite out, one runner per check:
   `eval-default` and the two desktop evals, `eval-ashell` (the bar's generated
@@ -95,6 +99,19 @@ tier reports early while the whole suite still gates what lands:
 `aarch64-linux`, which is every check named in `portableChecks` in
 `flake/checks/default.nix`. It is not required by branch protection.
 
+**Core on darwin** (`core-darwin` job) runs on the same events on a
+`macos-latest` runner. `nixosSystem` cannot evaluate for a darwin system, so
+`checks.aarch64-darwin` holds only the checks that evaluate no NixOS host.
+They are `pre-commit-check`, `secret-scan`, `docs-includes`,
+`eval-dev-shells` and `agent-config`, and the job also builds the `treefmt`
+check, the eight dev shells and `formatter.aarch64-darwin`. Nix turns the
+build sandbox off on macOS by default, and the job sets `sandbox = true`. The
+macOS runner has 3 CPUs, 7 GB of memory and 14 GB of disk, and it skips the
+disk and swap steps of the Linux jobs. `yubikey-onboard` needs `unshare` and
+`findmnt` and `options-doc` is rendered from a NixOS evaluation, so neither
+package exists for darwin, and the `docs` and `yubikey-onboard-builds` checks
+stay on Linux.
+
 **Extended** (`extended` job) runs on push to `main`, on manual dispatch, and
 on a pull request that changes `flake.nix` or `flake.lock` or whose title
 starts with `chore(flake)`, since input bumps are the changes that break deep
@@ -120,7 +137,8 @@ pass.
 | `yubikey-onboard-dry-run` | The packaged onboarding script's dry run as an unprivileged user, which must take the `unshare -Urm` path, exit 0, write nothing, and name a summary directory outside the working directory |
 
 Unchanged derivations are pulled from the cache and not rebuilt.
-`nix flake check` locally runs every check regardless of tier. That includes
+On `x86_64-linux`, `nix flake check` runs every check regardless of tier.
+On a Mac it runs the darwin list and `treefmt`. The Linux run includes
 `comment-hygiene`, `contract-guards` and `treefmt` as checks of their own,
 which no workflow job builds by name, since `pre-commit-check` runs all three
 as hooks over the whole tree.
@@ -135,9 +153,11 @@ listed name that is not a check. The three checks above are named in
 does build, or that names no check, fails as well. A new check therefore
 needs a line in `build.yml` or an entry in `localOnly` with its reason.
 
-Branch protection on `main` requires two statuses, `Core checks` and
-`Extended verdict`. That requirement is a repository setting, and the workflow
-only reports them.
+Branch protection on `main` requires three statuses, `Core checks`,
+`Core checks (darwin)` and `Extended verdict`. That requirement is a
+repository setting, and the workflow only reports them. `ci-coverage` reads
+the x86 installables alone, so a darwin check left out of `core-darwin` fails
+nothing yet.
 
 A newer push to a pull request cancels the run before it. A run on `main` is
 never cancelled, since its concurrency group is keyed on the commit, so a
@@ -164,6 +184,7 @@ text.
 |------|------|---------|
 | `build.yml` | **core** | Every PR/push: lint, docs, `docs-includes`, `ci-coverage`, `eval-host-min`, the server-contract and app-contract evals, `eval-pairs`, `eval-contract`, `eval-inputs`, `eval-bootloader`, `impermanence-test` (fast gate) |
 | `build.yml` | **core-aarch64** | Every PR/push: the portable host evaluations for `aarch64-linux` on an ARM runner |
+| `build.yml` | **core-darwin** | Every PR/push: the darwin checks, dev shells and formatter for `aarch64-darwin` on a macOS runner |
 | `build.yml` | **extended** | Every PR/push: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
 | `build.yml` | **extended-ok** | Every PR/push: one status for the matrix, passing only when every leg succeeded |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |

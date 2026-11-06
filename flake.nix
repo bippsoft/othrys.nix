@@ -17,6 +17,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # nix-darwin, the module system a macOS host is built with. Nothing reads
+    # it yet. The darwin exports will be written against it, and the darwin
+    # host checks will evaluate with its darwinSystem.
+    nix-darwin = {
+      url = "github:nix-darwin/nix-darwin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     hyprland = {
       # Deliberately does not follow nixpkgs, for cache hits rather than for
       # any build failure. Upstream builds against its own pin, so
@@ -140,12 +148,17 @@
       # x86_64-linux runs every check. aarch64-linux runs the portable host
       # evaluations (see portableChecks in flake/checks), which show that the
       # module tree evaluates there, and no VM test or desktop fixture. Nothing
-      # has been built or booted on it. perSystem is evaluated once for each.
-      systems = ["x86_64-linux" "aarch64-linux"];
+      # has been built or booted on it. aarch64-darwin runs the checks that
+      # evaluate no NixOS host (see darwinChecks), and builds the dev shells
+      # and the formatter. perSystem is evaluated once for each.
+      systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin"];
 
       # ANCHOR: imports
       imports = [
         inputs.treefmt-nix.flakeModule
+        # flake.modules.<class>.<name>, the output the darwin modules will
+        # publish under. flake-parts declares no darwinModules option.
+        inputs.flake-parts.flakeModules.modules
 
         ./flake/modules.nix # Exported nixosModules
         ./flake/templates.nix # `nix flake init` starting points

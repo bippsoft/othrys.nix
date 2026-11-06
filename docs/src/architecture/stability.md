@@ -67,17 +67,18 @@ Consumers choose their risk level:
 ## What the merge gate enforces
 
 The `Build` workflow runs the CORE and EXTENDED check tiers on every pull
-request and again on every push to `main`. It reports two statuses for branch
-protection to require, `Core checks` and `Extended verdict`. The verdict passes
+request and again on every push to `main`. It reports three statuses for
+branch protection to require, `Core checks`, `Core checks (darwin)` and
+`Extended verdict`. The verdict passes
 only when every extended check succeeded, so a failed, cancelled or skipped
 check fails it. A newer push to a pull request cancels the run before it, while
 a run on `main` is never cancelled.
 
-Requiring the two statuses is a repository setting, and the workflow reports
-them without enforcing anything itself. With the setting in place, a commit that
-reaches `main` through a pull request has passed both tiers as the head of that
-pull request. The ARM evaluation job runs on the same events and is not one of
-the two required statuses.
+Requiring the three statuses is a repository setting, and the workflow
+reports them without enforcing anything itself. With the setting in place, a
+commit that reaches `main` through a pull request has passed both tiers as the
+head of that pull request. The ARM evaluation job runs on the same events and
+is not one of the required statuses.
 
 The release commit is the exception. `just release` runs every check locally
 before it writes the commit, and the commit is pushed to `main` without a pull
@@ -115,8 +116,10 @@ unlisted key, and a rollback.
   is never run, since the test VM has no network.
 - **`aarch64-linux` beyond evaluation.** CI evaluates the server, headless and
   default host fixtures on an ARM runner. No VM test runs there, no desktop
-  fixture is evaluated, and no ARM host has been booted. No other platform is
-  evaluated at all.
+  fixture is evaluated, and no ARM host has been booted.
+- **`aarch64-darwin`.** CI builds the commit hooks, the scans, the dev shells
+  and the formatter on a macOS runner. No darwin host is evaluated, since no
+  module is exported for darwin yet. No other platform is evaluated at all.
 
 The [Security Model](./security-model.md) lists the design limits, as opposed to
 the testing limits here.
