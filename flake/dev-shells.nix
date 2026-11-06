@@ -80,7 +80,8 @@
           typescript-language-server
           eslint
           prettier
-          vite
+          # No vite. pkgs.vite is ViTE, a trace viewer for Linux, and a
+          # project takes the Vite build tool from its own dependencies.
         ];
       };
 
