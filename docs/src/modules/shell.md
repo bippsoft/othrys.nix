@@ -17,7 +17,7 @@ Full-featured Zsh with:
 - Plugin management (syntax highlighting, autosuggestions, completions)
 - Direnv integration for automatic dev shell activation
 - Zoxide for smart directory jumping
-- Toggleable alias presets (`aliasPresets.{nix,navigation,modernUnix,editor,git,python,jvm,ansible,opentofu,node,docker,clipboard}`, all on by default except `clipboard`, which follows `othrys.desktop.graphical`) plus `extraAliases` for consumer additions
+- Toggleable alias presets (`aliasPresets.{nix,navigation,modernUnix,editor,git,python,jvm,ansible,opentofu,node,docker,clipboard}`, all on by default except `clipboard`, which follows `othrys.desktop.graphical` on NixOS and is off on darwin, where macOS has its own `pbcopy`) plus `extraAliases` for consumer additions
 - Persistence for history and the zoxide database. History is kept in
   `~/.local/share/zsh/history`, and the module persists that directory rather
   than the file, since zsh saves history by renaming a temporary file over
@@ -26,7 +26,9 @@ Full-featured Zsh with:
 
 Enabling zsh makes it the primary user's login shell through
 `othrys.system.users.defaultShell`, which a host overrides when it wants
-another. The `nix` preset's `nix-clean` keeps a week of generations, so a
+another. On darwin the login shell applies only to an account nix-darwin
+owns, which takes `othrys.system.users.uid`, and the `nix` preset's
+`rebuild` runs `darwin-rebuild switch`, with no `rebuild-test`. The `nix` preset's `nix-clean` keeps a week of generations, so a
 rollback target survives it.
 
 The default editor behind `EDITOR`/`VISUAL`, git's `core.editor`, and the `v`/`vim`/`vi` aliases is `othrys.system.defaultEditor` (default `vim`). The variables are set once, through `environment.variables`, and an editor module such as nixvim makes itself the default with `mkDefault` when enabled.

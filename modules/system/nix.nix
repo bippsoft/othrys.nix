@@ -1,7 +1,12 @@
 # modules/system/nix.nix
 # Nix daemon settings, substituters and garbage collection
-{lib, ...}: let
+{
+  config,
+  lib,
+  ...
+}: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
+  cfg = config.othrys.system.nix;
 in {
   options.othrys.system.nix = {
     enable = lib.mkEnableOption "Nix package manager configuration";
@@ -169,5 +174,28 @@ in {
     default = false;
     internal = true;
     description = "Trust cache.numtide.com, for the packages of the llm-agents input.";
+  };
+
+  # What follows reads othrys options alone and holds on every platform, so
+  # it sits beside the options rather than in each platform file.
+  config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = !cfg.cachix.enable || (cfg.cachix.name != "" && cfg.cachix.publicKey != "");
+        message = "othrys.system.nix.cachix: set name and publicKey when the cache is enabled. An empty name pushed to nowhere, and an empty key left the substituter untrusted and silently ignored.";
+      }
+    ];
+
+    # Per-user state goes through the registry rather than home-manager.users
+    # directly, so nixosModules.home applies the homeManaged guard once, at
+    # the attrset level. See modules/system/users.nix for why the guard cannot
+    # sit on a leaf. Home Manager is also told to use the system's package
+    # set by that export (modules/system/home.nix), which reads this module's
+    # enable flag. The entry is withheld on a host with no managed user,
+    # since a Home Manager state version means nothing there and the registry
+    # warns about every entry it has to skip.
+    othrys.internal.homeConfig."system.nix" = lib.mkIf config.othrys.system.users.homeManaged {
+      home.stateVersion = cfg.stateVersion;
+    };
   };
 }

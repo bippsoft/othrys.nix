@@ -31,6 +31,14 @@ under **System Infrastructure**, and the rest are summarized here.
 | Shell | `othrys.system.shell.{bash,zsh,starship}` | Interactive shells and prompt, see [Shell](./shell.md) |
 | Default editor | `othrys.system.defaultEditor` | The command behind `EDITOR` and `VISUAL`, `vim` by default |
 
+On darwin, `othrys.system.users` writes only the home directory and the
+primary user, and the password, group and `mutableUsers` options have no
+effect there. `othrys.system.users.uid` exists only on darwin, where it hands
+the account to nix-darwin, and the generated reference, which is evaluated
+from NixOS, does not list it. `othrys.system.locale` sets the timezone and
+`LANG` there, and its console options have no effect. See
+[Darwin Hosts](../architecture/host-configuration.md#darwin-hosts).
+
 ## Notes
 
 - **User identity**: modules read `config.othrys.system.user.name`. It is a

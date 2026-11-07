@@ -17,9 +17,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # nix-darwin, the module system a macOS host is built with. Nothing reads
-    # it yet. The darwin exports will be written against it, and the darwin
-    # host checks will evaluate with its darwinSystem.
+    # nix-darwin, the module system a macOS host is built with. The darwin
+    # exports are written against it, and the darwin host checks evaluate
+    # with its darwinSystem.
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -156,8 +156,8 @@
       # ANCHOR: imports
       imports = [
         inputs.treefmt-nix.flakeModule
-        # flake.modules.<class>.<name>, the output the darwin modules will
-        # publish under. flake-parts declares no darwinModules option.
+        # flake.modules.<class>.<name>, the output the darwin modules publish
+        # under. flake-parts declares no darwinModules option.
         inputs.flake-parts.flakeModules.modules
 
         ./flake/modules.nix # Exported nixosModules

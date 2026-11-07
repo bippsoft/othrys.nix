@@ -104,6 +104,65 @@ Stylix is needed only on a host that wants it. Nothing in `nixosModules.default`
 
 Lanzaboote is needed only for Secure Boot on `systemd-boot`, where the host adds a `lanzaboote` input and imports `inputs.lanzaboote.nixosModules.lanzaboote`. Every other host leaves it out and evaluates the same without it. See [Bootloader & Secure Boot](../system/bootloader.md).
 
+## Darwin Hosts
+
+A nix-darwin host imports `othrys.darwinModules.default`, the same set as
+`othrys.modules.darwin.default`. It holds the primary user, the account,
+Nix, git, the locale, the shell modules and the theme, under the option
+names a NixOS host uses. Most are the darwin implementations of split
+modules (see
+[Module System](./module-system.md#shared-options-and-platform-files)), and
+the rest, such as bash, starship and the theme, write only options nix-darwin
+declares as well. The export imports no
+upstream module, so a host built from it alone imports nothing else.
+
+```nix
+inputs.nix-darwin.lib.darwinSystem {
+  specialArgs = {inherit inputs;};
+  modules = [
+    inputs.othrys.darwinModules.default
+    {
+      nixpkgs.hostPlatform = "aarch64-darwin";
+      system.stateVersion = 6;
+      othrys.system = {
+        user.name = "alice";
+        users = {
+          enable = true;
+          homeManager.enable = false;
+        };
+        nix = {
+          enable = true;
+          stateVersion = "26.05";
+        };
+      };
+    }
+  ];
+}
+```
+
+macOS creates the administrator account at setup, and the module leaves it
+with macOS. `othrys.system.users.enable` sets the account's home to
+`/Users/<name>` and makes it `system.primaryUser`, which nix-darwin needs for
+`system.defaults` and launchd user agents. nix-darwin applies a login shell
+only to an account it owns, and owning one takes a uid, so the shell from
+`othrys.system.users.defaultShell` applies only once the host sets
+`othrys.system.users.uid`. nix-darwin then lists the account in
+`users.knownUsers` and may create it.
+
+`othrys.system.nix` leaves `nix.enable` to nix-darwin and defaults
+`nix.package` to Lix. `system.stateVersion` is an integer on nix-darwin,
+which the host sets itself, while `othrys.system.nix.stateVersion` remains
+the Home Manager state version. The store is optimised by the scheduled
+`nix.optimise` job, since nix-darwin refuses `auto-optimise-store` on Nix
+and Lix releases that corrupt the store with it on macOS.
+`othrys.system.locale` sets `time.timeZone` and `LANG`, since nix-darwin
+has no `i18n` and no console options. `othrys.desktop.graphical` defaults to
+true on a Mac.
+
+The darwin Home Manager adapter is not exported yet, so an account on a
+darwin host sets `othrys.system.users.homeManager.enable = false`, and the
+host is refused otherwise.
+
 ## Re-exporting the Dev Shell
 
 A consuming flake that wants the same tools and commit hooks re-exports

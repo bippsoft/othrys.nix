@@ -96,7 +96,7 @@
     # The server-relevant module surface, everything a headless host plausibly
     # enables. Used by eval-host-server (named, no managed account) and
     # eval-host-anonymous (user.name unset) so per-user state can never leak
-    # onto hosts without a managed user (see modules/system/nix.nixos.nix).
+    # onto hosts without a managed user (see modules/system/nix.nix).
     #
     # It turns the secrets plumbing on, so it carries the sops-nix module and
     # the secrets export itself.
@@ -607,6 +607,78 @@
         drv = builtins.unsafeDiscardStringContext (hostConfig hostModules).system.build.toplevel.drvPath;
       } "echo \"$drv\" > \"$out\"";
 
+    # A darwin host built the way a consumer builds one, from
+    # flake.modules.darwin.default and nix-darwin's darwinSystem. nix-darwin
+    # makes stateVersion an integer the host sets itself, and the platform is
+    # named in the configuration, so the same evaluation runs on any system.
+    darwinEval = hostModules:
+      inputs.nix-darwin.lib.darwinSystem {
+        specialArgs = {inherit inputs;};
+        modules =
+          [
+            inputs.self.modules.darwin.default
+            {
+              nixpkgs.hostPlatform = "aarch64-darwin";
+              system.stateVersion = 6;
+            }
+          ]
+          ++ hostModules;
+      };
+    darwinConfig = hostModules: (darwinEval hostModules).config;
+
+    # On a Mac the check is the system itself, so the host builds there. On
+    # any other system it records the toplevel derivation, which forces the
+    # whole evaluation, as mkHostEval does for a NixOS host. CI runs the second
+    # form with import-from-derivation turned off, so a module that needs a
+    # build to evaluate fails on Linux before it reaches a Mac.
+    mkDarwinEval = name: hostModules: let
+      toplevel = (darwinConfig hostModules).system.build.toplevel;
+    in
+      if pkgs.stdenv.hostPlatform.isDarwin
+      then toplevel
+      else
+        pkgs.runCommand name {
+          drv = builtins.unsafeDiscardStringContext toplevel.drvPath;
+        } "echo \"$drv\" > \"$out\"";
+
+    # The darwin counterpart of bootBase, a primary user named and nothing
+    # else turned on.
+    darwinBase = {
+      othrys.system.user.name = "alice";
+    };
+
+    # Every module of the darwin export turned on for alice, with a uid so
+    # the account becomes one nix-darwin manages and the login shell applies.
+    darwinUserHost = {
+      othrys.system = {
+        users = {
+          enable = true;
+          uid = 502;
+          # The darwin home adapter is a later export, so Home Manager does
+          # not manage this account yet.
+          homeManager.enable = false;
+        };
+        nix = {
+          enable = true;
+          stateVersion = "26.05";
+        };
+        git = {
+          enable = true;
+          name = "Alice";
+          email = "alice@example.com";
+        };
+        locale = {
+          enable = true;
+          timezone = "Europe/Berlin";
+        };
+        shell = {
+          zsh.enable = true;
+          bash.enable = true;
+          starship.enable = true;
+        };
+      };
+    };
+
     # Compare values read back from evaluated hosts. `expectations` maps a
     # label to a boolean, and the check fails naming every label that is false.
     # mkHostEval only proves a host evaluates, which says nothing about what a
@@ -941,12 +1013,15 @@
     ];
 
     # aarch64-darwin keeps the checks that evaluate no NixOS host, since
-    # nixosSystem cannot evaluate for a darwin system. They are the commit
-    # hooks, the secret scan, the documentation links, the dev shells and the
-    # agent hook, which a session on a Mac runs as well. comment-hygiene and
-    # contract-guards stay out, as pre-commit-check runs both, and the darwin
-    # host evaluations join this list with the darwin exports.
+    # nixosSystem cannot evaluate for a darwin system. They are the darwin
+    # hosts, built here as systems, their read-back, the commit hooks, the
+    # secret scan, the documentation links, the dev shells and the agent hook,
+    # which a session on a Mac runs as well. comment-hygiene and
+    # contract-guards stay out, as pre-commit-check runs both.
     darwinChecks = [
+      "eval-darwin-host-min"
+      "eval-darwin-host-user"
+      "eval-darwin"
       "pre-commit-check"
       "secret-scan"
       "docs-includes"
@@ -984,10 +1059,20 @@
       # closure, so it's the cheap gate that catches most option/module errors.
       eval-host-min = mkHostEval "othrys-eval-host-min" [functioningHost];
 
+      # The darwin export on its own. A host with a user named and nothing on,
+      # and a host with the account, Nix, git, the shell and the locale on
+      # (see ./darwin-eval.nix for what is read back).
+      eval-darwin-host-min = mkDarwinEval "othrys-eval-darwin-host-min" [darwinBase];
+      eval-darwin-host-user = mkDarwinEval "othrys-eval-darwin-host-user" [darwinBase darwinUserHost];
+      eval-darwin = import ./darwin-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit darwinConfig darwinBase mkExpectations rejectedWith inputs;
+      };
+
       # Regression guard for headless/root-only hosts, with nix settings enabled but
       # NO primary user account (othrys.system.users stays off). othrys.system.nix
       # must not materialize a home-manager user here, since doing so trips NixOS's
-      # user assertions. See modules/system/nix.nixos.nix.
+      # user assertions. See modules/system/nix.nix.
       eval-host-headless = mkHostEval "othrys-eval-host-headless" [
         bootBase
         {
