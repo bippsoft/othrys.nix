@@ -63,7 +63,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-optional-exports` | A host with `default` and no upstream module at all, a managed account rejected without `nixosModules.home`, an account Home Manager does not manage accepted without it, a host built from `nixosModules.full`, impermanence on a device named by hand, the rejection of impermanence without its export, and what the `disko`, `secrets` and `impermanence` exports write beside their upstream modules |
 | `eval-template` | The `nix flake init` template, instantiated with only the inputs a consumer has |
 | `eval-dev-shells` | The hooks each dev shell installs |
-| `eval-darwin-host-min`, `eval-darwin-host-user`, `eval-darwin` | A darwin host from `darwinModules.default` with a user named, the same host with every module on, and what the account, Nix and locale modules write there. The core job evaluates them with import-from-derivation off, and the darwin job builds the two hosts |
+| `eval-darwin-host-min`, `eval-darwin-host-user`, `eval-darwin-host-apps`, `eval-darwin` | A darwin host from `darwinModules.default` with a user named, the same host with the system modules and Home Manager on, the same host with every darwin app on, and what the account, Nix and locale modules write there. The core job evaluates them with import-from-derivation off, and the darwin job builds the three hosts |
 | `eval-auto-upgrade` | The evaluation-time rules of the auto-upgrade verify gate |
 | `eval-ssh`, `eval-ssh-settings` | The known hosts and client defaults, and the server's ports, firewall, jail and hardened defaults |
 | `eval-pam` | Which PAM services take the YubiKey, and with what control |
@@ -103,8 +103,8 @@ tier reports early while the whole suite still gates what lands:
 **Core on darwin** (`core-darwin` job) runs on the same events on a
 `macos-latest` runner. `nixosSystem` cannot evaluate for a darwin system, so
 `checks.aarch64-darwin` holds only the checks that evaluate no NixOS host.
-They are the darwin hosts `eval-darwin-host-min` and
-`eval-darwin-host-user`, built there as systems, the read-back
+They are the darwin hosts `eval-darwin-host-min`, `eval-darwin-host-user`
+and `eval-darwin-host-apps`, built there as systems, the read-back
 `eval-darwin`, `pre-commit-check`, `secret-scan`, `docs-includes`,
 `eval-dev-shells` and `agent-config`, and the job also builds the `treefmt`
 check, the eight dev shells and `formatter.aarch64-darwin`. Nix turns the

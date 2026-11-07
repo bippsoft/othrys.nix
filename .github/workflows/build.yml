@@ -184,6 +184,7 @@ jobs:
             --option allow-import-from-derivation false \
             '.#checks.x86_64-linux.eval-darwin-host-min' \
             '.#checks.x86_64-linux.eval-darwin-host-user' \
+            '.#checks.x86_64-linux.eval-darwin-host-apps' \
             '.#checks.x86_64-linux.eval-darwin'
   # The portable host evaluations on a native ARM runner. It shows that the
   # module tree evaluates for aarch64-linux and nothing more. No VM test runs
@@ -250,6 +251,7 @@ jobs:
           nix build --no-link --print-build-logs \
             '.#checks.aarch64-darwin.eval-darwin-host-min' \
             '.#checks.aarch64-darwin.eval-darwin-host-user' \
+            '.#checks.aarch64-darwin.eval-darwin-host-apps' \
             '.#checks.aarch64-darwin.eval-darwin' \
             '.#checks.aarch64-darwin.pre-commit-check' \
             '.#checks.aarch64-darwin.secret-scan' \

@@ -1,12 +1,15 @@
 # flake/checks/darwin-eval.nix
-# CORE. What flake.modules.darwin.default writes on a nix-darwin host. The
-# account stays with macOS unless the host gives a uid, Nix defaults to Lix,
-# the locale reaches the environment, and a host that names a user and turns
-# nothing on gets no account settings at all.
+# CORE. What the darwin exports write on a nix-darwin host. The account stays
+# with macOS unless the host gives a uid, Nix defaults to Lix, the locale
+# reaches the environment, a host that names a user and turns nothing on gets
+# no account settings at all, and the home adapter hands the apps' user
+# configuration to Home Manager with the darwin packages and paths.
 {
   lib,
   darwinConfig,
   darwinBase,
+  darwinHomeModules,
+  darwinAppHost,
   mkExpectations,
   rejectedWith,
   inputs,
@@ -71,8 +74,24 @@
       nixpkgs.pkgs = import inputs.nixpkgs {system = "aarch64-darwin";};
     }
   ];
+  # Every darwin app on, with Home Manager and the home adapter, read back
+  # from the user's Home Manager configuration.
+  apps = darwinConfig [darwinBase darwinAppHost];
+  home = apps.home-manager.users.alice;
+  managedHome = darwinConfig [
+    darwinBase
+    darwinHomeModules
+    {
+      othrys.system.users.enable = true;
+      # Home Manager's state version comes through the registry from here.
+      othrys.system.nix = {
+        enable = true;
+        stateVersion = "26.05";
+      };
+    }
+  ];
   # The registry still collects entries without the home adapter, which is
-  # what the adapter will hand to Home Manager.
+  # what the adapter hands to Home Manager on a host that imports it.
   homeEntries = builtins.attrNames configured.othrys.internal.homeConfig;
   withHomeManager = darwinConfig [darwinBase {othrys.system.users.enable = true;}];
 in
@@ -112,5 +131,14 @@ in
     "there is no rebuild-test alias on darwin" = !(zshAliases ? rebuild-test);
     "the clipboard preset is off on a Mac" = !shell.othrys.system.shell.zsh.aliasPresets.clipboard;
     "an external nixpkgs that disagrees on allowUnfree is refused" = rejectedWith "nixpkgs.pkgs is defined externally" externalPkgs;
+    "the home adapter gives Home Manager the account's home" = home.home.homeDirectory == "/Users/alice";
+    "the home adapter hands the user the registry" = home.programs.nixvim.enable && home.programs.gh.enable;
+    "the essential user tools reach the darwin user" = builtins.any (p: lib.getName p == "just") home.home.packages;
+    "an account with Home Manager and the adapter is accepted" = !(rejectedWith "is not imported" managedHome);
+    "Ghostty takes the darwin build" = lib.getName home.programs.ghostty.package == "ghostty-bin";
+    "kitty's control socket sits in the per-user TMPDIR" = lib.hasPrefix "unix:\${TMPDIR}/" home.programs.kitty.settings.listen_on;
+    "VSCodium finds nixvim under the darwin key" = home.programs.vscodium.profiles.default.userSettings ? "vscode-neovim.neovimExecutablePaths.darwin";
+    "the assistants are not told they run on NixOS" = !apps.othrys.apps.ai.context.nixos.enable && !(lib.hasInfix "NixOS" apps.othrys.apps.ai.context.text);
+    "yazi pulls no Wayland clipboard on a Mac" = !(builtins.any (p: lib.getName p == "wl-clipboard") home.home.packages);
     "an account with Home Manager on and no home adapter is refused" = rejectedWith "darwinModules.home is not imported" withHomeManager;
   }

@@ -63,8 +63,10 @@ in {
           imagemagick # Font, HEIC, JPEG XL preview
         ]
         # Yank-to-clipboard needs a Wayland session, while yazi itself is a TUI
-        # usable over SSH, so keep the dep off headless hosts.
-        ++ lib.optional config.othrys.desktop.graphical wl-clipboard;
+        # usable over SSH, so keep the dep off headless hosts. A Mac is
+        # graphical, but wl-clipboard needs wayland, which nixpkgs marks broken
+        # on darwin, and yazi yanks through pbcopy there.
+        ++ lib.optional (config.othrys.desktop.graphical && pkgs.stdenv.hostPlatform.isLinux) wl-clipboard;
     };
   };
 }

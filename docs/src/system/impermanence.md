@@ -125,10 +125,10 @@ which merges with what the adapter declares.
 
 ## System Persistence
 
-System-critical directories persisted in `persistence.nix`:
+System-critical directories persisted in `persistence.nixos.nix`:
 
 ```nix
-{{#include ../../../modules/system/persistence.nix:system-persistence}}
+{{#include ../../../modules/system/persistence.nixos.nix:system-persistence}}
 ```
 
 `/etc/machine-id` is in the set because the journal directory and the
@@ -160,7 +160,7 @@ the first switch.
 Cross-cutting user directories (XDG, SSH, Projects):
 
 ```nix
-{{#include ../../../modules/system/persistence.nix:user-persistence}}
+{{#include ../../../modules/system/persistence.nixos.nix:user-persistence}}
 ```
 
 Every entry under `user` is bound only when `othrys.system.users.enable` is on

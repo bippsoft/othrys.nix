@@ -108,8 +108,11 @@ Lanzaboote is needed only for Secure Boot on `systemd-boot`, where the host adds
 
 A nix-darwin host imports `othrys.darwinModules.default`, the same set as
 `othrys.modules.darwin.default`. It holds the primary user, the account,
-Nix, git, the locale, the shell modules and the theme, under the option
-names a NixOS host uses. Most are the darwin implementations of split
+Nix, git, the locale, the shell modules, the theme and the apps that build
+for darwin, under the option names a NixOS host uses. The apps are `gh`,
+`yazi`, `comma`, nixvim, Claude Code, Codex and the MCP servers, the
+language registry, Ghostty, kitty, mpv, VSCodium, IntelliJ IDEA, Signal and
+Picard. Most are the darwin implementations of split
 modules (see
 [Module System](./module-system.md#shared-options-and-platform-files)), and
 the rest, such as bash, starship and the theme, write only options nix-darwin
@@ -121,15 +124,14 @@ inputs.nix-darwin.lib.darwinSystem {
   specialArgs = {inherit inputs;};
   modules = [
     inputs.othrys.darwinModules.default
+    inputs.othrys.darwinModules.home
+    inputs.home-manager.darwinModules.home-manager
     {
       nixpkgs.hostPlatform = "aarch64-darwin";
       system.stateVersion = 6;
       othrys.system = {
         user.name = "alice";
-        users = {
-          enable = true;
-          homeManager.enable = false;
-        };
+        users.enable = true;
         nix = {
           enable = true;
           stateVersion = "26.05";
@@ -159,9 +161,14 @@ and Lix releases that corrupt the store with it on macOS.
 has no `i18n` and no console options. `othrys.desktop.graphical` defaults to
 true on a Mac.
 
-The darwin Home Manager adapter is not exported yet, so an account on a
-darwin host sets `othrys.system.users.homeManager.enable = false`, and the
-host is refused otherwise.
+`darwinModules.home` is the same adapter as `nixosModules.home`, and it hands
+the registry of user configuration to Home Manager's darwin module in the
+same way. An account with Home Manager on and no adapter imported is refused,
+and `othrys.system.users.homeManager.enable = false` keeps an account Home
+Manager does not manage. Ghostty takes `ghostty-bin` on darwin, since nixpkgs
+builds `ghostty` for Linux alone. The persistence registry is declared and
+nothing reads it, since a Mac has no ephemeral root, and the assistants'
+context leaves out the NixOS text there.
 
 ## Re-exporting the Dev Shell
 

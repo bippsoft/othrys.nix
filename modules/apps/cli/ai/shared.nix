@@ -8,9 +8,15 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }: let
   cfg = config.othrys.apps.ai;
+
+  # The impermanence option is declared in ephemeral-root.nix, which only the
+  # NixOS tree imports, so on nix-darwin the attribute is absent and a host
+  # there never wipes its root.
+  impermanenceEnabled = config.othrys.system.impermanence.enable or false;
 
   # The root wipe is a property of the host, so the line about it is
   # rendered from the host's impermanence setting rather than told to every
@@ -19,7 +25,7 @@
   # that bullet is noticed.
   storeBullet = "- **No modifying /nix/store**: It's read-only and immutable\n";
   impermanenceBullet =
-    lib.optionalString config.othrys.system.impermanence.enable
+    lib.optionalString impermanenceEnabled
     "- **No persistent writes outside $HOME**: the root filesystem is wiped on every boot, and only paths the host declares as persistent survive it\n";
   # The data bullet is rendered the same way. Only a host that wipes its root
   # has to keep data in the home directory, so the reason is added there and
@@ -32,7 +38,7 @@
     [
       (storeBullet + impermanenceBullet)
       (
-        if config.othrys.system.impermanence.enable
+        if impermanenceEnabled
         then impermanenceDataBullet
         else dataBullet
       )
@@ -77,9 +83,14 @@ in {
     };
 
     context = {
+      # The text describes NixOS, and its rules about FHS paths and the
+      # root wipe are wrong for a Mac, so a darwin host starts without it.
       nixos.enable =
         lib.mkEnableOption "the text that tells an assistant it runs on NixOS, and what that rules out"
-        // {default = true;};
+        // {
+          default = !pkgs.stdenv.hostPlatform.isDarwin;
+          defaultText = lib.literalExpression "!pkgs.stdenv.hostPlatform.isDarwin";
+        };
 
       extra = lib.mkOption {
         type = lib.types.lines;
@@ -99,7 +110,7 @@ in {
           lib.optional cfg.context.nixos.enable nixosContext
           ++ lib.optional (cfg.context.extra != "") cfg.context.extra
         );
-        defaultText = lib.literalMD "the text of `nixos-context.md` beside this module while `context.nixos.enable` is on, with a line about the root wipe added when `othrys.system.impermanence.enable` is set, followed by `context.extra`";
+        defaultText = lib.literalMD "the text of `nixos-context.md` beside this module while `context.nixos.enable` is on, with a line about the root wipe added when `othrys.system.impermanence.enable` is set, an option only NixOS declares, followed by `context.extra`";
         description = "The global context every enabled assistant receives (derived; do not set).";
       };
     };

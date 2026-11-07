@@ -647,16 +647,24 @@
       othrys.system.user.name = "alice";
     };
 
-    # Every module of the darwin export turned on for alice, with a uid so
-    # the account becomes one nix-darwin manages and the login shell applies.
+    # The Home Manager module and the othrys adapter on a darwin host, which a
+    # consumer imports together, as on NixOS.
+    darwinHomeModules = {
+      imports = [
+        inputs.home-manager.darwinModules.home-manager
+        inputs.self.modules.darwin.home
+      ];
+    };
+
+    # Every system module of the darwin export turned on for alice, with
+    # Home Manager, and a uid so the account becomes one nix-darwin manages
+    # and the login shell applies.
     darwinUserHost = {
+      imports = [darwinHomeModules];
       othrys.system = {
         users = {
           enable = true;
           uid = 502;
-          # The darwin home adapter is a later export, so Home Manager does
-          # not manage this account yet.
-          homeManager.enable = false;
         };
         nix = {
           enable = true;
@@ -675,6 +683,47 @@
           zsh.enable = true;
           bash.enable = true;
           starship.enable = true;
+        };
+      };
+    };
+
+    # Every app of the darwin export turned on, on the host above, so each
+    # one's Home Manager configuration is evaluated, and on a Mac built, for
+    # aarch64-darwin. The language registry is on for every language, which
+    # is what the nixvim and VSCodium fragments read.
+    darwinAppHost = {
+      imports = [darwinUserHost];
+      othrys.system.nix.allowUnfree = true;
+      othrys.apps = {
+        ai = {
+          claude-code.enable = true;
+          codex.enable = true;
+          mcp.context7.enable = true;
+        };
+        comma.enable = true;
+        gh.enable = true;
+        nixvim.enable = true;
+        yazi.enable = true;
+        ghostty.enable = true;
+        # No plugin, since adding one copies the whole IDEA bundle in a build
+        # no cache holds, on a runner with 14 GB of disk.
+        idea.enable = true;
+        kitty.enable = true;
+        mpv.enable = true;
+        picard.enable = true;
+        signal.enable = true;
+        vscode.enable = true;
+        languages = {
+          bash.enable = true;
+          go.enable = true;
+          java.enable = true;
+          json.enable = true;
+          lua.enable = true;
+          nix.enable = true;
+          python.enable = true;
+          rust.enable = true;
+          typescript.enable = true;
+          yaml.enable = true;
         };
       };
     };
@@ -1021,6 +1070,7 @@
     darwinChecks = [
       "eval-darwin-host-min"
       "eval-darwin-host-user"
+      "eval-darwin-host-apps"
       "eval-darwin"
       "pre-commit-check"
       "secret-scan"
@@ -1059,14 +1109,16 @@
       # closure, so it's the cheap gate that catches most option/module errors.
       eval-host-min = mkHostEval "othrys-eval-host-min" [functioningHost];
 
-      # The darwin export on its own. A host with a user named and nothing on,
-      # and a host with the account, Nix, git, the shell and the locale on
-      # (see ./darwin-eval.nix for what is read back).
+      # The darwin exports. A host with a user named and nothing on, a host
+      # with the account, Nix, git, the shell, the locale and Home Manager
+      # on, and the same host with every darwin app on (see ./darwin-eval.nix
+      # for what is read back).
       eval-darwin-host-min = mkDarwinEval "othrys-eval-darwin-host-min" [darwinBase];
       eval-darwin-host-user = mkDarwinEval "othrys-eval-darwin-host-user" [darwinBase darwinUserHost];
+      eval-darwin-host-apps = mkDarwinEval "othrys-eval-darwin-host-apps" [darwinBase darwinAppHost];
       eval-darwin = import ./darwin-eval.nix {
         inherit (inputs.nixpkgs) lib;
-        inherit darwinConfig darwinBase mkExpectations rejectedWith inputs;
+        inherit darwinConfig darwinBase darwinHomeModules darwinAppHost mkExpectations rejectedWith inputs;
       };
 
       # Regression guard for headless/root-only hosts, with nix settings enabled but

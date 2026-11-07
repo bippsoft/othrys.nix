@@ -30,7 +30,8 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   ├── disko.nix          # Disk layout, exported on its own
   │   ├── ephemeral-root.nix # Ephemeral root wipe
   │   ├── impermanence.nix   # Impermanence adapter, a separate export
-  │   ├── persistence.nix    # Persistence registry and the system-critical set
+  │   ├── persistence.nix    # Persistence registry, also declared on darwin
+  │   ├── persistence.nixos.nix # The system-critical set
   │   ├── secrets.nix        # Secrets options
   │   ├── secrets.nixos.nix  # sops-nix plumbing, exported on its own
   │   ├── git.nix            # Git configuration

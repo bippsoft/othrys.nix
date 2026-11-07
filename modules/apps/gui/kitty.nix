@@ -3,6 +3,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }: let
   cfg = config.othrys.apps.kitty;
@@ -78,7 +79,12 @@ in {
             # terminal itself, which lets any output that reaches the screen,
             # including that of a remote host over SSH, drive every window.
             allow_remote_control = "socket-only";
-            listen_on = "unix:\${XDG_RUNTIME_DIR}/kitty-{kitty_pid}.sock";
+            # macOS sets no XDG_RUNTIME_DIR. Its TMPDIR is per user and
+            # private to the user in the same way.
+            listen_on =
+              if pkgs.stdenv.hostPlatform.isDarwin
+              then "unix:\${TMPDIR}/kitty-{kitty_pid}.sock"
+              else "unix:\${XDG_RUNTIME_DIR}/kitty-{kitty_pid}.sock";
           }
           // cfg.extraSettings;
 

@@ -19,8 +19,17 @@
   #
   # mkDefault keeps the path below othrys.apps.vscode.userSettings, so a host
   # that names another executable there still wins.
-  neovimPath = {config, ...}: {
-    programs.vscodium.profiles.default.userSettings."vscode-neovim.neovimExecutablePaths.linux" =
+  # vscode-neovim reads the key named for the platform it runs on.
+  neovimPath = {
+    config,
+    pkgs,
+    ...
+  }: {
+    programs.vscodium.profiles.default.userSettings."vscode-neovim.neovimExecutablePaths.${
+      if pkgs.stdenv.hostPlatform.isDarwin
+      then "darwin"
+      else "linux"
+    }" =
       lib.mkDefault "${config.programs.nixvim.build.package}/bin/nvim";
   };
 in {

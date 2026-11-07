@@ -44,7 +44,7 @@ repeats it.
 The split applies to the system modules `users`, `nix`, `git`, `locale` and
 `secrets`, the editor option and `zsh` under `system/shell`, `ssh`,
 `tailscale` and `yubikey`, the `development` and `ollama` apps, the Stylix
-adapter, Floorp, Discord, Vesktop and Ghostty, and the graphical-session
+adapter, the persistence registry, Floorp, Discord, Vesktop and Ghostty, and the graphical-session
 signal in `desktop/graphical.nix`, which a Mac sets on. Ghostty is split because
 its package differs on darwin. `apps/gui/chromium.nix` stays whole and Linux
 only, since nixpkgs builds `ungoogled-chromium` for Linux alone. The
@@ -54,7 +54,7 @@ it.
 
 ## Home Manager Integration
 
-Home Manager is loaded as a NixOS module and manages one user, the primary user
+Home Manager is loaded as a NixOS or nix-darwin module and manages one user, the primary user
 named by `othrys.system.user.name`. A module does not write
 `home-manager.users` itself. It contributes an attribute set to the
 `othrys.internal.homeConfig` registry, under a key that is its own option path.

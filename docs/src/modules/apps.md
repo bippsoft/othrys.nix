@@ -145,7 +145,10 @@ Remote control is accepted on a unix socket only. Each kitty process listens
 on `$XDG_RUNTIME_DIR/kitty-<pid>.sock`, a directory other users cannot read,
 and `kitty @` inside the terminal finds it through `KITTY_LISTEN_ON`. Control
 sequences written to the terminal itself are ignored, so the output of a
-program, or of a remote host over SSH, cannot drive the windows.
+program, or of a remote host over SSH, cannot drive the windows. macOS sets
+no `XDG_RUNTIME_DIR`, so on darwin the socket is in `$TMPDIR`, which is
+private to the user there. Ghostty takes `ghostty-bin` on darwin, and yazi
+installs no `wl-clipboard` there.
 
 `extraSettings` takes `kitty.conf` keys and is merged over the defaults the
 module writes, so a key set there wins.

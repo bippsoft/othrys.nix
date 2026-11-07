@@ -195,6 +195,7 @@ othrys.apps.ai.skills.release-notes = ./skills/release-notes;
 
 `othrys.apps.ai.context` is the global context. Its first part describes the
 host the assistant runs on, and `context.nixos.enable = false` leaves it out.
+It defaults to off on darwin, where the text about NixOS does not apply.
 The line about the root wipe is rendered from
 `othrys.system.impermanence.enable`, so a host with a persistent root is not
 told its root is wiped. The line about where to store data follows the same

@@ -109,7 +109,9 @@
   # The darwin tree, published as flake.modules.darwin.default. nix-darwin
   # refuses a write to an option it does not declare, so this names files
   # rather than the category directories, whose default.nix files are the
-  # NixOS tree. Each module is the darwin implementation of a split module or
+  # NixOS tree. The persistence registry is declared and read by nothing,
+  # since darwin has no impermanence, so the apps that name their state still
+  # evaluate. Each module is the darwin implementation of a split module or
   # a file whose writes nix-darwin declares as well, such as the theme's
   # fonts.packages and assertions. It imports no
   # module of an upstream flake, so a darwin host built from it alone imports
@@ -131,8 +133,29 @@
       ../modules/system/shell/bash.nix
       ../modules/system/shell/zsh.darwin.nix
       ../modules/system/shell/starship.nix
+      ../modules/system/persistence.nix
       ../modules/desktop/graphical.darwin.nix
       ../modules/theme
+
+      # The apps that build for darwin. They write the othrys registries and
+      # options nix-darwin declares as well, such as assertions.
+      # Their Home Manager configuration reaches the user through `home`.
+      ../modules/apps/cli/gh.nix
+      ../modules/apps/cli/yazi.nix
+      ../modules/apps/cli/comma.nix
+      ../modules/apps/cli/nixvim
+      ../modules/apps/cli/ai/shared.nix
+      ../modules/apps/cli/ai/mcp
+      ../modules/apps/cli/ai/claude-code.nix
+      ../modules/apps/cli/ai/codex.nix
+      ../modules/apps/languages
+      ../modules/apps/gui/ghostty.darwin.nix
+      ../modules/apps/gui/kitty.nix
+      ../modules/apps/gui/mpv.nix
+      ../modules/apps/gui/vscode
+      ../modules/apps/gui/idea.nix
+      ../modules/apps/gui/signal.nix
+      ../modules/apps/gui/picard.nix
     ];
     _module.args.othrysSelf = inputs.self;
   };
@@ -142,6 +165,12 @@ in {
   # names the same set for a consumer that looks for it there.
   flake.modules.darwin = {
     default = darwinDefault;
+
+    # The Home Manager adapter, the same file as nixosModules.home, since
+    # every option it writes is one Home Manager's darwin module declares as
+    # well. A host imports it together with the darwinModules.home-manager of
+    # the home-manager flake.
+    home = ../modules/system/home.nix;
   };
   flake.darwinModules = config.flake.modules.darwin;
 
@@ -219,7 +248,7 @@ in {
     hardening = ../modules/system/hardening.nix;
     networking = ../modules/system/networking.nix;
     ephemeral-root = ../modules/system/ephemeral-root.nix;
-    persistence = ../modules/system/persistence.nix;
+    persistence = ../modules/system/persistence.nixos.nix;
     bootloader = ../modules/system/bootloader.nix;
     git = ../modules/system/git.nixos.nix;
     auto-upgrade = ../modules/system/auto-upgrade.nix;

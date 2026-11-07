@@ -17,7 +17,7 @@
     ./kernel.nix
     ./hardening.nix
     ./ephemeral-root.nix
-    ./persistence.nix
+    ./persistence.nixos.nix
     ./bootloader.nix
     ./git.nixos.nix
     ./networking.nix

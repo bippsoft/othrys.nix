@@ -1,8 +1,9 @@
 # modules/system/home.nix
 # Home Manager adapter, which hands the per-user registry to the Home Manager module
 #
-# Exported as nixosModules.home and left out of nixosModules.default, so a
-# host imports it together with the Home Manager module or imports neither.
+# Exported as nixosModules.home and darwinModules.home and left out of both
+# `default` exports, so a host imports it together with the Home Manager
+# module or imports neither.
 # It is the only file in this tree that writes home-manager.users, and the
 # only one that sets the two package options below.
 #
