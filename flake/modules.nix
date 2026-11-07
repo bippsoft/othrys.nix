@@ -155,7 +155,6 @@
       ../modules/apps/gui/vscode
       ../modules/apps/gui/idea.nix
       ../modules/apps/gui/signal.nix
-      ../modules/apps/gui/picard.nix
     ];
     _module.args.othrysSelf = inputs.self;
   };

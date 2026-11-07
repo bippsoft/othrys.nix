@@ -52,7 +52,7 @@ Require a desktop environment.
 | IDEA | `othrys.apps.idea` | IntelliJ IDEA with a curated plugin catalogue. Requires `othrys.apps.languages.java` |
 | Signal | `othrys.apps.signal` | Signal messenger |
 | OBS | `othrys.apps.obs` | Screen recording/streaming. Enables `othrys.services.virtualcamera`, and builds with CUDA when `othrys.hardware.nvidia` is on |
-| Picard | `othrys.apps.picard` | MusicBrainz tagger |
+| Picard | `othrys.apps.picard` | MusicBrainz tagger. NixOS only, since its `pyqt6` fails to build on darwin |
 | Plexamp | `othrys.apps.plexamp` | Plex music player |
 | RustDesk | `othrys.apps.rustdesk` | Remote desktop client. Persists `~/.config/rustdesk`, and `forceX11` starts the launcher through XWayland |
 | LocalSend | `othrys.apps.localsend` | Local file sharing |

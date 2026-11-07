@@ -710,7 +710,6 @@
         idea.enable = true;
         kitty.enable = true;
         mpv.enable = true;
-        picard.enable = true;
         signal.enable = true;
         vscode.enable = true;
         languages = {
