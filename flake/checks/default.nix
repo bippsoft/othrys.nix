@@ -1529,7 +1529,13 @@
           nativeBuildInputs = [agentConfig agentHook hygieneScan pkgs.git (pkgs.python3.withPackages (ps: [ps.pytest]))];
         } ''
           agent-config ${inputs.self}
-          HOME=$TMPDIR OTHRYS_ROOT=${inputs.self} python3 -m pytest -q -p no:cacheprovider ${./agent-hook-test.py}
+          # pytest takes the common directory of what it is handed as its
+          # root and collects it, and for a store path that is /nix/store,
+          # which the macOS build sandbox does not let a build list. A copy
+          # in the build directory keeps the root there.
+          cp ${./agent-hook-test.py} "$TMPDIR/agent_hook_test.py"
+          HOME=$TMPDIR OTHRYS_ROOT=${inputs.self} python3 -m pytest -q -p no:cacheprovider \
+            --rootdir "$TMPDIR" "$TMPDIR/agent_hook_test.py"
           touch $out
         '';
       # What the gh module renders, wraps and pre-approves (see ./gh-eval.nix).
