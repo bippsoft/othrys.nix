@@ -223,6 +223,11 @@ jobs:
   # has no disk to reclaim and keeps its swap, so the job has no Reclaim disk
   # space or Grow swap step. Nix leaves the build sandbox off on macOS unless told,
   # and the job turns it on so a build sees what it would see on Linux.
+  # The sandbox is relaxed rather than strict, since the llm-agents flake
+  # builds Claude Code on darwin with __noChroot, which a strict sandbox
+  # refuses outright, and every other build stays sandboxed.
+  # cache.numtide.com, which a host trusts whenever an llm-agents module is
+  # on, serves Claude Code and Codex prebuilt, so neither is built here.
   core-darwin:
     name: Core checks (darwin)
     runs-on: macos-latest
@@ -236,7 +241,9 @@ jobs:
           extra-conf: |
             fallback = true
             download-attempts = 10
-            sandbox = true
+            sandbox = relaxed
+            extra-substituters = https://cache.numtide.com
+            extra-trusted-public-keys = niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
       - name: Setup Cachix
         uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:

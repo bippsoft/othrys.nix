@@ -108,7 +108,7 @@ and `eval-darwin-host-apps`, built there as systems, the read-back
 `eval-darwin`, `pre-commit-check`, `secret-scan`, `docs-includes`,
 `eval-dev-shells` and `agent-config`, and the job also builds the `treefmt`
 check, the eight dev shells and `formatter.aarch64-darwin`. Nix turns the
-build sandbox off on macOS by default, and the job sets `sandbox = true`. The
+build sandbox off on macOS by default, and the job sets `sandbox = relaxed`, which sandboxes every build except one that asks for `__noChroot`, as the llm-agents build of Claude Code does on darwin. The job trusts `cache.numtide.com`, as a host with an llm-agents module does, so Claude Code and Codex arrive prebuilt. The
 macOS runner has 3 CPUs, 7 GB of memory and 14 GB of disk, and it skips the
 disk and swap steps of the Linux jobs. `yubikey-onboard` needs `unshare` and
 `findmnt` and `options-doc` is rendered from a NixOS evaluation, so neither
