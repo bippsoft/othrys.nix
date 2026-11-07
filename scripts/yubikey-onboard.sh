@@ -436,7 +436,7 @@ version_gte() {
   return 0
 }
 
-# Write the hardened gpg.conf + gpg-agent.conf into $GNUPGHOME (matching yubikey.nix).
+# Write the hardened gpg.conf + gpg-agent.conf into $GNUPGHOME (matching modules/services/security/yubikey.nixos.nix).
 write_gnupg_config() {
   cat >"$GNUPGHOME/gpg.conf" <<'GPGCONF'
 personal-cipher-preferences AES256 AES192 AES
@@ -466,7 +466,7 @@ default-cache-ttl 60
 max-cache-ttl 120
 AGENTCONF
 
-  # The same setting yubikey.nix writes. ykman needs pcscd, and scdaemon's own
+  # The same setting yubikey.nixos.nix writes. ykman needs pcscd, and scdaemon's own
   # CCID driver cannot share the reader with it.
   cat >"$GNUPGHOME/scdaemon.conf" <<'SCDCONF'
 disable-ccid

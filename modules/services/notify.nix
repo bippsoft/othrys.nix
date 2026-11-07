@@ -44,7 +44,7 @@
   # The token never becomes a curl argument. An `-H "Authorization: Bearer $t"`
   # argv is world-readable through /proc/<pid>/cmdline for the life of the
   # request, which is the same rule the cachix-push wrapper follows in
-  # modules/system/nix.nix. curl reads the header from a file instead, written
+  # modules/system/nix.nixos.nix. curl reads the header from a file instead, written
   # under umask 077 and removed on exit.
   #
   # Three callers read the token. A human running othrys-notify reads tokenFile

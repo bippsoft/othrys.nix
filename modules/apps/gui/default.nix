@@ -4,7 +4,7 @@
   imports = [
     # Terminals
     ./kitty.nix
-    ./ghostty.nix
+    ./ghostty.nixos.nix
 
     # Editors
     ./vscode
@@ -15,8 +15,8 @@
     ./chromium.nix
 
     # Communication
-    ./discord.nix
-    ./vesktop.nix
+    ./discord.nixos.nix
+    ./vesktop.nixos.nix
     ./signal.nix
 
     # Media

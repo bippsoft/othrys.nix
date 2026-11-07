@@ -46,7 +46,7 @@ in {
       ];
 
       # Prompt is handled by starship (enableBashIntegration), and EDITOR by
-      # shell/default.nix through environment.variables.
+      # shell/editor.nixos.nix through environment.variables.
     };
   };
 }

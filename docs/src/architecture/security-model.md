@@ -37,7 +37,7 @@ way, and `gh` loads `othrys.apps.gh.tokenFile` the same way on a headless
 host. The variable is never set in a shell, so nothing else started from that
 shell inherits it.
 
-No module keeps a credential of its own. `modules/system/secrets.nix` is the
+No module keeps a credential of its own. `modules/system/secrets.nixos.nix` is the
 only file that writes into the `sops` namespace, where it sets the decryption
 keys, and every secret is declared by the consuming flake. On a desktop the
 `gh` login lives in the Secret Service keyring, which

@@ -73,7 +73,7 @@ options that `default` declares itself.
 
 Stylix is the first case. Every module in `nixosModules.default` reads its colours and
 fonts from `othrys.theme`, and the only file that writes into the `stylix`
-namespace is the adapter, `modules/theme/stylix.nix`. The adapter is exported as
+namespace is the adapter, `modules/theme/stylix.nixos.nix`. The adapter is exported as
 `nixosModules.stylix` and `default` does not import it, so a host without Stylix
 imports neither and a host with Stylix imports both. The adapter without the
 Stylix module fails at evaluation for the reason above. The Stylix module
@@ -83,7 +83,7 @@ where Stylix is imported and off.
 
 The disk layout and the secrets plumbing follow the same rule.
 `modules/system/disko.nix` is the only file that writes into the `disko`
-namespace and `modules/system/secrets.nix` the only one that writes into `sops`.
+namespace and `modules/system/secrets.nixos.nix` the only one that writes into `sops`.
 Neither is imported by `default` or by `nixosModules.system`, and they are
 exported as `nixosModules.disko` and `nixosModules.secrets`. No module in
 `default` reads an option of either. Impermanence wipes the device named by its
@@ -306,12 +306,12 @@ convenience.
 default. User-facing applications and CLI tools live here, which covers
 browsers, editors, `yazi` and the language toolchains. They are scoped to the
 user and sit beside the program's Home Manager configuration, as in
-`modules/apps/gui/discord.nix`.
+`modules/apps/gui/discord.nixos.nix`.
 
 `environment.systemPackages` is reserved for packages that must exist outside the
 user session. That covers system and Nix infrastructure needed in root or sudo
 contexts, such as the formatters, linters and rebuild helpers (`alejandra`,
-`statix`, `deadnix`, `nvd`, `nix-output-monitor`, `nh`) used by `sudo nixos-rebuild`, `nh os switch` and CI (see `modules/apps/cli/development.nix`).
+`statix`, `deadnix`, `nvd`, `nix-output-monitor`, `nh`) used by `sudo nixos-rebuild`, `nh os switch` and CI (see `modules/apps/cli/development.nixos.nix`).
 It also covers packages that must load into a system layer, such as the MangoHud
 Vulkan and GL overlay in `modules/apps/gui/gaming/mangohud.nix`, which the
 graphics stack injects globally even though its config lives in Home Manager.

@@ -10,6 +10,13 @@
 # imports `default`, the five adapters and five modules of upstream flakes.
 # Only paths inside this repository are compared with the tree, so the
 # upstream modules are set aside and the adapters it names have to exist.
+#
+# A module that nix-darwin will implement as well is split in two. `X.nix`
+# declares its options and `X.nixos.nix` imports it and holds the NixOS
+# writes, and the export names the second. The shared file counts as
+# exported through its implementation, and an implementation anywhere under
+# modules/ without its shared file fails. A `.darwin.nix` file is set aside
+# here, since the NixOS exports never name one.
 {
   pkgs,
   inputs,
@@ -22,7 +29,10 @@
   isModule = path: let
     rel = relative path;
   in
-    lib.hasSuffix ".nix" rel && baseNameOf rel != "default.nix" && !(builtins.elem rel moduleHelpers);
+    lib.hasSuffix ".nix" rel
+    && baseNameOf rel != "default.nix"
+    && !(lib.hasSuffix ".darwin.nix" rel)
+    && !(builtins.elem rel moduleHelpers);
   tree = lib.unique (map relative (builtins.filter isModule (lib.concatMap (g: lib.filesystem.listFilesRecursive "${root}/modules/${g}") groups)));
   # flake-parts types the outputs as deferred modules, so each export arrives
   # as a module whose imports hold the path it was declared with, wrapped
@@ -36,7 +46,17 @@
   inTree = path: lib.hasPrefix "${root}/" (toString path);
   exports = lib.mapAttrs (_: m: builtins.filter inTree (pathsOf m)) (lib.filterAttrs (name: _: name != "default") inputs.self.nixosModules);
   exported = lib.concatMap (map relative) (lib.attrValues exports);
-  missing = builtins.filter (f: !(builtins.elem f exported)) tree;
+  nixosSuffix = ".nixos.nix";
+  isImplementation = f: lib.hasSuffix nixosSuffix f;
+  sharedOf = f: "${lib.removeSuffix nixosSuffix f}.nix";
+  # Every file under modules/, apps included, which the export list leaves
+  # out.
+  allModules = map relative (builtins.filter isModule (lib.filesystem.listFilesRecursive "${root}/modules"));
+  implementations = builtins.filter isImplementation allModules;
+  # A shared file reaches a host through the implementation that imports it.
+  covered = exported ++ map sharedOf (builtins.filter (f: builtins.elem f exported) implementations);
+  missing = builtins.filter (f: !(builtins.elem f covered)) tree;
+  orphaned = builtins.filter (f: !(builtins.elem (sharedOf f) allModules)) implementations;
   dangling = lib.attrNames (lib.filterAttrs (_: paths: paths == [] || !(builtins.all builtins.pathExists paths)) exports);
   apps = builtins.filter (f: lib.hasPrefix "modules/apps/" f) exported;
 in
@@ -44,6 +64,8 @@ in
     missing = builtins.concatStringsSep "\n" missing;
     dangling = builtins.concatStringsSep "\n" dangling;
     apps = builtins.concatStringsSep "\n" apps;
+    orphaned = builtins.concatStringsSep "\n" orphaned;
+    split = toString (builtins.length implementations);
     total = toString (builtins.length tree);
   } ''
     status=0
@@ -62,6 +84,11 @@ in
       printf '%s\n' "$apps" | sed 's/^/  - /' >&2
       status=1
     fi
+    if [ -n "$orphaned" ]; then
+      echo "NixOS implementations with no shared option file beside them:" >&2
+      printf '%s\n' "$orphaned" | sed 's/^/  - /' >&2
+      status=1
+    fi
     [ "$status" = 0 ] || exit 1
-    echo "$total module files exported" > "$out"
+    echo "$total module files exported, $split of them split" > "$out"
   ''

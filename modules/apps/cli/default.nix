@@ -6,7 +6,7 @@
     ./nixvim
 
     # Development
-    ./development.nix
+    ./development.nixos.nix
     ./gh.nix
 
     # Utilities

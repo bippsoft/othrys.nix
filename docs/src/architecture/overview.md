@@ -17,7 +17,8 @@ flake/                       # Flake-parts modules
 modules/                     # Reusable NixOS modules (othrys.* namespace)
   ├── system/                # System fundamentals
   │   ├── user.nix           # Primary user identity option
-  │   ├── users.nix          # User account, shell, the Home Manager registry
+  │   ├── users.nix          # User options and the Home Manager registry
+  │   ├── users.nixos.nix    # The account, shell and essential packages
   │   ├── home.nix           # Home Manager adapter, a separate export
   │   ├── locale.nix         # Locale, timezone, console
   │   ├── nix.nix            # Nix daemon, substituters, GC
@@ -30,13 +31,15 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   ├── ephemeral-root.nix # Ephemeral root wipe
   │   ├── impermanence.nix   # Impermanence adapter, a separate export
   │   ├── persistence.nix    # Persistence registry and the system-critical set
-  │   ├── secrets.nix        # sops-nix plumbing, exported on its own
+  │   ├── secrets.nix        # Secrets options
+  │   ├── secrets.nixos.nix  # sops-nix plumbing, exported on its own
   │   ├── git.nix            # Git configuration
   │   └── shell/             # Shell (Zsh, Bash, Starship)
   ├── theme/                 # The theme every module reads
   │   ├── default.nix        # othrys.theme: palette, fonts, opacity, wallpaper
   │   ├── schemes/           # Colour schemes as Nix data
-  │   └── stylix.nix         # Stylix adapter, exported on its own
+  │   ├── stylix.nix         # Stylix adapter options
+  │   └── stylix.nixos.nix   # Stylix adapter, exported on its own
   ├── desktop/               # Desktop environment
   │   ├── compositors/       # Hyprland, Niri
   │   ├── ashell/            # Status bar

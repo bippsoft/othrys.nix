@@ -9,17 +9,17 @@
 # ANCHOR: app-persistence-index
 # App-specific persistence lives in each app's module:
 # - Steam → modules/apps/gui/gaming/steam.nix
-# - Floorp → modules/apps/gui/floorp/default.nix
+# - Floorp → modules/apps/gui/floorp/floorp.nixos.nix
 # - Signal → modules/apps/gui/signal.nix
 # - Plexamp → modules/apps/gui/plexamp.nix
 # - Audio → modules/hardware/audio.nix
 # - Printing → modules/services/printing.nix
-# - Tailscale → modules/services/tailscale.nix
-# - Zsh/Zoxide → modules/system/shell/zsh.nix
-# - Direnv → modules/apps/cli/development.nix
+# - Tailscale → modules/services/tailscale.nixos.nix
+# - Zsh/Zoxide → modules/system/shell/zsh.nixos.nix
+# - Direnv → modules/apps/cli/development.nixos.nix
 # - Bluetooth → modules/hardware/wireless/bluetooth.nix
 # - WiFi → modules/hardware/wireless/wifi.nix
-# - GPG/YubiKey → modules/services/security/yubikey.nix
+# - GPG/YubiKey → modules/services/security/yubikey.nixos.nix
 # ANCHOR_END: app-persistence-index
 {
   config,

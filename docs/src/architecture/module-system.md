@@ -24,7 +24,29 @@ A module declares options under `options.othrys.{category}.{name}`, guards confi
 
 Each `modules/{category}/default.nix` imports all modules in that category, and `nixosModules.default` aggregates every category. A consuming flake that imports `nixosModules.default` pulls in every module, but nothing activates until `othrys.{category}.{name}.enable = true` is set in the consumer's configuration.
 
-Five files are left out of their category, since each writes into an option namespace that only an upstream flake's module declares. `modules/system/home.nix`, `modules/theme/stylix.nix`, `modules/system/disko.nix`, `modules/system/secrets.nix` and `modules/system/impermanence.nix` are exported as `nixosModules.home`, `nixosModules.stylix`, `nixosModules.disko`, `nixosModules.secrets` and `nixosModules.impermanence`, and a host imports each together with the upstream module it configures. `nixosModules.full` aggregates `default`, the five and their upstream modules. See [Host Configuration](./host-configuration.md).
+Five files are left out of their category, since each writes into an option namespace that only an upstream flake's module declares. `modules/system/home.nix`, `modules/theme/stylix.nixos.nix`, `modules/system/disko.nix`, `modules/system/secrets.nixos.nix` and `modules/system/impermanence.nix` are exported as `nixosModules.home`, `nixosModules.stylix`, `nixosModules.disko`, `nixosModules.secrets` and `nixosModules.impermanence`, and a host imports each together with the upstream module it configures. `nixosModules.full` aggregates `default`, the five and their upstream modules. See [Host Configuration](./host-configuration.md).
+
+## Shared Options and Platform Files
+
+A module that nix-darwin will implement as well is split into two files.
+`modules/services/tailscale.nix` declares `othrys.services.tailscale` and
+writes nothing, and `modules/services/tailscale.nixos.nix` imports it and
+holds every NixOS setting. The category's `default.nix` and the individual
+export both name the `.nixos.nix` file, so a NixOS host evaluates exactly what
+it did before the split. nix-darwin refuses a write to an option it does not
+declare, such as `networking.firewall` or `systemd`, so the darwin
+implementation of the same module imports the shared file and writes its own
+settings beside it, and the options keep one name on both platforms.
+
+The split applies to the system modules `users`, `nix`, `git`, `locale` and
+`secrets`, the editor option and `zsh` under `system/shell`, `ssh`,
+`tailscale` and `yubikey`, the `development` and `ollama` apps, the Stylix
+adapter, and Floorp, Discord, Vesktop and Ghostty. Ghostty is split because
+its package differs on darwin. `apps/gui/chromium.nix` stays whole and Linux
+only, since nixpkgs builds `ungoogled-chromium` for Linux alone. The
+`eval-exports` check counts a shared file as exported through its
+`.nixos.nix` file, and fails on a `.nixos.nix` file with no shared file beside
+it.
 
 ## Home Manager Integration
 

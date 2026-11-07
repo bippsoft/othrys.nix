@@ -9,17 +9,17 @@
 # module it configures.
 {
   imports = [
-    ./locale.nix
+    ./locale.nixos.nix
     ./user.nix
-    ./users.nix
-    ./nix.nix
+    ./users.nixos.nix
+    ./nix.nixos.nix
     ./auto-upgrade.nix
     ./kernel.nix
     ./hardening.nix
     ./ephemeral-root.nix
     ./persistence.nix
     ./bootloader.nix
-    ./git.nix
+    ./git.nixos.nix
     ./networking.nix
     ./shell
   ];

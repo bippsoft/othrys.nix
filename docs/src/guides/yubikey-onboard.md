@@ -145,7 +145,7 @@ Verifies required tools are available, detects the YubiKey (serial and firmware)
 
 Generates a master key (Certify only) and three subkeys (Sign, Encrypt, Authenticate) in a temporary GNUPGHOME on ramfs, so the key never touches persistent storage or swap. See Security Notes for the fallback when unprivileged user namespaces are unavailable.
 
-The temporary GPG environment uses a hardened `gpg.conf` matching the settings in `modules/services/security/yubikey.nix` and `pinentry-curses` for terminal PIN entry.
+The temporary GPG environment uses a hardened `gpg.conf` matching the settings in `modules/services/security/yubikey.nixos.nix` and `pinentry-curses` for terminal PIN entry.
 
 The `--name`, `--email`, and `--expiry` flags skip the interactive prompts. Name and email are refused if empty.
 

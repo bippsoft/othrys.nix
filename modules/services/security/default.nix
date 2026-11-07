@@ -4,7 +4,7 @@
   imports = [
     ./sudo.nix
     ./polkit.nix
-    ./yubikey.nix
+    ./yubikey.nixos.nix
     ./fail2ban.nix
     ./crowdsec.nix
   ];

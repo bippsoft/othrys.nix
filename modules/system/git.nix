@@ -1,20 +1,13 @@
 # modules/system/git.nix
 # Git version control configuration
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}: let
-  cfg = config.othrys.system.git;
-in {
+{lib, ...}: {
   options.othrys.system.git = {
     enable = lib.mkEnableOption "Git version control";
 
     # Null rather than no default. An option without a default fails with the
     # module system's "used but not defined" error, which names neither the
-    # module nor what to set. The assertion below says both, and only on a
-    # host where the identity is written.
+    # module nor what to set. The assertion in git.nixos.nix says both, and
+    # only on a host where the identity is written.
     name = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
@@ -55,43 +48,6 @@ in {
         graph = "log --graph --oneline --decorate";
       };
       description = "Git aliases. Override or set to {} to opt out.";
-    };
-  };
-
-  config = lib.mkIf cfg.enable {
-    # The identity only reaches a file through the Home Manager configuration
-    # below, so the requirement follows homeManaged. A headless host enables
-    # git for the binary and states no author.
-    assertions = [
-      {
-        assertion = !config.othrys.system.users.homeManaged || (cfg.name != null && cfg.email != null);
-        message = "othrys.system.git: set othrys.system.git.name and othrys.system.git.email. Home Manager writes them as the commit author for the primary user, and git refuses to commit without one.";
-      }
-    ];
-
-    programs.git.enable = true;
-
-    othrys.internal.homeConfig."system.git" = {
-      home.packages = [pkgs.commitizen];
-
-      programs.git = {
-        enable = true;
-
-        settings = {
-          user = {
-            inherit (cfg) name email;
-          };
-
-          init.defaultBranch = cfg.defaultBranch;
-          # A preference rather than a requirement, so mkDefault lets a
-          # consumer set pull.rebase = true without lib.mkForce (the same
-          # rule modules/services/ssh.nix states for its hardened settings).
-          pull.rebase = lib.mkDefault false;
-          core.editor = config.othrys.system.defaultEditor;
-
-          alias = cfg.aliases;
-        };
-      };
     };
   };
 }

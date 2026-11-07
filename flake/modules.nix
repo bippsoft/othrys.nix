@@ -35,6 +35,11 @@
 # Import `system` beside any individual export, `theme` beside one that draws
 # colour, and `desktop` beside a desktop or hardware one, or use `default`.
 #
+# A module that nix-darwin will implement too is split in two. `X.nix`
+# declares the options and `X.nixos.nix` imports it and holds the NixOS
+# writes, so the individual export names `X.nixos.nix`, and a darwin
+# implementation can import the same option file without them.
+#
 # Six exports are wrapped in `withArgs` below, which are `system`, `desktop`,
 # `nix`, `secrets`, `hyprland` and `ashell`. Their files take the
 # `othrysInputs` or `inputs` module argument, and the wrapper supplies it.
@@ -52,7 +57,7 @@
   # `llm-agents`. Only the five the modules use are named, so a module cannot
   # grow a dependency on another input unnoticed.
   #
-  # `inputs` is given an empty default beside them. modules/system/nix.nix
+  # `inputs` is given an empty default beside them. modules/system/nix.nixos.nix
   # reads the consumer's `inputs.nixpkgs` and modules/system/secrets.nix the
   # consumer's optional `inputs.secrets`, both through specialArgs, and a
   # consumer who passes no specialArgs would otherwise fail on the missing
@@ -122,8 +127,8 @@ in {
         ../modules/system/home.nix
         ../modules/system/impermanence.nix
         ../modules/system/disko.nix
-        ../modules/system/secrets.nix
-        ../modules/theme/stylix.nix
+        ../modules/system/secrets.nixos.nix
+        ../modules/theme/stylix.nixos.nix
         inputs.home-manager.nixosModules.home-manager
         inputs.impermanence.nixosModules.impermanence
         inputs.disko.nixosModules.disko
@@ -145,7 +150,7 @@ in {
 
     # The Stylix adapter, which `default` does not import. A host that wants
     # Stylix imports this and the Stylix module together.
-    stylix = ../modules/theme/stylix.nix;
+    stylix = ../modules/theme/stylix.nixos.nix;
 
     # The disk layout and the sops-nix plumbing, which `default` and `system`
     # do not import either. A host that wants the layout imports `disko` and
@@ -153,7 +158,7 @@ in {
     # `secrets` and the sops-nix module together. Both read options the
     # `system` group declares.
     disko = ../modules/system/disko.nix;
-    secrets = withArgs ../modules/system/secrets.nix;
+    secrets = withArgs ../modules/system/secrets.nixos.nix;
 
     # The impermanence adapter, left out of `default` and `system` on the same
     # terms. A host with an ephemeral root imports this and the impermanence
@@ -163,17 +168,17 @@ in {
     impermanence = ../modules/system/impermanence.nix;
 
     # System fundamentals
-    locale = ../modules/system/locale.nix;
+    locale = ../modules/system/locale.nixos.nix;
     user = ../modules/system/user.nix;
-    users = ../modules/system/users.nix;
-    nix = withArgs ../modules/system/nix.nix;
+    users = ../modules/system/users.nixos.nix;
+    nix = withArgs ../modules/system/nix.nixos.nix;
     kernel = ../modules/system/kernel.nix;
     hardening = ../modules/system/hardening.nix;
     networking = ../modules/system/networking.nix;
     ephemeral-root = ../modules/system/ephemeral-root.nix;
     persistence = ../modules/system/persistence.nix;
     bootloader = ../modules/system/bootloader.nix;
-    git = ../modules/system/git.nix;
+    git = ../modules/system/git.nixos.nix;
     auto-upgrade = ../modules/system/auto-upgrade.nix;
 
     # Desktop environment and compositors
@@ -208,8 +213,8 @@ in {
 
     # Background services
     printing = ../modules/services/printing.nix;
-    ssh = ../modules/services/ssh.nix;
-    tailscale = ../modules/services/tailscale.nix;
+    ssh = ../modules/services/ssh.nixos.nix;
+    tailscale = ../modules/services/tailscale.nixos.nix;
     headscale = ../modules/services/headscale.nix;
     monitoring = ../modules/services/monitoring.nix;
     alerting = ../modules/services/alerting.nix;
@@ -242,14 +247,15 @@ in {
     # Security features
     sudo = ../modules/services/security/sudo.nix;
     polkit = ../modules/services/security/polkit.nix;
-    yubikey = ../modules/services/security/yubikey.nix;
+    yubikey = ../modules/services/security/yubikey.nixos.nix;
     fail2ban = ../modules/services/security/fail2ban.nix;
     crowdsec = ../modules/services/security/crowdsec.nix;
 
     # Shell environment
     shell = ../modules/system/shell;
     bash = ../modules/system/shell/bash.nix;
-    zsh = ../modules/system/shell/zsh.nix;
+    zsh = ../modules/system/shell/zsh.nixos.nix;
+    editor = ../modules/system/shell/editor.nixos.nix;
     starship = ../modules/system/shell/starship.nix;
   };
 }

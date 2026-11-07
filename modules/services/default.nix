@@ -3,8 +3,8 @@
 {
   imports = [
     ./docs.nix
-    ./ssh.nix
-    ./tailscale.nix
+    ./ssh.nixos.nix
+    ./tailscale.nixos.nix
     ./headscale.nix
     ./monitoring.nix
     ./victoriametrics.nix

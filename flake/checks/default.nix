@@ -96,7 +96,7 @@
     # The server-relevant module surface, everything a headless host plausibly
     # enables. Used by eval-host-server (named, no managed account) and
     # eval-host-anonymous (user.name unset) so per-user state can never leak
-    # onto hosts without a managed user (see modules/system/nix.nix).
+    # onto hosts without a managed user (see modules/system/nix.nixos.nix).
     #
     # It turns the secrets plumbing on, so it carries the sops-nix module and
     # the secrets export itself.
@@ -367,7 +367,7 @@
         # writes home-manager.sharedModules behind a test for the namespace.
         hm_options=$(grep -rn --include='*.nix' -E '(^|[^.a-zA-Z-])home-manager\.[a-zA-Z]' modules \
           | grep -v '^modules/system/home\.nix:' \
-          | grep -v '^modules/theme/stylix\.nix:' \
+          | grep -v '^modules/theme/stylix\.nixos\.nix:' \
           | grep -vE '^[^:]+:[0-9]+: *#' || true)
         [ -z "$hm_options" ] || report \
           "only modules/system/home.nix may write into the home-manager option namespace:" \
@@ -377,7 +377,7 @@
         # guards on othrys.system.users.enable, at the attrset level.
         account_unguarded=()
         while IFS= read -r f; do
-          [ "$f" = "modules/system/users.nix" ] && continue
+          [ "$f" = "modules/system/users.nixos.nix" ] && continue
           grep -q 'usersEnabled\|othrys\.system\.users\.enable' "$f" || account_unguarded+=("$f")
         done < <(grep -rln --include='*.nix' -E '^ *users\.users' modules | sort)
         [ ''${#account_unguarded[@]} -eq 0 ] ||
@@ -987,7 +987,7 @@
       # Regression guard for headless/root-only hosts, with nix settings enabled but
       # NO primary user account (othrys.system.users stays off). othrys.system.nix
       # must not materialize a home-manager user here, since doing so trips NixOS's
-      # user assertions. See modules/system/nix.nix.
+      # user assertions. See modules/system/nix.nixos.nix.
       eval-host-headless = mkHostEval "othrys-eval-host-headless" [
         bootBase
         {
