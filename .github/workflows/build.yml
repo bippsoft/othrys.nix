@@ -175,6 +175,16 @@ jobs:
             '.#checks.x86_64-linux.eval-wallpaper' \
             '.#checks.x86_64-linux.yubikey-onboard-builds' \
             '.#checks.x86_64-linux.impermanence-test'
+      # The darwin hosts evaluated from Linux. Import-from-derivation is off,
+      # so a module that needs a build to evaluate fails here, where no
+      # darwin builder exists, rather than only on a Mac.
+      - name: Evaluate the darwin hosts
+        run: |
+          nix build --no-link --print-build-logs \
+            --option allow-import-from-derivation false \
+            '.#checks.x86_64-linux.eval-darwin-host-min' \
+            '.#checks.x86_64-linux.eval-darwin-host-user' \
+            '.#checks.x86_64-linux.eval-darwin'
   # The portable host evaluations on a native ARM runner. It shows that the
   # module tree evaluates for aarch64-linux and nothing more. No VM test runs
   # here, and nothing is booted. The list is portableChecks in flake/checks.
@@ -238,6 +248,9 @@ jobs:
       - name: Build the darwin checks, dev shells and formatter
         run: |
           nix build --no-link --print-build-logs \
+            '.#checks.aarch64-darwin.eval-darwin-host-min' \
+            '.#checks.aarch64-darwin.eval-darwin-host-user' \
+            '.#checks.aarch64-darwin.eval-darwin' \
             '.#checks.aarch64-darwin.pre-commit-check' \
             '.#checks.aarch64-darwin.secret-scan' \
             '.#checks.aarch64-darwin.docs-includes' \

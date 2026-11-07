@@ -8,6 +8,13 @@
 }: let
   othrysTypes = import ../lib/types.nix {inherit lib;};
   cfg = config.othrys.system.users;
+  # The export that applies the registry, and the Home Manager module it is
+  # imported with, named for the platform the host evaluates on.
+  homeExport =
+    if pkgs.stdenv.hostPlatform.isDarwin
+    then "darwinModules.home"
+    else "nixosModules.home";
+  homeRemedy = "othrys.${homeExport} together with the ${homeExport}-manager of the home-manager flake";
 in {
   options.othrys.system.users = {
     enable = lib.mkEnableOption "User account configuration";
@@ -130,7 +137,7 @@ in {
   #
   # A module with a second condition wraps its own value in lib.mkIf. The key
   # then disappears when the condition is false, so it is neither written nor
-  # reported by the warning in users.nixos.nix.
+  # reported by the warning below.
   # lib.types.raw rather than attrsOf anything, and the difference is not
   # cosmetic. Every ordinary option type resolves definition priorities at its
   # own level, so a module writing `gtk.gtk4.theme = lib.mkForce null` through
@@ -154,7 +161,7 @@ in {
   };
 
   # Set by nixosModules.home (./home.nix) and by nothing else. It is what
-  # homeManaged and the assertion in users.nixos.nix read to learn whether
+  # homeManaged and the assertion below read to learn whether
   # the registry reaches Home Manager on this host. The option carries a default and is
   # therefore not read-only, since the module system counts the default of a
   # read-only option as its one definition.
@@ -164,4 +171,41 @@ in {
     internal = true;
     description = "Whether nixosModules.home is imported (set by that export, do not set).";
   };
+
+  # Both checks read othrys options alone, so they sit here and hold on
+  # every platform that imports this file.
+  config = lib.mkMerge [
+    {
+      # The warning sits outside the enable guard, since it reports the
+      # case where enable is off and gating it on enable could never fire.
+      #
+      # Most modules that configure the user write nothing else, so on a host
+      # without a managed user `enable = true` silently does nothing at all.
+      # One warning naming every such module, since thirty-two near-identical
+      # ones on every rebuild is how a diagnostic gets scrolled past.
+      # attrNames returns sorted, so the list is stable across evaluations.
+      warnings = lib.optional (!cfg.homeManaged && config.othrys.internal.homeConfig != {}) ''
+        othrys.system.users.homeManaged is false, so home-manager configuration was
+        skipped for: ${lib.concatStringsSep ", " (lib.attrNames config.othrys.internal.homeConfig)}.
+
+        Where a module writes nothing but user configuration, enabling it on this
+        host has no effect at all. Set othrys.system.users.enable and
+        othrys.system.users.homeManager.enable to apply them, and import
+        ${homeRemedy}, which is the module that applies them.
+      '';
+    }
+
+    # The registry is read by the export alone. Without it the account
+    # exists and every module that configures the user, which for most of
+    # them is all they do, is skipped. A host that wants the account and no
+    # Home Manager says so with homeManager.enable.
+    (lib.mkIf cfg.enable {
+      assertions = [
+        {
+          assertion = !cfg.homeManager.enable || config.othrys.internal.homeExport;
+          message = "othrys.system.users: enable and homeManager.enable are set and ${homeExport} is not imported, so no module's Home Manager configuration would reach the '${config.othrys.system.user.name}' account. Import ${homeRemedy}, or set othrys.system.users.homeManager.enable = false for an account Home Manager does not manage.";
+        }
+      ];
+    })
+  ];
 }

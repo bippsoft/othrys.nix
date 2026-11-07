@@ -46,10 +46,6 @@ in {
     # works, so either one satisfies allowUnfree = true here.
     assertions = [
       {
-        assertion = !cfg.cachix.enable || (cfg.cachix.name != "" && cfg.cachix.publicKey != "");
-        message = "othrys.system.nix.cachix: set name and publicKey when the cache is enabled. An empty name pushed to nowhere, and an empty key left the substituter untrusted and silently ignored.";
-      }
-      {
         assertion =
           !options.nixpkgs.pkgs.isDefined
           || (pkgs.config.allowUnfree or false) == cfg.allowUnfree
@@ -145,18 +141,6 @@ in {
     };
 
     system.stateVersion = cfg.stateVersion;
-
-    # Per-user state goes through the registry rather than home-manager.users
-    # directly, so nixosModules.home applies the homeManaged guard once, at
-    # the attrset level. See modules/system/users.nix for why the guard cannot
-    # sit on a leaf. Home Manager is also told to use the system's package
-    # set by that export (modules/system/home.nix), which reads this module's
-    # enable flag. The entry is withheld on a host with no managed user,
-    # since a Home Manager state version means nothing there and the registry
-    # warns about every entry it has to skip.
-    othrys.internal.homeConfig."system.nix" = lib.mkIf config.othrys.system.users.homeManaged {
-      home.stateVersion = cfg.stateVersion;
-    };
 
     # cachix-push <path>... loads the auth token only into the push process,
     # not every interactive shell, so it never leaks via /proc or subprocesses.

@@ -189,8 +189,8 @@ and keys, ships null or neutral and arrives from your configuration.
 `aarch64-linux` CI evaluates the server, headless and default host fixtures on
 an ARM runner, which shows the module tree evaluates and nothing more. No VM
 test runs on ARM and no ARM host has been booted. For `aarch64-darwin` CI
-builds the commit hooks, the dev shells and the formatter, and no module is
-exported for darwin yet. A module whose package
+builds the commit hooks, the dev shells, the formatter and hosts from
+`darwinModules.default`, and no darwin host has been activated. A module whose package
 nixpkgs does not ship for the platform, such as Discord or Plexamp, fails an
 assertion that names it.
 

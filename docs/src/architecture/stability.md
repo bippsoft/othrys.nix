@@ -117,9 +117,10 @@ unlisted key, and a rollback.
 - **`aarch64-linux` beyond evaluation.** CI evaluates the server, headless and
   default host fixtures on an ARM runner. No VM test runs there, no desktop
   fixture is evaluated, and no ARM host has been booted.
-- **`aarch64-darwin`.** CI builds the commit hooks, the scans, the dev shells
-  and the formatter on a macOS runner. No darwin host is evaluated, since no
-  module is exported for darwin yet. No other platform is evaluated at all.
+- **`aarch64-darwin`.** CI builds the commit hooks, the scans, the dev shells,
+  the formatter and two hosts from `darwinModules.default` on a macOS runner,
+  and evaluates the same hosts from Linux. No darwin host has been activated.
+  No other platform is evaluated at all.
 
 The [Security Model](./security-model.md) lists the design limits, as opposed to
 the testing limits here.

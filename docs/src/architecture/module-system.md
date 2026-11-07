@@ -29,19 +29,23 @@ Five files are left out of their category, since each writes into an option name
 ## Shared Options and Platform Files
 
 A module that nix-darwin will implement as well is split into two files.
-`modules/services/tailscale.nix` declares `othrys.services.tailscale` and
-writes nothing, and `modules/services/tailscale.nixos.nix` imports it and
+`modules/services/tailscale.nix` declares `othrys.services.tailscale`, and `modules/services/tailscale.nixos.nix` imports it and
 holds every NixOS setting. The category's `default.nix` and the individual
 export both name the `.nixos.nix` file, so a NixOS host evaluates exactly what
 it did before the split. nix-darwin refuses a write to an option it does not
 declare, such as `networking.firewall` or `systemd`, so the darwin
-implementation of the same module imports the shared file and writes its own
-settings beside it, and the options keep one name on both platforms.
+implementation of a module, such as `git.darwin.nix`, imports the shared
+file and writes its own settings beside it, and the options keep one name on
+both platforms. A shared file also holds what both platforms write the same
+way, which is a Home Manager registry entry or an assertion that reads only
+othrys options, as `git.nix` and `zsh.nix` do, so neither platform file
+repeats it.
 
 The split applies to the system modules `users`, `nix`, `git`, `locale` and
 `secrets`, the editor option and `zsh` under `system/shell`, `ssh`,
 `tailscale` and `yubikey`, the `development` and `ollama` apps, the Stylix
-adapter, and Floorp, Discord, Vesktop and Ghostty. Ghostty is split because
+adapter, Floorp, Discord, Vesktop and Ghostty, and the graphical-session
+signal in `desktop/graphical.nix`, which a Mac sets on. Ghostty is split because
 its package differs on darwin. `apps/gui/chromium.nix` stays whole and Linux
 only, since nixpkgs builds `ungoogled-chromium` for Linux alone. The
 `eval-exports` check counts a shared file as exported through its

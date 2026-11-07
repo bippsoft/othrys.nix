@@ -30,7 +30,7 @@
 # system/user.nix and system/users.nix, the persist root from
 # system/ephemeral-root.nix, the persistence registry from
 # system/persistence.nix, the default editor from system/shell, the
-# graphical signal from desktop/default.nix and the notification hook from
+# graphical signal from desktop/graphical.nix and the notification hook from
 # services/notify.nix. The palette and fonts come from theme/default.nix.
 # Import `system` beside any individual export, `theme` beside one that draws
 # colour, and `desktop` beside a desktop or hardware one, or use `default`.
@@ -49,7 +49,11 @@
 #   inputs.othrys.nixosModules.default
 #   inputs.othrys.nixosModules.system
 #   inputs.othrys.nixosModules.tailscale
-{inputs, ...}: let
+{
+  config,
+  inputs,
+  ...
+}: let
   # What the modules take from this flake's own lock, as module arguments.
   # A module can only reach flake inputs through an argument, and reading them
   # from the consumer's `inputs` made every consuming flake declare an input
@@ -101,7 +105,46 @@
     ];
     _module.args.othrysSelf = inputs.self;
   };
+
+  # The darwin tree, published as flake.modules.darwin.default. nix-darwin
+  # refuses a write to an option it does not declare, so this names files
+  # rather than the category directories, whose default.nix files are the
+  # NixOS tree. Each module is the darwin implementation of a split module or
+  # a file whose writes nix-darwin declares as well, such as the theme's
+  # fonts.packages and assertions. It imports no
+  # module of an upstream flake, so a darwin host built from it alone imports
+  # nothing else.
+  #
+  # flake.modules wraps an export to set its class and its file and gives it
+  # no `key`, so the key here keeps one copy on a host that imports this
+  # export through two names or two aggregates.
+  darwinDefault = {
+    key = "othrys.nix/flake/modules.nix#darwin-default";
+    imports = [
+      args
+      ../modules/system/user.nix
+      ../modules/system/users.darwin.nix
+      ../modules/system/nix.darwin.nix
+      ../modules/system/git.darwin.nix
+      ../modules/system/locale.darwin.nix
+      ../modules/system/shell/editor.darwin.nix
+      ../modules/system/shell/bash.nix
+      ../modules/system/shell/zsh.darwin.nix
+      ../modules/system/shell/starship.nix
+      ../modules/desktop/graphical.darwin.nix
+      ../modules/theme
+    ];
+    _module.args.othrysSelf = inputs.self;
+  };
 in {
+  # flake-parts declares no darwinModules option, so the darwin exports live
+  # under flake.modules, which sets each module's class, and darwinModules
+  # names the same set for a consumer that looks for it there.
+  flake.modules.darwin = {
+    default = darwinDefault;
+  };
+  flake.darwinModules = config.flake.modules.darwin;
+
   flake.nixosModules = {
     inherit default;
 
@@ -192,6 +235,7 @@ in {
     wallpaper = ../modules/desktop/wallpaper.nix;
     ashell = withArgs ../modules/desktop/ashell;
     vicinae = ../modules/desktop/vicinae.nix;
+    graphical = ../modules/desktop/graphical.nix;
 
     # Hardware-specific
     audio = ../modules/hardware/audio.nix;
