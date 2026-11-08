@@ -403,12 +403,13 @@
           report "modules must read config.othrys.system.user.name, not take a username argument:" "$username_args"
 
         # Clause 4. specialArgs carry `inputs` alone, or nothing, wherever a
-        # host or a NixOS test is built. Bare lib.evalModules fixtures with stub
-        # option trees are not a consumer path and pass what they need, so the
-        # rule is scoped to files that actually build one.
+        # NixOS or nix-darwin host or a NixOS test is built. Bare
+        # lib.evalModules fixtures with stub option trees are not a consumer
+        # path and pass what they need, so the rule is scoped to files that
+        # actually build one.
         bad_special=()
         while IFS= read -r f; do
-          grep -q 'nixosSystem\|nixosTest\|runTest' "$f" || continue
+          grep -q 'nixosSystem\|darwinSystem\|nixosTest\|runTest' "$f" || continue
           while IFS= read -r hit; do
             case "$hit" in
               *'{inherit inputs;}'*|*'{}'*) ;;
@@ -1440,6 +1441,7 @@
       eval-contract = import ./contract-eval.nix {
         inherit impermanenceModules homeModules inputs hostEval mkExpectations templateHost moduleHelpers;
         inherit functioningHost accountNoHomeManager appDesktopModules serverModules;
+        inherit darwinEval darwinBase darwinHomeModules darwinAppHost darwinFullHost darwinManagedBase darwinServiceHosts;
       };
 
       # Where the modules take ashell, Hyprland, nixvim and nix-index-database

@@ -48,7 +48,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-host-app-no-hm`, `eval-host-app-no-hm-full` | A slice of the app and desktop modules, and all of them, each on a host with an account that Home Manager does not manage |
 | `eval-host-encrypted` | An encrypted workstation's disk shape, the disko layout with FIDO2 unlock beside impermanence, built to its top level so every assertion runs |
 | `eval-pairs` | Every conflict or requirement between two modules or two options, each matched by a fragment of its assertion message |
-| `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/home.nix` writes `home-manager.users`, only `modules/system/impermanence.nix` writes `environment.persistence`, and the fixtures and the template pass `inputs` alone or nothing |
+| `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/home.nix` writes `home-manager.users` on a NixOS or a darwin host, only `modules/system/impermanence.nix` writes `environment.persistence`, and the NixOS and darwin fixtures and the template pass `inputs` alone or nothing |
 | `eval-inputs` | A host handed no `specialArgs` enables ashell, Hyprland, nixvim, comma and claude-code, gets each from this flake's lock, and gets the package it sets through a `package` option |
 | `ci-coverage` | Every check is named by a job in `build.yml`, and every name there is a check |
 | `eval-bootloader` | Every bootloader type with `secureBoot` off and on |

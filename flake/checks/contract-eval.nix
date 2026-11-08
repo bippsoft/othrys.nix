@@ -8,7 +8,10 @@
 # can find. Here the argument names come from builtins.functionArgs, the
 # writers of home-manager.users and of environment.persistence from the
 # locations the module system records for each definition, and the
-# specialArgs from the evaluation that received them.
+# specialArgs from the evaluation that received them. The darwin hosts are
+# read for clauses 2 and 4 beside the NixOS ones, since darwinModules.home is
+# the same file as nixosModules.home and darwinSystem takes specialArgs as
+# nixosSystem does.
 {
   inputs,
   impermanenceModules,
@@ -21,6 +24,13 @@
   accountNoHomeManager,
   appDesktopModules,
   serverModules,
+  darwinEval,
+  darwinBase,
+  darwinHomeModules,
+  darwinAppHost,
+  darwinFullHost,
+  darwinManagedBase,
+  darwinServiceHosts,
 }: let
   inherit (inputs.nixpkgs) lib;
   root = toString inputs.self;
@@ -96,7 +106,27 @@
   # the export is shown to write nothing into it.
   accountOnly = hostEval [accountNoHomeManager homeModules appDesktopModules];
 
-  strays = lib.unique (lib.concatMap strayWriters [managedApps managedServer accountOnly]);
+  # The darwin hosts that manage the account, every darwin app on, every
+  # darwin service module on, and darwinModules.full with its adapters on,
+  # with an account Home Manager does not manage beside them.
+  darwinApps = darwinEval [darwinBase darwinAppHost];
+  darwinServices = darwinEval ([darwinBase darwinManagedBase] ++ builtins.attrValues darwinServiceHosts);
+  darwinFull = darwinEval [darwinBase darwinFullHost];
+  darwinAccountOnly = darwinEval [
+    darwinBase
+    darwinHomeModules
+    {
+      othrys.system.users = {
+        enable = true;
+        homeManager.enable = false;
+      };
+      othrys.apps.gh.enable = true;
+      othrys.services.ssh.enable = true;
+    }
+  ];
+  darwinManaged = [darwinApps darwinServices darwinFull];
+
+  strays = lib.unique (lib.concatMap strayWriters ([managedApps managedServer accountOnly darwinAccountOnly] ++ darwinManaged));
 
   # Clause 2, persistence half. Every module names its persistent paths in
   # othrys.internal.persist, and the impermanence adapter is the one file
@@ -109,8 +139,9 @@
   persistStrays = lib.unique (lib.concatMap strayPersistWriters [managedApps managedServer]);
   registryKeys = evaluation: builtins.attrNames evaluation.config.othrys.internal.persist;
 
-  # Clause 4. nixosSystem adds modulesPath to whatever it is handed, so that
-  # name is set aside and the rest has to be `inputs` alone or nothing.
+  # Clause 4. nixosSystem and darwinSystem add modulesPath to whatever they
+  # are handed, so that name is set aside and the rest has to be `inputs`
+  # alone or nothing.
   # eval-inputs (./inputs-eval.nix) evaluates the host that is handed nothing.
   handed = evaluation: lib.subtractLists ["modulesPath"] (builtins.attrNames evaluation._module.specialArgs);
   allowed = evaluation: builtins.elem (handed evaluation) [[] ["inputs"]];
@@ -136,5 +167,8 @@ in
       "the server modules reach the adapter through the registry" = builtins.all (key: builtins.elem key (registryKeys managedServer)) ["services.tailscale" "services.grafana" "services.containerization.docker"];
       "the check fixtures hand a host inputs or nothing" = allowed managedApps;
       "the template hands its host inputs or nothing" = allowed templateHost;
+      "the export is recorded as a writer of home-manager.users on every managed darwin host" = builtins.all (evaluation: builtins.elem homeModule (writersOf evaluation)) darwinManaged;
+      "no file in this repository writes home-manager.users on a darwin account-only host" = builtins.filter inTree (writersOf darwinAccountOnly) == [];
+      "the darwin check fixtures hand a host inputs or nothing" = builtins.all allowed (darwinManaged ++ [darwinAccountOnly]);
     }
   )

@@ -22,8 +22,8 @@ Changing any of these breaks consuming flakes.
    Manager configuration goes to `othrys.internal.homeConfig` and persistent
    paths go to `othrys.internal.persist`, never to `home-manager.users` or
    `environment.persistence`. One export applies each registry and its guard,
-   `nixosModules.home` for the first and `nixosModules.impermanence` for the
-   second.
+   `nixosModules.home` for the first, or `darwinModules.home` on nix-darwin,
+   and `nixosModules.impermanence` for the second.
 1. **`nixosModules.default` writes into no upstream namespace.** A host built
    from it alone imports no other module. Five exports are optional, and a
    host imports each together with the upstream module it configures.
@@ -31,10 +31,14 @@ Changing any of these breaks consuming flakes.
    Stylix, `nixosModules.disko` with disko, `nixosModules.secrets` with
    sops-nix and `nixosModules.impermanence` with impermanence.
    `nixosModules.full` is `default` with all five and the five upstream
-   modules, taken from this flake's own lock.
+   modules, taken from this flake's own lock. `darwinModules.default` holds
+   to the same rule on nix-darwin. Its optional exports are `home` with Home
+   Manager, `stylix` with Stylix and `secrets` with sops-nix, and
+   `darwinModules.full` is `default` with the three and their upstream
+   darwin modules.
 1. **specialArgs carry `inputs` or nothing.** Modules read two names from it,
    `nixpkgs` for the registry pin and the optional `secrets`. Not `username`,
-   not `hostname`.
+   not `hostname`. The same holds for a host built with `darwinSystem`.
 
 <!-- ANCHOR_END: consumer-contract -->
 
