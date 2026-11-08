@@ -289,10 +289,11 @@ tier covers lint, the secret scan, the docs build, the host and module
 evaluations, and the impermanence VM test. The extended tier adds whole-tree
 evaluation, the enable-with-defaults matrix, and runtime VM tests for the
 router, CrowdSec, restic, Headscale, auto-upgrade, an impermanence reboot and a
-full integration host. A darwin job builds the commit hooks, the dev shells
-and the formatter on macOS. Branch protection requires `Core checks`,
-`Core checks (darwin)` and `Extended verdict`, and the verdict passes only
-when every extended check succeeded.
+full integration host. Two darwin jobs build the darwin hosts, the commit hooks, the dev shells and
+the formatter on macOS and turn every darwin module on by itself. Branch
+protection requires `Core checks`, `Core checks (darwin)`, `Extended verdict`
+and `Extended verdict (darwin)`, and each verdict passes only when every
+extended check of its platform succeeded.
 
 What that buys you is narrow but real. Every module evaluates with its defaults or
 is allowlisted with an assertion explaining why it cannot. The headless surface

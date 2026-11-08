@@ -173,11 +173,10 @@ entry there that a job does build, or that names no check, fails as well. A
 new check therefore needs a line in `build.yml` or an entry in `localOnly`
 with its reason.
 
-Branch protection on `main` requires three statuses, `Core checks`,
-`Core checks (darwin)` and `Extended verdict`. That requirement is a
-repository setting, and the workflow only reports them. `Extended verdict
-(darwin)` is reported as well and is required only once the setting names
-it.
+Branch protection on `main` requires four statuses, `Core checks`,
+`Core checks (darwin)`, `Extended verdict` and `Extended verdict (darwin)`.
+That requirement is a repository setting, and the workflow only reports
+them.
 
 A newer push to a pull request cancels the run before it. A run on `main` is
 never cancelled, since its concurrency group is keyed on the commit, so a
