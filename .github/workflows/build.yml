@@ -220,8 +220,9 @@ jobs:
             '.#checks.aarch64-linux.eval-ssh' \
             '.#checks.aarch64-linux.eval-dev-shells'
   # The darwin checks on an Apple Silicon runner, a required status like the
-  # x86 core tier. They are the checks named in darwinChecks in flake/checks,
-  # the treefmt check, every dev shell and the formatter. The macOS runner
+  # x86 core tier. They are the checks named in darwinChecks in flake/checks
+  # apart from darwin-enable-matrix, which extended-darwin builds, the treefmt
+  # check, every dev shell and the formatter. The macOS runner
   # has no disk to reclaim and keeps its swap, so the job has no Reclaim disk
   # space or Grow swap step. Nix leaves the build sandbox off on macOS unless told,
   # and the job turns it on so a build sees what it would see on Linux.
@@ -362,5 +363,48 @@ jobs:
         run: |
           [ "$RESULT" = "success" ] || {
             echo "extended matrix result: $RESULT"
+            exit 1
+          }
+  # The darwin leg of the EXTENDED tier, on a Mac. Each entry evaluates
+  # darwin hosts and builds nothing of them, so the job needs no llm-agents
+  # cache. Nix leaves the sandbox off on macOS unless told, and the job turns
+  # it on for the one wrapper it builds.
+  extended-darwin:
+    name: Extended checks (darwin)
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - darwin-enable-matrix
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@f296148a827001a9a82d3685b53210c06e5d3b67 # v3
+        with:
+          extra-conf: |
+            fallback = true
+            download-attempts = 10
+            sandbox = true
+      - name: Build ${{ matrix.check }}
+        run: |
+          nix build --no-link --print-build-logs \
+            '.#checks.aarch64-darwin.${{ matrix.check }}'
+  # The darwin leg's own status for branch protection, on the same terms as
+  # the Extended verdict.
+  extended-darwin-ok:
+    name: Extended verdict (darwin)
+    runs-on: ubuntu-latest
+    needs: extended-darwin
+    if: ${{ always() }}
+    steps:
+      - name: Verdict
+        env:
+          RESULT: ${{ needs.extended-darwin.result }}
+        run: |
+          [ "$RESULT" = "success" ] || {
+            echo "extended darwin matrix result: $RESULT"
             exit 1
           }

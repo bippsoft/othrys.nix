@@ -1132,9 +1132,10 @@
 
     # aarch64-darwin keeps the checks that evaluate no NixOS host, since
     # nixosSystem cannot evaluate for a darwin system. They are the darwin
-    # hosts, built here as systems, their read-back, the commit hooks, the
-    # secret scan, the documentation links, the dev shells and the agent hook,
-    # which a session on a Mac runs as well. comment-hygiene and
+    # hosts, built here as systems, their read-back, the darwin enable
+    # matrix, which the darwin leg of the extended tier builds, the commit
+    # hooks, the secret scan, the documentation links, the dev shells and the
+    # agent hook, which a session on a Mac runs as well. comment-hygiene and
     # contract-guards stay out, as pre-commit-check runs both.
     darwinChecks = [
       "eval-darwin-host-min"
@@ -1143,6 +1144,7 @@
       "eval-darwin-host-full"
       "eval-darwin-host-services"
       "eval-darwin"
+      "darwin-enable-matrix"
       "pre-commit-check"
       "secret-scan"
       "docs-includes"
@@ -1170,8 +1172,8 @@
     };
 
     # ANCHOR: checks
-    # Checks are split into two tiers. The GitHub workflow runs CORE on every PR
-    # and EXTENDED only on main + manual dispatch (see .github/workflows).
+    # Checks are split into two tiers. The GitHub workflow runs both on every
+    # pull request, push and manual dispatch (see .github/workflows).
     # `nix flake check` on x86_64-linux still runs all of them.
     checks = onThisSystem {
       # CORE, fast, every PR
@@ -1201,6 +1203,11 @@
           pkgs.runCommand "othrys-eval-darwin-host-services" {
             drvs = pkgs.lib.concatStringsSep "\n" (pkgs.lib.mapAttrsToList (n: t: "${n} ${builtins.unsafeDiscardStringContext t.drvPath}") tops);
           } "echo \"$drvs\" > \"$out\"";
+      # EXTENDED. Every othrys.*.enable of the darwin exports on by itself
+      # (see ./darwin-enable-matrix.nix).
+      darwin-enable-matrix = import ./darwin-enable-matrix.nix {
+        inherit pkgs inputs darwinEval darwinBase darwinHomeModules darwinManagedBase darwinStylixModules darwinSecretsModules;
+      };
       eval-darwin = import ./darwin-eval.nix {
         inherit (inputs.nixpkgs) lib;
         inherit darwinConfig darwinBase darwinHomeModules darwinAppHost darwinManagedBase darwinServiceHosts mkExpectations rejectedWith inputs;

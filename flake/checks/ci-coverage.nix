@@ -29,6 +29,9 @@
       # Registered by the treefmt-nix flake module. pre-commit-check runs
       # the same treefmt wrapper as its first hook.
       "treefmt"
+      # It evaluates aarch64-darwin hosts whatever system builds it, and the
+      # darwin leg of the extended tier builds it on a Mac.
+      "darwin-enable-matrix"
     ];
     # The treefmt-nix flake module registers it on every system. Formatting
     # does not vary by platform, and the x86_64-linux and aarch64-darwin

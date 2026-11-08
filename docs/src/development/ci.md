@@ -22,8 +22,9 @@ tier reports early while the whole suite still gates what lands:
   `flake/checks/default.nix`. It is not required by branch protection.
 - **Core on darwin** (`core-darwin` job) runs on every PR/push/dispatch on a
   `macos-latest` runner, which is Apple Silicon. It builds the checks named in
-  `darwinChecks` in `flake/checks/default.nix`, the `treefmt` check, every dev
-  shell and the formatter for `aarch64-darwin`. Branch protection requires it.
+  `darwinChecks` in `flake/checks/default.nix` apart from
+  `darwin-enable-matrix`, the `treefmt` check, every dev shell and the
+  formatter for `aarch64-darwin`. Branch protection requires it.
 - **Extended** (`extended` job) runs on every PR/push/dispatch. Neither the
   changed paths nor the pull request title decides whether it runs. A matrix fans the suite out, one runner per check:
   `eval-default` and the two desktop evals, `eval-ashell` (the bar's generated
@@ -36,6 +37,13 @@ tier reports early while the whole suite still gates what lands:
 - **Extended verdict** (`extended-ok` job) turns the matrix into one status
   that branch protection can require. It passes only when every matrix leg
   succeeded, so a failed, cancelled or skipped leg fails it.
+- **Extended on darwin** (`extended-darwin` job) runs on the same events on a
+  `macos-latest` runner, with a matrix of its own. It holds
+  `darwin-enable-matrix` (every darwin module enabled with defaults). It
+  evaluates darwin hosts and builds none of them, with the sandbox on for
+  the wrapper it builds.
+- **Extended verdict (darwin)** (`extended-darwin-ok` job) is the darwin
+  leg's own status, on the same terms as the Extended verdict.
 
 | Check | What it covers |
 |-------|----------------|
@@ -106,7 +114,8 @@ tier reports early while the whole suite still gates what lands:
 They are the darwin hosts `eval-darwin-host-min`, `eval-darwin-host-user`,
 `eval-darwin-host-apps`, `eval-darwin-host-full` and `eval-darwin-host-services`, built there as systems, the read-back
 `eval-darwin`, `pre-commit-check`, `secret-scan`, `docs-includes`,
-`eval-dev-shells` and `agent-config`, and the job also builds the `treefmt`
+`eval-dev-shells` and `agent-config`, and `darwin-enable-matrix`, which
+the darwin leg of the extended tier builds. The job also builds the `treefmt`
 check, the eight dev shells and `formatter.aarch64-darwin`. Nix turns the
 build sandbox off on macOS by default, and the job sets `sandbox = relaxed`, which sandboxes every build except one that asks for `__noChroot`, as the llm-agents build of Claude Code does on darwin. The job trusts `cache.numtide.com`, as a host with an llm-agents module does, so Claude Code arrives prebuilt. That cache holds no darwin build of Codex, so the runner compiles it, and the job takes about 90 minutes. The
 macOS runner has 3 CPUs, 7 GB of memory and 14 GB of disk, and it skips the
@@ -115,18 +124,18 @@ disk and swap steps of the Linux jobs. `yubikey-onboard` needs `unshare` and
 package exists for darwin, and the `docs` and `yubikey-onboard-builds` checks
 stay on Linux.
 
-**Extended** (`extended` job) runs on push to `main`, on manual dispatch, and
-on a pull request that changes `flake.nix` or `flake.lock` or whose title
-starts with `chore(flake)`, since input bumps are the changes that break deep
-surfaces. A matrix gives each check its own runner. The `extended-ok` job
-reports one status for branch protection and counts a skipped matrix as a
-pass.
+**Extended** (`extended` job) runs on every pull request, push and manual
+dispatch. A matrix gives each check its own runner. The `extended-ok` job
+reports one status for branch protection, and a failed, cancelled or skipped
+matrix fails it. `extended-darwin` and `extended-darwin-ok` do the same on a
+Mac.
 
 | Check | What it covers |
 |-------|----------------|
 | `eval-default`, `eval-host-desktop`, `eval-host-desktop-niri` | The whole module tree with defaults, and the two desktop stacks |
 | `eval-ashell` | The bar's generated config for a desktop and a laptop |
 | `enable-matrix` | Every `othrys.*.enable` option turned on with defaults, where an expected failure has to carry the assertion message the allowlist names |
+| `darwin-enable-matrix` | The same over every `othrys.*.enable` option of the darwin exports, the apps and desktop options over a managed account and the rest over a host with none, with Home Manager, Stylix and sops-nix imported, run on a Mac by the darwin leg |
 | `restic-test` | A backup, a restore and the integrity check, in a VM |
 | `headscale-test` | A Tailscale client registering against Headscale |
 | `auto-upgrade-test` | The signature gate in front of the unattended upgrade |
@@ -144,7 +153,9 @@ On `x86_64-linux`, `nix flake check` runs every check regardless of tier.
 On a Mac it runs the darwin list and `treefmt`. The Linux run includes
 `comment-hygiene`, `contract-guards` and `treefmt` as checks of their own,
 which no workflow job builds by name, since `pre-commit-check` runs all three
-as hooks over the whole tree.
+as hooks over the whole tree. It includes `darwin-enable-matrix` as well,
+which evaluates the same darwin hosts on any system and which the darwin leg
+builds on a Mac.
 
 The workflow lists its checks by name, so a check added to `flake/checks/`
 and left out of `build.yml` would be built by no job. The `ci-coverage` check
@@ -154,7 +165,7 @@ fails on that. For each of `x86_64-linux`, `aarch64-linux` and
 a `matrix.check` list whose build line names that system, and fails naming
 any check that no job builds for its system and any listed name that is not
 a check there. A matrix list with no build line naming a system fails too.
-The three checks above are named in `localOnly` in
+The four checks above are named in `localOnly` in
 `flake/checks/ci-coverage.nix` for `x86_64-linux`, and `treefmt` for
 `aarch64-linux`, which the treefmt-nix module registers on every system. An
 entry there that a job does build, or that names no check, fails as well. A
@@ -163,7 +174,9 @@ with its reason.
 
 Branch protection on `main` requires three statuses, `Core checks`,
 `Core checks (darwin)` and `Extended verdict`. That requirement is a
-repository setting, and the workflow only reports them.
+repository setting, and the workflow only reports them. `Extended verdict
+(darwin)` is reported as well and is required only once the setting names
+it.
 
 A newer push to a pull request cancels the run before it. A run on `main` is
 never cancelled, since its concurrency group is keyed on the commit, so a
@@ -193,6 +206,8 @@ text.
 | `build.yml` | **core-darwin** | Every PR/push: the darwin checks, dev shells and formatter for `aarch64-darwin` on a macOS runner |
 | `build.yml` | **extended** | Every PR/push: a matrix of whole-tree evals, `enable-matrix` and the runtime VM tests, one runner each |
 | `build.yml` | **extended-ok** | Every PR/push: one status for the matrix, passing only when every leg succeeded |
+| `build.yml` | **extended-darwin** | Every PR/push: `darwin-enable-matrix` on a macOS runner |
+| `build.yml` | **extended-darwin-ok** | Every PR/push: one status for the darwin matrix |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |
 | `flake-inputs.yml` | **flake-inputs** | Health check of the nixpkgs pins in the flake lock, which covers the branch they track, their age and whether the release is supported. It runs when `flake.{lock,nix}` change and weekly, and it does not scan for security advisories |
 | `update-inputs.yml` | **update** | Weekly `nix flake update`, opened as a `chore(flake)` pull request and never merged automatically |
