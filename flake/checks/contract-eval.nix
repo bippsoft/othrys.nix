@@ -19,6 +19,7 @@
   hostEval,
   mkExpectations,
   templateHost,
+  darwinTemplateHost,
   moduleHelpers,
   functioningHost,
   accountNoHomeManager,
@@ -167,6 +168,7 @@ in
       "the server modules reach the adapter through the registry" = builtins.all (key: builtins.elem key (registryKeys managedServer)) ["services.tailscale" "services.grafana" "services.containerization.docker"];
       "the check fixtures hand a host inputs or nothing" = allowed managedApps;
       "the template hands its host inputs or nothing" = allowed templateHost;
+      "the darwin template hands its host inputs or nothing" = allowed darwinTemplateHost;
       "the export is recorded as a writer of home-manager.users on every managed darwin host" = builtins.all (evaluation: builtins.elem homeModule (writersOf evaluation)) darwinManaged;
       "no file in this repository writes home-manager.users on a darwin account-only host" = builtins.filter inTree (writersOf darwinAccountOnly) == [];
       "the darwin check fixtures hand a host inputs or nothing" = builtins.all allowed (darwinManaged ++ [darwinAccountOnly]);

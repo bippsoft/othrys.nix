@@ -589,6 +589,15 @@
         inherit (inputs) nixpkgs home-manager;
       }).nixosConfigurations.myhost;
 
+    # The darwin template, instantiated the same way. darwinModules.full
+    # carries the upstream modules it needs, so nix-darwin is the one input
+    # beside othrys and nixpkgs.
+    darwinTemplateHost =
+      ((import ../../templates/darwin/flake.nix).outputs {
+        othrys = inputs.self;
+        inherit (inputs) nixpkgs nix-darwin;
+      }).darwinConfigurations.mymac;
+
     # Files under modules/ that are not modules. Each is a plain function or
     # plain data that modules import directly, and says so in its header.
     moduleHelpers = [
@@ -1143,6 +1152,7 @@
       "eval-darwin-host-apps"
       "eval-darwin-host-full"
       "eval-darwin-host-services"
+      "eval-darwin-template"
       "eval-darwin"
       "darwin-enable-matrix"
       "pre-commit-check"
@@ -1446,7 +1456,7 @@
       # Three clauses of the consumer contract, read back from evaluation
       # (see ./contract-eval.nix).
       eval-contract = import ./contract-eval.nix {
-        inherit impermanenceModules homeModules inputs hostEval mkExpectations templateHost moduleHelpers;
+        inherit impermanenceModules homeModules inputs hostEval mkExpectations templateHost darwinTemplateHost moduleHelpers;
         inherit functioningHost accountNoHomeManager appDesktopModules serverModules;
         inherit darwinEval darwinBase darwinHomeModules darwinAppHost darwinFullHost darwinManagedBase darwinServiceHosts;
       };
@@ -1623,6 +1633,43 @@
           }
           [ "$warningCount" = 0 ] || {
             echo "template: evaluates with $warningCount warning(s)" >&2
+            exit 1
+          }
+          echo "$drv" > "$out"
+        '';
+
+      # The darwin template, as darwinTemplateHost above instantiates it. On
+      # a Mac its toplevel is built, and elsewhere its derivation is
+      # recorded, as for the other darwin hosts. A warning means an othrys
+      # module objects to the template as shipped, and so does an account
+      # that comes out without Home Manager or a Nix other than Lix.
+      eval-darwin-template = let
+        template = darwinTemplateHost.config;
+        toplevel = template.system.build.toplevel;
+      in
+        pkgs.runCommand "othrys-eval-darwin-template" {
+          drv = builtins.unsafeDiscardStringContext toplevel.drvPath;
+          built =
+            if pkgs.stdenv.hostPlatform.isDarwin
+            then toplevel
+            else "";
+          warningCount = toString (builtins.length template.warnings);
+          nixName = pkgs.lib.getName template.nix.package;
+          homeManaged =
+            if template.home-manager.users ? alice
+            then "1"
+            else "0";
+        } ''
+          [ "$warningCount" = 0 ] || {
+            echo "darwin template: evaluates with $warningCount warning(s)" >&2
+            exit 1
+          }
+          [ "$nixName" = lix ] || {
+            echo "darwin template: nix.package is $nixName, not Lix" >&2
+            exit 1
+          }
+          [ "$homeManaged" = 1 ] || {
+            echo "darwin template: Home Manager does not manage alice" >&2
             exit 1
           }
           echo "$drv" > "$out"

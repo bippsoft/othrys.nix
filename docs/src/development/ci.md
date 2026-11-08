@@ -70,6 +70,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-exports` | The export list in `flake/modules.nix`, held to the module tree |
 | `eval-optional-exports` | A host with `default` and no upstream module at all, a managed account rejected without `nixosModules.home`, an account Home Manager does not manage accepted without it, a host built from `nixosModules.full`, impermanence on a device named by hand, the rejection of impermanence without its export, and what the `disko`, `secrets` and `impermanence` exports write beside their upstream modules. The same for the darwin `default`, `stylix`, `secrets` and `full` exports, with a darwin host refused for want of `sops.age.keyFile` |
 | `eval-template` | The `nix flake init` template, instantiated with only the inputs a consumer has |
+| `eval-darwin-template` | The `darwin` template, instantiated the same way, with no warning, Lix as its Nix and Home Manager managing the user. The darwin job builds its toplevel |
 | `eval-dev-shells` | The hooks each dev shell installs |
 | `eval-darwin-host-min`, `eval-darwin-host-user`, `eval-darwin-host-apps`, `eval-darwin-host-full`, `eval-darwin-host-services`, `eval-darwin` | A darwin host from `darwinModules.default` with a user named, the same host with the system modules and Home Manager on, the same host with every darwin app on, a host from `darwinModules.full` with Stylix and the secrets plumbing on, one host each for SSH, Tailscale, the YubiKey and Ollama on by itself, and what the account, Nix, locale and service modules write there, the Ollama launchd agent's host and port among them. The core job evaluates them with import-from-derivation off, and the darwin job builds the hosts |
 | `eval-auto-upgrade` | The evaluation-time rules of the auto-upgrade verify gate |
@@ -112,7 +113,7 @@ tier reports early while the whole suite still gates what lands:
 `macos-latest` runner. `nixosSystem` cannot evaluate for a darwin system, so
 `checks.aarch64-darwin` holds only the checks that evaluate no NixOS host.
 They are the darwin hosts `eval-darwin-host-min`, `eval-darwin-host-user`,
-`eval-darwin-host-apps`, `eval-darwin-host-full` and `eval-darwin-host-services`, built there as systems, the read-back
+`eval-darwin-host-apps`, `eval-darwin-host-full`, `eval-darwin-host-services` and `eval-darwin-template`, built there as systems, the read-back
 `eval-darwin`, `pre-commit-check`, `secret-scan`, `docs-includes`,
 `eval-dev-shells` and `agent-config`, and `darwin-enable-matrix`, which
 the darwin leg of the extended tier builds. The job also builds the `treefmt`
