@@ -1452,7 +1452,7 @@
 
       # The check names in .github/workflows/build.yml, held to the checks
       # defined here (see ./ci-coverage.nix).
-      ci-coverage = import ./ci-coverage.nix {inherit pkgs inputs system;};
+      ci-coverage = import ./ci-coverage.nix {inherit pkgs inputs;};
 
       # The same contract over every app and desktop module that writes per-user
       # configuration. It is an evaluation, and only the wrapper that records

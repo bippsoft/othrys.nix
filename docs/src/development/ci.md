@@ -50,7 +50,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-pairs` | Every conflict or requirement between two modules or two options, each matched by a fragment of its assertion message |
 | `eval-contract` | No module file takes `username` or `hostname`, only `modules/system/home.nix` writes `home-manager.users` on a NixOS or a darwin host, only `modules/system/impermanence.nix` writes `environment.persistence`, and the NixOS and darwin fixtures and the template pass `inputs` alone or nothing |
 | `eval-inputs` | A host handed no `specialArgs` enables ashell, Hyprland, nixvim, comma and claude-code, gets each from this flake's lock, and gets the package it sets through a `package` option |
-| `ci-coverage` | Every check is named by a job in `build.yml`, and every name there is a check |
+| `ci-coverage` | Every check of every system is named by a job in `build.yml` for that system, and every name there is a check |
 | `eval-bootloader` | Every bootloader type with `secureBoot` off and on |
 | `eval-host-hardening`, `eval-host-hardening-hibernate` | The hardening profile's values, and its hibernation assertion |
 | `eval-impermanence` | What the impermanence module writes into the initrd |
@@ -148,19 +148,22 @@ as hooks over the whole tree.
 
 The workflow lists its checks by name, so a check added to `flake/checks/`
 and left out of `build.yml` would be built by no job. The `ci-coverage` check
-fails on that. It reads the attribute names of `checks.x86_64-linux`, reads
-`build.yml` for every `checks.x86_64-linux.<name>` installable and every item
-of the extended matrix, and fails naming any check that no job builds and any
-listed name that is not a check. The three checks above are named in
-`localOnly` in `flake/checks/ci-coverage.nix`, and an entry there that a job
-does build, or that names no check, fails as well. A new check therefore
-needs a line in `build.yml` or an entry in `localOnly` with its reason.
+fails on that. For each of `x86_64-linux`, `aarch64-linux` and
+`aarch64-darwin` it reads the attribute names of `checks.<system>`, reads
+`build.yml` for every `checks.<system>.<name>` installable and every item of
+a `matrix.check` list whose build line names that system, and fails naming
+any check that no job builds for its system and any listed name that is not
+a check there. A matrix list with no build line naming a system fails too.
+The three checks above are named in `localOnly` in
+`flake/checks/ci-coverage.nix` for `x86_64-linux`, and `treefmt` for
+`aarch64-linux`, which the treefmt-nix module registers on every system. An
+entry there that a job does build, or that names no check, fails as well. A
+new check therefore needs a line in `build.yml` or an entry in `localOnly`
+with its reason.
 
 Branch protection on `main` requires three statuses, `Core checks`,
 `Core checks (darwin)` and `Extended verdict`. That requirement is a
-repository setting, and the workflow only reports them. `ci-coverage` reads
-the x86 installables alone, so a darwin check left out of `core-darwin` fails
-nothing yet.
+repository setting, and the workflow only reports them.
 
 A newer push to a pull request cancels the run before it. A run on `main` is
 never cancelled, since its concurrency group is keyed on the commit, so a
