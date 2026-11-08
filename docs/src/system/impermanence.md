@@ -1,5 +1,7 @@
 # Impermanence
 
+**Platforms:** NixOS only.
+
 The root filesystem is wiped on every boot. Only explicitly declared state persists.
 
 ## Importing

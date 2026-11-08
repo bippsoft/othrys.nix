@@ -1,5 +1,7 @@
 # Gaming
 
+**Platforms:** NixOS only.
+
 Gaming modules under `othrys.apps.gaming.*`. Located in `modules/apps/gui/gaming/`.
 
 ## Available Modules

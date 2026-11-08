@@ -1,5 +1,7 @@
 # Services
 
+**Platforms:** SSH and Tailscale run on NixOS and nix-darwin. Every other service is NixOS only. See [Darwin](../architecture/darwin.md).
+
 Service modules under `othrys.services.*`.
 
 ## Available Modules

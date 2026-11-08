@@ -1,5 +1,7 @@
 # Disko (Disk Partitioning)
 
+**Platforms:** NixOS only.
+
 Declarative disk configuration with LUKS encryption and BTRFS subvolumes.
 
 ## Importing

@@ -1,5 +1,7 @@
 # System
 
+**Platforms:** The user, the account, Nix, git, the locale, the persistence registry and the Home Manager, Stylix and secrets adapters run on NixOS and nix-darwin. The bootloader, disko, impermanence, hardening, the kernel, networking and automatic upgrades are NixOS only. See [Darwin](../architecture/darwin.md).
+
 Core system modules under `othrys.system.*`, located in `modules/system/`. Each
 is toggled by its own `enable` option (except `user`, which only declares the
 identity option) and configures a fundamental part of the machine.
@@ -34,10 +36,10 @@ under **System Infrastructure**, and the rest are summarized here.
 On darwin, `othrys.system.users` writes only the home directory and the
 primary user, and the password, group and `mutableUsers` options have no
 effect there. `othrys.system.users.uid` exists only on darwin, where it hands
-the account to nix-darwin, and the generated reference, which is evaluated
-from NixOS, does not list it. `othrys.system.locale` sets the timezone and
+the account to nix-darwin, and the generated reference marks it nix-darwin
+only. `othrys.system.locale` sets the timezone and
 `LANG` there, and its console options have no effect. See
-[Darwin Hosts](../architecture/host-configuration.md#darwin-hosts).
+[Darwin](../architecture/darwin.md).
 
 ## Notes
 

@@ -1,5 +1,7 @@
 # Security
 
+**Platforms:** The YubiKey module runs on NixOS and nix-darwin, with the U2F login on NixOS alone. CrowdSec, fail2ban, polkit and sudo are NixOS only. See [Darwin](../architecture/darwin.md).
+
 Security modules under `othrys.services.security.*`. Located in `modules/services/security/`.
 
 ## Available Modules

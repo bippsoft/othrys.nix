@@ -1,5 +1,7 @@
 # Secrets Management
 
+**Platforms:** NixOS and nix-darwin, through `nixosModules.secrets` and `darwinModules.secrets`. See [Darwin](../architecture/darwin.md).
+
 Secrets are managed with [sops-nix](https://github.com/Mic92/sops-nix) using age encryption. The identity used for editing can be backed by a YubiKey.
 
 ## Architecture

@@ -1,5 +1,7 @@
 # Bootloader & Secure Boot
 
+**Platforms:** NixOS only.
+
 Supports Limine (default), systemd-boot, and GRUB. Secure Boot via sbctl, natively on Limine and through lanzaboote on systemd-boot.
 
 ## Configuration

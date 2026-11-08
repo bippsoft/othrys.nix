@@ -1,5 +1,7 @@
 # Shell
 
+**Platforms:** NixOS and nix-darwin. See [Darwin](../architecture/darwin.md).
+
 Shell modules under `othrys.system.shell.*`. Located in `modules/system/shell/`.
 
 ## Available Modules

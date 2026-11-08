@@ -1,5 +1,7 @@
 # Compositors (Hyprland)
 
+**Platforms:** NixOS only.
+
 Hyprland Wayland compositor with automatic workspace generation, window rules, and UWSM integration.
 
 ## Config format

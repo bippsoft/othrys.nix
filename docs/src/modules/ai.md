@@ -1,5 +1,7 @@
 # AI Assistants
 
+**Platforms:** Claude Code, Codex, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. See [Darwin](../architecture/darwin.md).
+
 AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`.
 
 ## Available Modules

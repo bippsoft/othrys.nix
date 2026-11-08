@@ -1,5 +1,7 @@
 # Containerization
 
+**Platforms:** NixOS only.
+
 Container modules under `othrys.services.containerization.*`. Located in `modules/services/containerization/`.
 
 ## Available Modules

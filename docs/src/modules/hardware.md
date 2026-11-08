@@ -1,5 +1,7 @@
 # Hardware
 
+**Platforms:** NixOS only.
+
 Hardware modules under `othrys.hardware.*`.
 
 ## Available Modules

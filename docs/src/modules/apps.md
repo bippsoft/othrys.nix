@@ -1,5 +1,7 @@
 # Applications
 
+**Platforms:** `gh`, `yazi`, `comma`, nixvim, the language registry, Ghostty, kitty, mpv, VSCodium, IntelliJ IDEA and Signal run on NixOS and nix-darwin. The rest are NixOS only. See [Darwin](../architecture/darwin.md).
+
 Application modules under `othrys.apps.*`, split into CLI and GUI categories.
 
 Application modules curate each app's integration (persistence, theming, sane settings). Personal choices (search engines, wordmarks, tokens) are options the consuming fleet sets.

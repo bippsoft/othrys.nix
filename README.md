@@ -42,6 +42,18 @@ has the mandatory options in place. A check instantiates it against this flake o
 so it always evaluates. Replace `hardware.nix`, set the user and `stateVersion`
 in `configuration.nix`, and build with `nixos-rebuild build --flake .#myhost`.
 
+A Mac starts from the `darwin` template, a host built with nix-darwin from
+`darwinModules.full` on Lix:
+
+```bash
+mkdir mymac && cd mymac
+nix flake init -t github:bippsoft/othrys.nix#darwin
+```
+
+The darwin exports take the same `othrys.*` options, and
+[Darwin](https://bippsoft.github.io/othrys.nix/architecture/darwin.html)
+lists what each module does on a Mac.
+
 A host that wants everything imports `nixosModules.full`. It is the module tree
 with Home Manager, Stylix, disko, sops-nix and impermanence wired in, each from
 this flake's own lock, so the flake declares no input beside othrys and nixpkgs.
@@ -185,12 +197,16 @@ that partitions another way sets itself.
 identity-shaped, meaning disk IDs, interface names, domains, monitor descriptors
 and keys, ships null or neutral and arrives from your configuration.
 
-**`x86_64-linux` is the tested platform.** Every check runs there. For
-`aarch64-linux` CI evaluates the server, headless and default host fixtures on
-an ARM runner, which shows the module tree evaluates and nothing more. No VM
-test runs on ARM and no ARM host has been booted. For `aarch64-darwin` CI
-builds the commit hooks, the dev shells, the formatter and hosts from
-`darwinModules.default`, and no darwin host has been activated. A module whose package
+**`x86_64-linux` and `aarch64-darwin` are the tested platforms.** Every check
+runs on `x86_64-linux`. For `aarch64-darwin` CI builds a host from
+`darwinModules.default` with nothing on, with the system modules, with every
+darwin app, from `darwinModules.full`, with each darwin service module on by
+itself and from the `darwin` template, and turns every darwin enable option on
+by itself, along with the commit hooks, the dev shells and the formatter. No
+darwin host has been activated. For `aarch64-linux` CI evaluates the server,
+headless and default host fixtures on an ARM runner, which shows the module
+tree evaluates and nothing more. No VM test runs on ARM and no ARM host has
+been booted. A module whose package
 nixpkgs does not ship for the platform, such as Discord or Plexamp, fails an
 assertion that names it.
 

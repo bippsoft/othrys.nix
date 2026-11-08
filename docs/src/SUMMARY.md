@@ -9,6 +9,7 @@ ______________________________________________________________________
 - [Overview](./architecture/overview.md)
 - [Module System](./architecture/module-system.md)
 - [Host Configuration](./architecture/host-configuration.md)
+- [Darwin](./architecture/darwin.md)
 - [Flake Inputs](./architecture/flake-inputs.md)
 - [Security Model](./architecture/security-model.md)
 - [Stability & Releases](./architecture/stability.md)

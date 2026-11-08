@@ -1,5 +1,7 @@
 # Desktop
 
+**Platforms:** NixOS only, apart from `othrys.desktop.graphical`, which defaults to true on nix-darwin, and `othrys.theme`. See [Darwin](../architecture/darwin.md).
+
 Desktop environment modules under `othrys.desktop.*`. Handles compositors, status bar, and session management.
 
 Colours and fonts come from `othrys.theme`, see [Theming](../guides/theming.md).
