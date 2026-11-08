@@ -171,6 +171,47 @@ builds `ghostty` for Linux alone. The persistence registry is declared and
 nothing reads it, since a Mac has no ephemeral root, and the assistants'
 context leaves out the NixOS text there.
 
+`darwinModules.stylix` and `darwinModules.secrets` are the darwin forms of
+the NixOS adapters, and a host imports each with `darwinModules.stylix` of
+the stylix flake or `darwinModules.sops` of the sops-nix flake. Stylix on
+darwin themes the fonts, jankyborders and neovim, and the rest of what it
+themes is in the user's Home Manager configuration, so a host with the
+Stylix adapter imports `darwinModules.home` as well. It sets no cursor and
+turns the user's GTK target off there. The secrets adapter takes no ssh host
+key, since a Mac may have none, and generates an age key at
+`sops.age.keyFile`. A host that names no age key, ssh key or GnuPG home is
+refused.
+`darwinModules.full` is `default` with `home`, `stylix` and `secrets` and the
+three upstream darwin modules, taken from this flake's lock, so a host built
+from it imports nothing else.
+
+```nix
+inputs.nix-darwin.lib.darwinSystem {
+  specialArgs = {inherit inputs;};
+  modules = [
+    inputs.othrys.darwinModules.full
+    {
+      nixpkgs.hostPlatform = "aarch64-darwin";
+      system.stateVersion = 6;
+      othrys.system = {
+        user.name = "alice";
+        users.enable = true;
+        nix = {
+          enable = true;
+          stateVersion = "26.05";
+        };
+        stylix.enable = true;
+        secrets.enable = true;
+      };
+      sops.age = {
+        keyFile = "/var/lib/sops-nix/key.txt";
+        generateKey = true;
+      };
+    }
+  ];
+}
+```
+
 ## Re-exporting the Dev Shell
 
 A consuming flake that wants the same tools and commit hooks re-exports

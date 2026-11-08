@@ -656,6 +656,44 @@
       ];
     };
 
+    # The Stylix and sops-nix darwin modules, each beside its othrys adapter.
+    darwinStylixModules = {
+      imports = [
+        inputs.stylix.darwinModules.stylix
+        inputs.self.modules.darwin.stylix
+      ];
+    };
+    darwinSecretsModules = {
+      imports = [
+        inputs.sops-nix.darwinModules.sops
+        inputs.self.modules.darwin.secrets
+      ];
+    };
+
+    # darwinModules.full as the one othrys import beside `default`, with the
+    # account managed and Stylix and the secrets plumbing on. The age key is
+    # the one thing the darwin secrets adapter asks the host for, and the
+    # identity file is read back from the user.
+    darwinFullHost = {
+      imports = [inputs.self.modules.darwin.full];
+      othrys.system = {
+        users = {
+          enable = true;
+          uid = 502;
+        };
+        nix = {
+          enable = true;
+          stateVersion = "26.05";
+        };
+        stylix.enable = true;
+        secrets = {
+          enable = true;
+          ageIdentityFile = "/run/secrets/sops/age-identity";
+        };
+      };
+      sops.age.keyFile = "/var/lib/sops-nix/key.txt";
+    };
+
     # Every system module of the darwin export turned on for alice, with
     # Home Manager, and a uid so the account becomes one nix-darwin manages
     # and the login shell applies.
@@ -1070,6 +1108,7 @@
       "eval-darwin-host-min"
       "eval-darwin-host-user"
       "eval-darwin-host-apps"
+      "eval-darwin-host-full"
       "eval-darwin"
       "pre-commit-check"
       "secret-scan"
@@ -1110,11 +1149,14 @@
 
       # The darwin exports. A host with a user named and nothing on, a host
       # with the account, Nix, git, the shell, the locale and Home Manager
-      # on, and the same host with every darwin app on (see ./darwin-eval.nix
-      # for what is read back).
+      # on, the same host with every darwin app on, and a host built from
+      # darwinModules.full with Stylix and the secrets plumbing on (see
+      # ./darwin-eval.nix and ./exports-optional-eval.nix for what is read
+      # back).
       eval-darwin-host-min = mkDarwinEval "othrys-eval-darwin-host-min" [darwinBase];
       eval-darwin-host-user = mkDarwinEval "othrys-eval-darwin-host-user" [darwinBase darwinUserHost];
       eval-darwin-host-apps = mkDarwinEval "othrys-eval-darwin-host-apps" [darwinBase darwinAppHost];
+      eval-darwin-host-full = mkDarwinEval "othrys-eval-darwin-host-full" [darwinBase darwinFullHost];
       eval-darwin = import ./darwin-eval.nix {
         inherit (inputs.nixpkgs) lib;
         inherit darwinConfig darwinBase darwinHomeModules darwinAppHost mkExpectations rejectedWith inputs;
@@ -1300,6 +1342,7 @@
       # ./exports-optional-eval.nix).
       eval-optional-exports = import ./exports-optional-eval.nix {
         inherit inputs system impermanenceModules hostEval mkExpectations rejectedWith bootBase functioningHost diskoModules secretsModules stylixModules;
+        inherit darwinEval darwinBase darwinHomeModules darwinStylixModules darwinSecretsModules darwinFullHost;
       };
 
       # What the app and desktop modules persist, read back on an impermanence

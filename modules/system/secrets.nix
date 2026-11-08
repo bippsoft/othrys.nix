@@ -1,10 +1,18 @@
 # modules/system/secrets.nix
 # sops-nix infrastructure, providing age decryption capability
+#
+# secrets.nixos.nix and secrets.darwin.nix import this file, and nothing in
+# `default` does, so a host has it only beside the sops-nix module. The two
+# platform files are the only ones in this tree that write into the `sops`
+# option namespace. Every other module takes a secret as a runtime file path
+# and names no provider.
 {
+  config,
   lib,
   inputs,
   ...
 }: let
+  cfg = config.othrys.system.secrets;
   othrysTypes = import ../lib/types.nix {inherit lib;};
 
   # othrys declares no `secrets` input of its own. A consuming flake may add
@@ -95,4 +103,43 @@ in {
     };
   };
   # ANCHOR_END: secrets-options
+
+  config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion =
+          cfg.ageIdentityStubs
+          == null
+          || !lib.hasInfix "AGE-SECRET-KEY" cfg.ageIdentityStubs;
+        message = ''
+          othrys.system.secrets.ageIdentityStubs contains an AGE-SECRET-KEY
+          identity. That content is written verbatim into a world-readable Nix
+          store path, exposing the sops master identity to every user on the
+          host and to anything that reads the store. Put the identity behind
+          your secrets provider and set ageIdentityFile to its runtime path
+          instead.
+        '';
+      }
+      {
+        assertion = cfg.ageIdentityStubs == null || cfg.ageIdentityFile == null;
+        message = "othrys.system.secrets: set ageIdentityStubs or ageIdentityFile, not both. They both claim SOPS_AGE_KEY_FILE.";
+      }
+    ];
+
+    # User config for manual sops editing (YubiKey, etc.). Only when an identity
+    # is actually configured, since the homeManaged guard is applied once by
+    # nixosModules.home and the condition here is the module's own.
+    #
+    # The file form points SOPS_AGE_KEY_FILE straight at the provider path, so
+    # no identity file is generated and no copy of it exists in the store.
+    othrys.internal.homeConfig."system.secrets" = lib.mkIf (cfg.ageIdentityStubs != null || cfg.ageIdentityFile != null) {
+      home.file.".config/sops/age/keys.txt" = lib.mkIf (cfg.ageIdentityStubs != null) {
+        text = cfg.ageIdentityStubs;
+      };
+      home.sessionVariables.SOPS_AGE_KEY_FILE =
+        if cfg.ageIdentityFile != null
+        then cfg.ageIdentityFile
+        else "$HOME/.config/sops/age/keys.txt";
+    };
+  };
 }

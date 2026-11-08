@@ -32,15 +32,17 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   ├── impermanence.nix   # Impermanence adapter, a separate export
   │   ├── persistence.nix    # Persistence registry, also declared on darwin
   │   ├── persistence.nixos.nix # The system-critical set
-  │   ├── secrets.nix        # Secrets options
+  │   ├── secrets.nix        # Secrets options and what both platforms write
   │   ├── secrets.nixos.nix  # sops-nix plumbing, exported on its own
+  │   ├── secrets.darwin.nix # sops-nix plumbing for darwin
   │   ├── git.nix            # Git configuration
   │   └── shell/             # Shell (Zsh, Bash, Starship)
   ├── theme/                 # The theme every module reads
   │   ├── default.nix        # othrys.theme: palette, fonts, opacity, wallpaper
   │   ├── schemes/           # Colour schemes as Nix data
-  │   ├── stylix.nix         # Stylix adapter options
-  │   └── stylix.nixos.nix   # Stylix adapter, exported on its own
+  │   ├── stylix.nix         # Stylix adapter options and shared writes
+  │   ├── stylix.nixos.nix   # Stylix adapter, exported on its own
+  │   └── stylix.darwin.nix  # Stylix adapter for darwin
   ├── desktop/               # Desktop environment
   │   ├── compositors/       # Hyprland, Niri
   │   ├── ashell/            # Status bar

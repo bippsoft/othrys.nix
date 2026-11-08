@@ -25,9 +25,9 @@ under **System Infrastructure**, and the rest are summarized here.
 | Impermanence | `othrys.system.impermanence` | Root wipe on boot and the `old-roots` recovery tool. The bind mounts come from `nixosModules.impermanence`, which is not part of `default`, see [Impermanence](../system/impermanence.md) |
 | Disko | `othrys.system.disko` | Disk layout with LUKS and BTRFS subvolumes, exported as `nixosModules.disko` and not part of `default`, see [Disko](../system/disko.md) |
 | Bootloader | `othrys.system.bootloader` | Limine, systemd-boot or GRUB, with optional Secure Boot, see [Bootloader & Secure Boot](../system/bootloader.md) |
-| Secrets | `othrys.system.secrets` | sops-nix wiring and the manual-editing age identity, exported as `nixosModules.secrets` and not part of `default`, see [Secrets Management](../system/secrets.md) |
+| Secrets | `othrys.system.secrets` | sops-nix wiring and the manual-editing age identity, exported as `nixosModules.secrets` and `darwinModules.secrets` and not part of `default`, see [Secrets Management](../system/secrets.md) |
 | Theme | `othrys.theme` | The palette, fonts, opacity and wallpaper every module reads, see [Theming](../guides/theming.md) |
-| Stylix adapter | `othrys.system.stylix` | Stylix configured from `othrys.theme`, exported as `nixosModules.stylix` and not part of `default` |
+| Stylix adapter | `othrys.system.stylix` | Stylix configured from `othrys.theme`, exported as `nixosModules.stylix` and `darwinModules.stylix` and not part of `default` |
 | Shell | `othrys.system.shell.{bash,zsh,starship}` | Interactive shells and prompt, see [Shell](./shell.md) |
 | Default editor | `othrys.system.defaultEditor` | The command behind `EDITOR` and `VISUAL`, `vim` by default |
 

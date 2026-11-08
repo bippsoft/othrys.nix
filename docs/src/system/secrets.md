@@ -16,8 +16,8 @@ declare and its CI stubs out.
 ## Importing
 
 The plumbing is the separate export `nixosModules.secrets`, which
-`nixosModules.default` does not import. It is the only othrys module that writes
-into the `sops` option namespace, so a host that wants it imports the export
+`nixosModules.default` does not import. It and its darwin form are the only
+othrys modules that write into the `sops` option namespace, so a host that wants it imports the export
 together with the sops-nix module, and a host that installs its secrets another
 way imports neither:
 
@@ -34,6 +34,10 @@ The export without the sops-nix module fails at evaluation, since a write into
 an undeclared option namespace fails whatever guards it. A host with neither
 still uses every other module, since each option that takes a secret takes a
 path and reads the file at run time.
+
+A nix-darwin host imports `darwinModules.secrets` with the
+`darwinModules.sops` of the sops-nix flake, or takes both from
+`darwinModules.full`. The options are the same on both platforms.
 
 ## Options
 
@@ -64,9 +68,10 @@ to use whenever the identity is itself secret.
 
 Secrets are declared in host configs (not in modules) using `othrys.system.secrets` for infrastructure and `sops.secrets.*` for individual secret declarations. See [Host Configuration](../architecture/host-configuration.md) for a real example.
 
-No othrys module declares a sops secret. `modules/system/secrets.nixos.nix` writes
-the decryption settings under `sops.age`, and it is the only file in the
-module tree that writes into the `sops` namespace.
+No othrys module declares a sops secret. `modules/system/secrets.nixos.nix` and
+`modules/system/secrets.darwin.nix` write the decryption settings under
+`sops.age`, and they are the only files in the module tree that write into
+the `sops` namespace.
 
 ## When a secret is installed
 
@@ -97,6 +102,14 @@ asserts that `persistence.enable` and `services.openssh.enable` are on
 whenever impermanence is. Without them the key is regenerated on every boot
 and nothing decrypts. The three `sops.age` values are set with `mkDefault`,
 so a host that keeps its key elsewhere overrides them directly.
+
+On nix-darwin the adapter sets `sops.age.sshKeyPaths` and
+`sops.gnupg.sshKeyPaths` to empty lists, since a Mac may run no sshd and
+have no host key. It turns `sops.age.generateKey` on, as the NixOS adapter
+does, so sops-nix creates an age key at `sops.age.keyFile` on the first
+activation. The host names that path, since sops-nix gives it no default
+on darwin, and a host with no age key file, ssh key or GnuPG home is
+refused.
 
 ## Secret Files
 

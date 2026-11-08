@@ -4,10 +4,10 @@
 # Individual secrets are declared in host configs, not here.
 #
 # Exported as nixosModules.secrets and left out of nixosModules.default, so a
-# host imports it together with the sops-nix module or imports neither. It is
-# the only file in this tree that writes into the `sops` option namespace.
-# Every other module takes a secret as a runtime file path and names no
-# provider.
+# host imports it together with the sops-nix module or imports neither. What
+# both platforms write is in secrets.nix, and this file points sops-nix at
+# the ssh host key and the age key, under the persist root on an
+# impermanence host.
 {
   config,
   lib,
@@ -26,24 +26,6 @@ in {
 
   config = lib.mkIf cfg.enable {
     assertions = [
-      {
-        assertion =
-          cfg.ageIdentityStubs
-          == null
-          || !lib.hasInfix "AGE-SECRET-KEY" cfg.ageIdentityStubs;
-        message = ''
-          othrys.system.secrets.ageIdentityStubs contains an AGE-SECRET-KEY
-          identity. That content is written verbatim into a world-readable Nix
-          store path, exposing the sops master identity to every user on the
-          host and to anything that reads the store. Put the identity behind
-          your secrets provider and set ageIdentityFile to its runtime path
-          instead.
-        '';
-      }
-      {
-        assertion = cfg.ageIdentityStubs == null || cfg.ageIdentityFile == null;
-        message = "othrys.system.secrets: set ageIdentityStubs or ageIdentityFile, not both. They both claim SOPS_AGE_KEY_FILE.";
-      }
       # The decryption key below is the persisted ssh host key. On an
       # impermanence host that key only exists under the persist root when
       # othrys.system.persistence moves it there, and it only exists at all
@@ -66,23 +48,8 @@ in {
       generateKey = lib.mkDefault true;
     };
 
-    # Tools for secrets management
+    # Tools for secrets management. Each platform file writes the list, so
+    # it keeps its place among the NixOS system packages.
     environment.systemPackages = with pkgs; [sops age];
-
-    # User config for manual sops editing (YubiKey, etc.). Only when an identity
-    # is actually configured, since the homeManaged guard is applied once by
-    # nixosModules.home and the condition here is the module's own.
-    #
-    # The file form points SOPS_AGE_KEY_FILE straight at the provider path, so
-    # no identity file is generated and no copy of it exists in the store.
-    othrys.internal.homeConfig."system.secrets" = lib.mkIf (cfg.ageIdentityStubs != null || cfg.ageIdentityFile != null) {
-      home.file.".config/sops/age/keys.txt" = lib.mkIf (cfg.ageIdentityStubs != null) {
-        text = cfg.ageIdentityStubs;
-      };
-      home.sessionVariables.SOPS_AGE_KEY_FILE =
-        if cfg.ageIdentityFile != null
-        then cfg.ageIdentityFile
-        else "$HOME/.config/sops/age/keys.txt";
-    };
   };
 }

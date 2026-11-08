@@ -9,6 +9,10 @@
 # each export beside its upstream module has to get what the export always
 # wrote, and a host built from the aggregate has to have all five.
 #
+# darwinModules leaves three of them out of its `default`, `home`, `stylix`
+# and `secrets`, and is read the same way. Its `full` holds the three and
+# their upstream darwin modules.
+#
 # Two shapes are refused by name. A host that turns impermanence on without
 # the adapter would wipe its root and bind nothing back. A host with an
 # account that Home Manager is to manage and no Home Manager adapter would
@@ -25,6 +29,12 @@
   functioningHost,
   diskoModules,
   secretsModules,
+  darwinEval,
+  darwinBase,
+  darwinHomeModules,
+  darwinStylixModules,
+  darwinSecretsModules,
+  darwinFullHost,
 }: let
   inherit (inputs.nixpkgs) lib;
   evaluates = host: host.config.system.build.toplevel.drvPath != null;
@@ -161,6 +171,43 @@
     }
   ];
 
+  # The darwin exports. `darwinEval` puts darwinModules.default in front of
+  # every host, so the aggregate is read beside it.
+  darwinAlone = darwinEval [darwinBase];
+  # The Stylix adapter with no Home Manager module, and with one and the
+  # managed account its user configuration lands in.
+  darwinStylix = darwinEval [darwinBase darwinStylixModules {othrys.system.stylix.enable = true;}];
+  darwinStylixHome = darwinEval [
+    darwinBase
+    darwinHomeModules
+    darwinStylixModules
+    {
+      othrys.system.users = {
+        enable = true;
+        uid = 502;
+      };
+      othrys.system.nix = {
+        enable = true;
+        stateVersion = "26.05";
+      };
+      othrys.system.stylix.enable = true;
+    }
+  ];
+  darwinStylixUser = darwinStylixHome.config.home-manager.users.alice;
+  darwinSecretsOn = {
+    imports = [darwinSecretsModules];
+    othrys.system.secrets.enable = true;
+  };
+  # Only the assertions are read, since the host is meant to be rejected.
+  darwinSecretsNoKey = darwinEval [darwinBase darwinSecretsOn];
+  darwinSecrets = darwinEval [darwinBase darwinSecretsOn {sops.age.keyFile = "/var/lib/sops-nix/key.txt";}];
+  # A host that keeps an ssh key decrypts with it and names no age key.
+  darwinSecretsSsh = darwinEval [darwinBase darwinSecretsOn {sops.age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"];}];
+  darwinFull = darwinEval [darwinBase darwinFullHost];
+  darwinFullOff = darwinEval [darwinBase {imports = [inputs.self.modules.darwin.full];}];
+  darwinKeyNeedle = "sops-nix has no key to decrypt with";
+  darwinPackageNames = host: map lib.getName host.config.environment.systemPackages;
+
   wipeUnit = host: host.config.boot.initrd.systemd.services.root-wipe;
   needle = "othrys.system.impermanence: set device";
   adapterNeedle = "nixosModules.impermanence is not imported";
@@ -233,4 +280,30 @@ in
     "sops-nix is pointed at the ssh host key" = withSecrets.config.sops.age.sshKeyPaths == ["/etc/ssh/ssh_host_ed25519_key"];
     "sops-nix generates the age key" = withSecrets.config.sops.age.generateKey;
     "both keys move under the persist root on an impermanence host" = withSecretsWiped.config.sops.age.keyFile == "/persist/var/lib/sops-nix/key.txt" && withSecretsWiped.config.sops.age.sshKeyPaths == ["/persist/etc/ssh/ssh_host_ed25519_key"];
+
+    "a darwin host with `default` and no upstream module evaluates" = evaluates darwinAlone;
+    "it has no home-manager, sops or stylix option namespace" = !(darwinAlone.options ? home-manager) && !(darwinAlone.options ? sops) && !(darwinAlone.options ? stylix);
+    "it declares neither othrys.system.stylix nor othrys.system.secrets" = !(darwinAlone.options.othrys.system ? stylix) && !(darwinAlone.options.othrys.system ? secrets);
+
+    "the darwin Stylix adapter evaluates with no Home Manager module" = evaluates darwinStylix && !(darwinStylix.options ? home-manager);
+    "Stylix is on there, with the othrys monospace font" = darwinStylix.config.stylix.enable && darwinStylix.config.stylix.fonts.monospace.name == "JetBrainsMono Nerd Font";
+    "the adapter sets no cursor, which Stylix declares on NixOS alone" = !(darwinStylix.options.stylix ? cursor);
+    "the theme takes its fonts from Stylix on darwin" = darwinStylix.config.othrys.theme.fonts.monospace.name == "JetBrainsMono Nerd Font";
+    "the darwin Stylix adapter hands the palette to the managed user" = evaluates darwinStylixHome && darwinStylixUser.home.sessionVariables ? BASE00;
+    "it turns no pointer cursor on for that user" = !darwinStylixUser.home.pointerCursor.enable;
+    "it leaves GTK off for that user" = !darwinStylixUser.gtk.enable && !darwinStylixUser.stylix.targets.gtk.enable;
+
+    "the darwin secrets adapter is rejected without an age key file, by name" = rejectedWith darwinKeyNeedle darwinSecretsNoKey.config;
+    "with the key file it evaluates and is not asked for one" = evaluates darwinSecrets && !rejectedWith darwinKeyNeedle darwinSecrets.config;
+    "sops-nix there decrypts with no ssh key" = darwinSecrets.config.sops.age.sshKeyPaths == [] && darwinSecrets.config.sops.gnupg.sshKeyPaths == [];
+    "sops-nix there generates the age key" = darwinSecrets.config.sops.age.generateKey;
+    "a darwin host with an ssh key and no age key file is not refused" = evaluates darwinSecretsSsh && !rejectedWith darwinKeyNeedle darwinSecretsSsh.config;
+    "the darwin host gets sops and age" = builtins.all (name: builtins.elem name (darwinPackageNames darwinSecrets)) ["sops" "age"];
+
+    "a darwin host built from the aggregate beside `default` evaluates" = evaluates darwinFull && evaluates darwinFullOff;
+    "the darwin aggregate declares the three upstream namespaces" = darwinFullOff.options ? home-manager && darwinFullOff.options ? sops && darwinFullOff.options ? stylix;
+    "the darwin aggregate leaves Stylix and the secrets plumbing off" = !darwinFullOff.config.othrys.system.stylix.enable && !darwinFullOff.config.othrys.system.secrets.enable;
+    "the darwin aggregate manages the account through Home Manager" = darwinFull.config.othrys.system.users.homeManaged && darwinFull.config.home-manager.users ? alice;
+    "Stylix and the secrets plumbing are on there" = darwinFull.config.stylix.enable && darwinFull.config.sops.age.keyFile == "/var/lib/sops-nix/key.txt";
+    "the identity file reaches the darwin user as SOPS_AGE_KEY_FILE" = darwinFull.config.home-manager.users.alice.home.sessionVariables.SOPS_AGE_KEY_FILE == "/run/secrets/sops/age-identity";
   }

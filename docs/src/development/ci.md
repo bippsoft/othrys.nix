@@ -60,10 +60,10 @@ tier reports early while the whole suite still gates what lands:
 | `eval-shell` | The login shell, the editor variables and the aliases |
 | `eval-types` | The values the option types refuse, and the git identity and bridge or vlan reference assertions |
 | `eval-exports` | The export list in `flake/modules.nix`, held to the module tree |
-| `eval-optional-exports` | A host with `default` and no upstream module at all, a managed account rejected without `nixosModules.home`, an account Home Manager does not manage accepted without it, a host built from `nixosModules.full`, impermanence on a device named by hand, the rejection of impermanence without its export, and what the `disko`, `secrets` and `impermanence` exports write beside their upstream modules |
+| `eval-optional-exports` | A host with `default` and no upstream module at all, a managed account rejected without `nixosModules.home`, an account Home Manager does not manage accepted without it, a host built from `nixosModules.full`, impermanence on a device named by hand, the rejection of impermanence without its export, and what the `disko`, `secrets` and `impermanence` exports write beside their upstream modules. The same for the darwin `default`, `stylix`, `secrets` and `full` exports, with a darwin host refused for want of `sops.age.keyFile` |
 | `eval-template` | The `nix flake init` template, instantiated with only the inputs a consumer has |
 | `eval-dev-shells` | The hooks each dev shell installs |
-| `eval-darwin-host-min`, `eval-darwin-host-user`, `eval-darwin-host-apps`, `eval-darwin` | A darwin host from `darwinModules.default` with a user named, the same host with the system modules and Home Manager on, the same host with every darwin app on, and what the account, Nix and locale modules write there. The core job evaluates them with import-from-derivation off, and the darwin job builds the three hosts |
+| `eval-darwin-host-min`, `eval-darwin-host-user`, `eval-darwin-host-apps`, `eval-darwin-host-full`, `eval-darwin` | A darwin host from `darwinModules.default` with a user named, the same host with the system modules and Home Manager on, the same host with every darwin app on, a host from `darwinModules.full` with Stylix and the secrets plumbing on, and what the account, Nix and locale modules write there. The core job evaluates them with import-from-derivation off, and the darwin job builds the four hosts |
 | `eval-auto-upgrade` | The evaluation-time rules of the auto-upgrade verify gate |
 | `eval-ssh`, `eval-ssh-settings` | The known hosts and client defaults, and the server's ports, firewall, jail and hardened defaults |
 | `eval-pam` | Which PAM services take the YubiKey, and with what control |
@@ -103,8 +103,8 @@ tier reports early while the whole suite still gates what lands:
 **Core on darwin** (`core-darwin` job) runs on the same events on a
 `macos-latest` runner. `nixosSystem` cannot evaluate for a darwin system, so
 `checks.aarch64-darwin` holds only the checks that evaluate no NixOS host.
-They are the darwin hosts `eval-darwin-host-min`, `eval-darwin-host-user`
-and `eval-darwin-host-apps`, built there as systems, the read-back
+They are the darwin hosts `eval-darwin-host-min`, `eval-darwin-host-user`,
+`eval-darwin-host-apps` and `eval-darwin-host-full`, built there as systems, the read-back
 `eval-darwin`, `pre-commit-check`, `secret-scan`, `docs-includes`,
 `eval-dev-shells` and `agent-config`, and the job also builds the `treefmt`
 check, the eight dev shells and `formatter.aarch64-darwin`. Nix turns the

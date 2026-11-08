@@ -439,7 +439,7 @@ in {
       }
       {
         assertion = cfg.scheme != "wallpaper" || config.othrys.internal.wallpaperPalette;
-        message = "othrys.theme.scheme = \"wallpaper\" derives the palette from the wallpaper, which othrys does through Stylix. Import nixosModules.stylix beside the Stylix module and set othrys.system.stylix.enable, or name a scheme in othrys.theme.schemes.";
+        message = "othrys.theme.scheme = \"wallpaper\" derives the palette from the wallpaper, which othrys does through Stylix. Import nixosModules.stylix or darwinModules.stylix beside the Stylix module and set othrys.system.stylix.enable, or name a scheme in othrys.theme.schemes.";
       }
     ];
 

@@ -170,6 +170,32 @@ in {
     # well. A host imports it together with the darwinModules.home-manager of
     # the home-manager flake.
     home = ../modules/system/home.nix;
+
+    # The Stylix adapter, which a host imports together with the
+    # darwinModules.stylix of the stylix flake. Stylix themes little at the
+    # system level on darwin, so the host imports `home` as well.
+    stylix = ../modules/theme/stylix.darwin.nix;
+
+    # The sops-nix plumbing, which a host imports together with the
+    # darwinModules.sops of the sops-nix flake. It reads the consumer's
+    # optional `secrets` input, so it carries the module arguments.
+    secrets = withArgs ../modules/system/secrets.darwin.nix;
+
+    # `default`, the three adapters and the upstream module each configures,
+    # on the terms of nixosModules.full. The `key` keeps one copy on a host
+    # that imports it through both names.
+    full = {
+      key = "othrys.nix/flake/modules.nix#darwin-full";
+      imports = [
+        darwinDefault
+        ../modules/system/home.nix
+        ../modules/system/secrets.darwin.nix
+        ../modules/theme/stylix.darwin.nix
+        inputs.home-manager.darwinModules.home-manager
+        inputs.sops-nix.darwinModules.sops
+        inputs.stylix.darwinModules.stylix
+      ];
+    };
   };
   flake.darwinModules = config.flake.modules.darwin;
 

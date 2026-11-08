@@ -314,6 +314,16 @@ The adapter also exports the palette as `BASE00` to `BASE0F` and `COLOR_*`
 session variables and installs `show-colors`, which prints the palette with its
 hex values and a swatch of each colour.
 
+A nix-darwin host imports `darwinModules.stylix` with the
+`darwinModules.stylix` of the stylix flake, or takes both from
+`darwinModules.full`. Stylix themes the fonts, jankyborders and neovim at
+the system level there, and the terminals and editors through Home
+Manager, so the host imports `darwinModules.home` as well. The scheme, the
+fonts, the opacities, the session variables and `show-colors` are the same
+as on NixOS. Stylix declares no cursor, console or Plymouth target on
+darwin. The adapter sets no cursor and no GTK icon theme there, and turns
+the user's GTK target off, since a Mac has no GTK desktop.
+
 `othrys.system.stylix.scheme`, `polarity` and `wallpaper` are the former names of
 `othrys.theme.scheme`, `othrys.theme.polarity` and
 `othrys.theme.wallpaper.source`. They still work on a host that imports the
@@ -325,7 +335,7 @@ adapter, and each prints a warning naming its replacement.
 `othrys.theme.wallpaper.primary`, with `polarity` deciding between a dark and a
 light result. Stylix holds the generator, so this value needs the Stylix export
 with `othrys.system.stylix.enable` set. Without it the host fails an assertion
-that names `nixosModules.stylix`, and without a wallpaper it fails one that
+that names `nixosModules.stylix` and `darwinModules.stylix`, and without a wallpaper it fails one that
 names `othrys.theme.wallpaper.source`. A `source` that is a directory read at
 run time gives the generator no image, so such a host fails an assertion that
 names `othrys.theme.wallpaper.primary` until it sets that option.
