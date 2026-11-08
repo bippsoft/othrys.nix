@@ -1,6 +1,27 @@
 # modules/services/ssh.nix
 # SSH server and client configuration - Integration Pattern
-{lib, ...}: let
+#
+# The options, the known hosts and the user's client configuration, which
+# both platforms write. ssh.nixos.nix and ssh.darwin.nix run the server.
+{
+  config,
+  lib,
+  ...
+}: let
+  cfg = config.othrys.services.ssh;
+
+  # The ed25519 host keys the forges publish, each checked against the forge's
+  # own documentation over HTTPS (GitHub's /meta API, the GitLab.com and
+  # Codeberg fingerprint pages, the git.sr.ht manual). A forge that rotates its
+  # key makes the entry here stale, and ssh then refuses that forge until the
+  # entry is updated or includeForgeKeys is turned off.
+  forgeKeys = {
+    "github.com".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
+    "gitlab.com".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf";
+    "codeberg.org".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIVIC02vnjFyL+I4RHfvIGNtOgJMe769VTF1VR4EB3ZB";
+    "git.sr.ht".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMZvRd4EtM7R+IHVMWmDkVU3VLQTSwQDSAvW0t2Tkj60";
+  };
+
   # One known host, with the options programs.ssh.knownHosts declares for an
   # entry. Declaring them here rejects a misspelled key at this option, where
   # the error names the host's own definition.
@@ -47,7 +68,7 @@ in {
       enable = lib.mkOption {
         type = lib.types.bool;
         default = false;
-        description = "Enable the inbound SSH server. Opt-in per host so exposure is explicit.";
+        description = "Enable the inbound SSH server. Opt-in per host so exposure is explicit. On nix-darwin it turns on the macOS Remote Login service.";
       };
 
       ports = lib.mkOption {
@@ -58,7 +79,9 @@ in {
           Ports the server listens on, passed to `services.openssh.ports` as a
           default. The firewall and the fail2ban sshd jail both read the
           upstream option, so a host that sets `services.openssh.ports` itself
-          gets the same result.
+          gets the same result. On nix-darwin the server is the macOS Remote
+          Login service, which launchd starts on port 22 alone, so any other
+          list is refused there.
         '';
       };
 
@@ -69,7 +92,9 @@ in {
           Open the server's ports in the firewall. Unlike most othrys firewall
           toggles this defaults to true, since enabling the server is already
           the explicit decision to expose it. Turn it off on a host that opens
-          the port on named interfaces only.
+          the port on named interfaces only. The firewall nix-darwin manages
+          filters by application and takes no port list, so the option has
+          no effect there.
         '';
       };
     };
@@ -123,6 +148,39 @@ in {
             User = "admin";
           };
         }
+      '';
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    # The forge keys come first so a host entry of the same name replaces one.
+    programs.ssh.knownHosts = lib.optionalAttrs cfg.includeForgeKeys forgeKeys // cfg.knownHosts;
+
+    othrys.internal.homeConfig."services.ssh".programs.ssh = {
+      enable = true;
+      enableDefaultConfig = false;
+
+      # recursiveUpdate, so a host that sets one directive under "*" keeps the
+      # rest of the defaults.
+      settings =
+        lib.recursiveUpdate {
+          "*" = {
+            SetEnv = {
+              TERM = "xterm-256color";
+            };
+            ServerAliveInterval = 60;
+            ServerAliveCountMax = 3;
+            # An unknown host prompts and is never accepted silently, stored
+            # host names are hashed, and a host offering new keys asks first.
+            StrictHostKeyChecking = "ask";
+            HashKnownHosts = true;
+            UpdateHostKeys = "ask";
+          };
+        }
+        cfg.settings;
+
+      extraConfig = ''
+        AddKeysToAgent yes
       '';
     };
   };

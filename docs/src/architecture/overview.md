@@ -71,7 +71,7 @@ modules/                     # Reusable NixOS modules (othrys.* namespace)
   │   ├── cli/               # nixvim, ai (claude-code, ollama, mcp), gh, yazi, ...
   │   ├── gui/               # floorp, ghostty, gaming/, vscode, ...
   │   └── languages/         # Per-language toolchains shared by both editors
-  └── lib/                   # Shared option types, address helpers, the systemd sandbox baseline
+  └── lib/                   # Shared option types, address helpers, the systemd sandbox baseline, the sshd settings
 templates/                   # The `nix flake init` template
 scripts/                     # Operational scripts
   └── yubikey-onboard.sh     # YubiKey provisioning (PGP, U2F, age)

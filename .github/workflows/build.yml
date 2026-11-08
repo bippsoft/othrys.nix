@@ -186,6 +186,7 @@ jobs:
             '.#checks.x86_64-linux.eval-darwin-host-user' \
             '.#checks.x86_64-linux.eval-darwin-host-apps' \
             '.#checks.x86_64-linux.eval-darwin-host-full' \
+            '.#checks.x86_64-linux.eval-darwin-host-services' \
             '.#checks.x86_64-linux.eval-darwin'
   # The portable host evaluations on a native ARM runner. It shows that the
   # module tree evaluates for aarch64-linux and nothing more. No VM test runs
@@ -261,6 +262,7 @@ jobs:
             '.#checks.aarch64-darwin.eval-darwin-host-user' \
             '.#checks.aarch64-darwin.eval-darwin-host-apps' \
             '.#checks.aarch64-darwin.eval-darwin-host-full' \
+            '.#checks.aarch64-darwin.eval-darwin-host-services' \
             '.#checks.aarch64-darwin.eval-darwin' \
             '.#checks.aarch64-darwin.pre-commit-check' \
             '.#checks.aarch64-darwin.secret-scan' \

@@ -108,10 +108,11 @@ Lanzaboote is needed only for Secure Boot on `systemd-boot`, where the host adds
 
 A nix-darwin host imports `othrys.darwinModules.default`, the same set as
 `othrys.modules.darwin.default`. It holds the primary user, the account,
-Nix, git, the locale, the shell modules, the theme and the apps that build
-for darwin, under the option names a NixOS host uses. The apps are `gh`,
-`yazi`, `comma`, nixvim, Claude Code, Codex and the MCP servers, the
-language registry, Ghostty, kitty, mpv, VSCodium, IntelliJ IDEA and Signal.
+Nix, git, the locale, the shell modules, the theme, SSH, Tailscale, the
+YubiKey and the apps that build for darwin, under the option names a NixOS
+host uses. The apps are `gh`, `yazi`, `comma`, nixvim, Claude Code, Codex,
+Ollama and the MCP servers, the language registry, Ghostty, kitty, mpv,
+VSCodium, IntelliJ IDEA and Signal.
 Picard is left out, since its `pyqt6` fails to build on darwin in the
 pinned nixpkgs. Most are the darwin implementations of split
 modules (see
@@ -170,6 +171,15 @@ Manager does not manage. Ghostty takes `ghostty-bin` on darwin, since nixpkgs
 builds `ghostty` for Linux alone. The persistence registry is declared and
 nothing reads it, since a Mac has no ephemeral root, and the assistants'
 context leaves out the NixOS text there.
+
+SSH writes the known hosts and the client configuration as on NixOS, and
+`server.enable` turns on Remote Login with the hardened settings, on port 22
+alone. Tailscale runs tailscaled and refuses the options that only
+`tailscale up` and `tailscale set` apply, since nix-darwin runs neither. The
+YubiKey module keeps the GnuPG agent with `pinentry_mac` and refuses a U2F
+mapping. Ollama runs as the user's launchd agent through Home Manager, with
+nixpkgs' one darwin build. See [Services](../modules/services.md),
+[Security](../modules/security.md) and [AI](../modules/ai.md) for each.
 
 `darwinModules.stylix` and `darwinModules.secrets` are the darwin forms of
 the NixOS adapters, and a host imports each with `darwinModules.stylix` of

@@ -2,14 +2,18 @@
 # CORE. What the darwin exports write on a nix-darwin host. The account stays
 # with macOS unless the host gives a uid, Nix defaults to Lix, the locale
 # reaches the environment, a host that names a user and turns nothing on gets
-# no account settings at all, and the home adapter hands the apps' user
-# configuration to Home Manager with the darwin packages and paths.
+# no account settings at all, the home adapter hands the apps' user
+# configuration to Home Manager with the darwin packages and paths, and the
+# SSH, Tailscale, YubiKey and Ollama modules write what nix-darwin and Home
+# Manager run there and refuse what they cannot apply.
 {
   lib,
   darwinConfig,
   darwinBase,
   darwinHomeModules,
   darwinAppHost,
+  darwinManagedBase,
+  darwinServiceHosts,
   mkExpectations,
   rejectedWith,
   inputs,
@@ -94,6 +98,20 @@
   # what the adapter hands to Home Manager on a host that imports it.
   homeEntries = builtins.attrNames configured.othrys.internal.homeConfig;
   withHomeManager = darwinConfig [darwinBase {othrys.system.users.enable = true;}];
+
+  # Each service module on by itself over a managed account, with a
+  # change on top for the refusals.
+  service = name: extra: darwinConfig [darwinBase darwinManagedBase darwinServiceHosts.${name} extra];
+  ssh = service "ssh" {};
+  sshHome = ssh.home-manager.users.alice;
+  sshdConfig = ssh.environment.etc."ssh/sshd_config.d/100-nix-darwin.conf".text;
+  knownHosts = ssh.environment.etc."ssh/ssh_known_hosts".text;
+  tailscale = service "tailscale" {};
+  yubikey = service "yubikey" {};
+  gpgAgent = yubikey.home-manager.users.alice.services.gpg-agent;
+  ollama = service "ollama" {};
+  ollamaHome = ollama.home-manager.users.alice;
+  ollamaAgent = ollamaHome.launchd.agents.ollama;
 in
   mkExpectations "othrys-eval-darwin" {
     "a host with only a user named sets no primary user" = bare.system.primaryUser == null;
@@ -141,4 +159,49 @@ in
     "the assistants are not told they run on NixOS" = !apps.othrys.apps.ai.context.nixos.enable && !(lib.hasInfix "NixOS" apps.othrys.apps.ai.context.text);
     "yazi pulls no Wayland clipboard on a Mac" = !(builtins.any (p: lib.getName p == "wl-clipboard") home.home.packages);
     "an account with Home Manager on and no home adapter is refused" = rejectedWith "darwinModules.home is not imported" withHomeManager;
+
+    "the SSH module turns Remote Login on" = ssh.services.openssh.enable == true;
+    "the hardened sshd settings reach the darwin sshd" = lib.hasInfix "PasswordAuthentication no" sshdConfig && lib.hasInfix "PermitRootLogin no" sshdConfig && lib.hasInfix "AllowAgentForwarding no" sshdConfig;
+    "the darwin sshd is offered no key exchange older releases refuse" = lib.hasInfix "KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256" sshdConfig && !(lib.hasInfix "mlkem" sshdConfig);
+    "the forge keys and the host's own known host are trusted" = lib.hasInfix "github.com ssh-ed25519" knownHosts && lib.hasInfix "nas.example.com ssh-ed25519" knownHosts;
+    "the SSH client configuration reaches the darwin user" = sshHome.programs.ssh.enable && sshHome.programs.ssh.settings."*".data.StrictHostKeyChecking == "ask";
+    "a darwin SSH port other than 22 is refused" = rejectedWith "listens on port 22 alone" (service "ssh" {othrys.services.ssh.server.ports = [2222];});
+    "the SSH client alone leaves Remote Login to macOS" = (darwinConfig [darwinBase darwinManagedBase {othrys.services.ssh.enable = true;}]).services.openssh.enable == null;
+
+    "the Tailscale module runs tailscaled" = tailscale.services.tailscale.enable;
+    "a Tailscale host with the defaults is accepted" = !(rejectedWith "nix-darwin runs no" tailscale);
+    "a darwin Tailscale setting nothing applies is refused" = rejectedWith "sets acceptRoutes, operator on a darwin host" (service "tailscale" {
+      othrys.services.tailscale = {
+        acceptRoutes = true;
+        operator = "alice";
+      };
+    });
+
+    "the other darwin Tailscale settings nothing applies are refused" = rejectedWith "sets authKeyFile, baseURL, ssh, acceptDns, ephemeral on a darwin host" (service "tailscale" {
+      othrys.services.tailscale = {
+        authKeyFile = "/run/secrets/tailscale";
+        baseURL = "https://headscale.example.com";
+        ssh = true;
+        acceptDns = false;
+        ephemeral = true;
+      };
+    });
+
+    "the gpg-agent runs as the user's launchd agent" = gpgAgent.enable && gpgAgent.enableSshSupport && yubikey.home-manager.users.alice.launchd.agents.gpg-agent.enable;
+    "the PIN prompt is pinentry-mac" = lib.getName gpgAgent.pinentry.package == "pinentry-mac";
+    "a Mac with the graphical flag off prompts on the terminal" = lib.getName (service "yubikey" {othrys.desktop.graphical = false;}).home-manager.users.alice.services.gpg-agent.pinentry.package == "pinentry-curses";
+    "the hardened gpg.conf reaches the darwin user" = yubikey.home-manager.users.alice.programs.gpg.settings.throw-keyids;
+    "the YubiKey tools are installed and pam_u2f is not" = builtins.any (p: lib.getName p == "yubikey-manager") yubikey.environment.systemPackages && !(builtins.any (p: lib.getName p == "pam_u2f") yubikey.environment.systemPackages);
+    "a darwin U2F mapping is refused" = rejectedWith "writes no pam_u2f line on nix-darwin" (service "yubikey" {
+      othrys.services.security.yubikey.u2fMappings.alice = ["handle,key,es256,+presence"];
+    });
+    "Touch ID for sudo stays off" = !yubikey.security.pam.services.sudo_local.touchIdAuth;
+
+    "Ollama defaults to the CPU build on a Mac" = ollama.othrys.apps.ai.ollama.acceleration == "cpu";
+    "Ollama runs as the user's launchd agent" = ollamaAgent.enable && builtins.elem "serve" ollamaAgent.config.ProgramArguments;
+    "the Ollama agent listens on 127.0.0.1:11434" = ollamaAgent.config.EnvironmentVariables.OLLAMA_HOST == "127.0.0.1:11434";
+    "the user's OLLAMA_HOST points at the agent" = ollamaHome.home.sessionVariables.OLLAMA_HOST == "http://127.0.0.1:11434";
+    "the Ollama package is the CPU build" = ollamaHome.services.ollama.package.drvPath == inputs.nixpkgs.legacyPackages.aarch64-darwin.ollama-cpu.drvPath;
+    "a GPU Ollama build on darwin is refused" = rejectedWith "builds that package for Linux alone" (service "ollama" {othrys.apps.ai.ollama.acceleration = "vulkan";});
+    "Ollama models to pull on darwin are refused" = rejectedWith "pulls no models" (service "ollama" {othrys.apps.ai.ollama.loadModels = ["llama3.1"];});
   }

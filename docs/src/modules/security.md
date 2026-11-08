@@ -49,6 +49,22 @@ workstation where the token lives on a keyring and the wrong one for a machine
 left unattended. An account with no mapping falls through to its password, so
 nothing is locked out.
 
+### On nix-darwin
+
+`darwinModules.default` carries the module. The GnuPG configuration, the
+`sshcontrol` keygrips and the gpg-agent with SSH support are the same Home
+Manager configuration as on NixOS, and Home Manager runs the agent as the
+user's launchd agent. `pinentryPackage` defaults to `pinentry_mac` there,
+and to `pinentry-curses` on a Mac with `othrys.desktop.graphical` off.
+macOS reads the token through its own smart card stack, so there is no
+pcscd or udev rule to set up. The tools are installed system-wide, without
+`pam_u2f`.
+
+The U2F login is NixOS only, and a darwin host with a `u2fMappings` entry is
+refused. Touch ID for sudo stays the host's own choice through
+`security.pam.services.sudo_local.touchIdAuth`, since it lets a fingerprint
+alone pass sudo while `u2fRequirePassword` defaults to two factors.
+
 ### Options
 
 ```nix

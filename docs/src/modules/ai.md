@@ -217,6 +217,15 @@ gets `ollama-cpu`. An AMD host that wants ROCm sets `acceleration = "rocm"`.
 The CUDA build is unfree and pulls the CUDA toolkit, so a host without an
 NVIDIA card never gets it by default.
 
+On nix-darwin, which has no Ollama service, the server is Home Manager's
+`services.ollama`. It runs as the user's launchd agent on `127.0.0.1:11434`
+and reaches the user through `darwinModules.home`, so a host without a
+managed account gets no server. The CUDA, ROCm and Vulkan variants are
+Linux only, so `acceleration` defaults to `"cpu"` there, which names
+nixpkgs' one darwin build, and any other value is refused.
+Home Manager's agent pulls no models, so `loadModels` is refused as well,
+and the user runs `ollama pull`.
+
 ## MCP Servers
 
 Model Context Protocol servers provide AI assistants with live tool access.

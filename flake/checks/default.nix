@@ -694,6 +694,36 @@
       sops.age.keyFile = "/var/lib/sops-nix/key.txt";
     };
 
+    # A darwin account managed by Home Manager and nothing else on, the base
+    # each darwin service module below is turned on over by itself.
+    darwinManagedBase = {
+      imports = [darwinHomeModules];
+      othrys.system = {
+        users = {
+          enable = true;
+          uid = 502;
+        };
+        nix = {
+          enable = true;
+          stateVersion = "26.05";
+        };
+      };
+    };
+
+    # Each service module of the darwin export on by itself, with what it
+    # hands the user built too. The SSH host runs Remote Login and trusts
+    # one host of its own.
+    darwinServiceHosts = {
+      ssh.othrys.services.ssh = {
+        enable = true;
+        server.enable = true;
+        knownHosts."nas.example.com".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleExampleExampleExampleExampleExam";
+      };
+      tailscale.othrys.services.tailscale.enable = true;
+      yubikey.othrys.services.security.yubikey.enable = true;
+      ollama.othrys.apps.ai.ollama.enable = true;
+    };
+
     # Every system module of the darwin export turned on for alice, with
     # Home Manager, and a uid so the account becomes one nix-darwin manages
     # and the login shell applies.
@@ -737,6 +767,7 @@
           claude-code.enable = true;
           codex.enable = true;
           mcp.context7.enable = true;
+          ollama.enable = true;
         };
         comma.enable = true;
         gh.enable = true;
@@ -1109,6 +1140,7 @@
       "eval-darwin-host-user"
       "eval-darwin-host-apps"
       "eval-darwin-host-full"
+      "eval-darwin-host-services"
       "eval-darwin"
       "pre-commit-check"
       "secret-scan"
@@ -1157,9 +1189,20 @@
       eval-darwin-host-user = mkDarwinEval "othrys-eval-darwin-host-user" [darwinBase darwinUserHost];
       eval-darwin-host-apps = mkDarwinEval "othrys-eval-darwin-host-apps" [darwinBase darwinAppHost];
       eval-darwin-host-full = mkDarwinEval "othrys-eval-darwin-host-full" [darwinBase darwinFullHost];
+      # Each darwin service module on by itself, one system per module. On a
+      # Mac each is built, and elsewhere each toplevel derivation is recorded.
+      eval-darwin-host-services = let
+        tops = pkgs.lib.mapAttrs (_: host: (darwinConfig [darwinBase darwinManagedBase host]).system.build.toplevel) darwinServiceHosts;
+      in
+        if pkgs.stdenv.hostPlatform.isDarwin
+        then pkgs.linkFarm "othrys-eval-darwin-host-services" tops
+        else
+          pkgs.runCommand "othrys-eval-darwin-host-services" {
+            drvs = pkgs.lib.concatStringsSep "\n" (pkgs.lib.mapAttrsToList (n: t: "${n} ${builtins.unsafeDiscardStringContext t.drvPath}") tops);
+          } "echo \"$drvs\" > \"$out\"";
       eval-darwin = import ./darwin-eval.nix {
         inherit (inputs.nixpkgs) lib;
-        inherit darwinConfig darwinBase darwinHomeModules darwinAppHost mkExpectations rejectedWith inputs;
+        inherit darwinConfig darwinBase darwinHomeModules darwinAppHost darwinManagedBase darwinServiceHosts mkExpectations rejectedWith inputs;
       };
 
       # Regression guard for headless/root-only hosts, with nix settings enabled but

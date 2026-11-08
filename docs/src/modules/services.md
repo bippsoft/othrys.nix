@@ -139,6 +139,31 @@ othrys.services.ssh = {
 There is no host certificate authority option. A CA needs a signing key whose
 custody belongs with the host configuration and not with a module library.
 
+### On nix-darwin
+
+`darwinModules.default` carries the module, and the known hosts and the
+client configuration are the same as on NixOS. `server.enable` turns on the
+macOS Remote Login service through nix-darwin's `services.openssh`, which
+takes `sshd_config` text in place of settings. The directives above are
+rendered into `/etc/ssh/sshd_config.d/100-nix-darwin.conf`, and sshd keeps
+the first value it reads, so they win over the defaults macOS ships.
+`mlkem768x25519-sha256` is left out of `KexAlgorithms` there, since Apple's
+OpenSSH build follows the macOS release and one older than 9.9 refuses the
+whole line over a name it does not know.
+
+nix-darwin declares no `services.openssh.settings`, so a darwin host
+loosens a directive with a line in `services.openssh.extraConfig` placed
+ahead of the othrys lines. A line at normal priority comes after them and
+loses.
+
+```nix
+services.openssh.extraConfig = lib.mkBefore "AllowTcpForwarding yes";
+```
+
+launchd starts that sshd on port 22, so a `server.ports` other than `[22]`
+is refused. The firewall nix-darwin manages filters by application and
+takes no port list, so `server.openFirewall` has nothing to open on a Mac.
+
 ## Router
 
 An L3 router firewall + NAT built on `networking.nftables`. It generates a
@@ -500,6 +525,18 @@ host's traffic.
 On a router host the module also opens its port on the WAN interface by name,
 since the router accepts the global firewall lists on every interface but the
 WAN.
+
+### On nix-darwin
+
+`darwinModules.default` carries the module, and it runs tailscaled through
+nix-darwin's `services.tailscale`. nix-darwin has no unit that runs
+`tailscale up` with a key or `tailscale set` after the daemon starts, so a
+darwin host refuses `authKeyFile`, `baseURL`, `ssh`, `acceptRoutes`,
+`operator`, `ephemeral` and `acceptDns = false`. tailscaled keeps the
+settings in its state, so the host passes the matching flags to
+`tailscale up` once by hand. The firewall nix-darwin manages takes no port
+list, so `openFirewall` has nothing to open, and there is no impermanence
+to persist the state through.
 
 ### Options
 

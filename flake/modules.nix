@@ -136,6 +136,9 @@
       ../modules/system/persistence.nix
       ../modules/desktop/graphical.darwin.nix
       ../modules/theme
+      ../modules/services/ssh.darwin.nix
+      ../modules/services/tailscale.darwin.nix
+      ../modules/services/security/yubikey.darwin.nix
 
       # The apps that build for darwin. They write the othrys registries and
       # options nix-darwin declares as well, such as assertions.
@@ -148,6 +151,7 @@
       ../modules/apps/cli/ai/mcp
       ../modules/apps/cli/ai/claude-code.nix
       ../modules/apps/cli/ai/codex.nix
+      ../modules/apps/cli/ai/ollama.darwin.nix
       ../modules/apps/languages
       ../modules/apps/gui/ghostty.darwin.nix
       ../modules/apps/gui/kitty.nix
