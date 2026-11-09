@@ -63,7 +63,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Nix
-        uses: DeterminateSystems/determinate-nix-action@f296148a827001a9a82d3685b53210c06e5d3b67 # v3
+        uses: DeterminateSystems/determinate-nix-action@16f94ba7aae399b9f9077c254b6719ec6de7e3e3 # v3
       # nixos-unstable advances once the Linux jobs on Hydra pass, while
       # nixpkgs-unstable also waits for the darwin jobs. A rev ahead of the
       # darwin channel can miss its aarch64-darwin binaries on cache.nixos.org,
