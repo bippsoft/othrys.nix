@@ -8,7 +8,7 @@ name: Update Inputs
 # surfaces. The "chore(flake)" title is the commit convention and selects
 # nothing.
 #
-# The commit is unsigned, since no key that signs for main is given to a
+# The commits are unsigned, since no key that signs for main is given to a
 # workflow. build.yml skips its signature job for this branch, and the
 # maintainer who lands the bump signs it.
 #
@@ -64,6 +64,44 @@ jobs:
           persist-credentials: false
       - name: Install Nix
         uses: DeterminateSystems/determinate-nix-action@f296148a827001a9a82d3685b53210c06e5d3b67 # v3
+      # nixos-unstable advances once the Linux jobs on Hydra pass, while
+      # nixpkgs-unstable also waits for the darwin jobs. A rev ahead of the
+      # darwin channel can miss its aarch64-darwin binaries on cache.nixos.org,
+      # and core-darwin then builds the toolchain from source for hours. This
+      # step moves nixpkgs to the merge base of the two channels, which is the
+      # newest commit both have reached, and never moves it backwards. The
+      # lock keeps nixos-unstable as the branch it tracks, so flake-checker
+      # and a later `nix flake update` read it as before. The move is a commit
+      # of its own, and the action below updates every other root input on
+      # top of it.
+      - name: Move nixpkgs to the newest rev both channels reached
+        id: pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node=$(jq -r '.nodes.root.inputs.nixpkgs' flake.lock)
+          locked=$(jq -r --arg n "$node" '.nodes[$n].locked.rev' flake.lock)
+          original=$(jq -c --arg n "$node" '.nodes[$n].original' flake.lock)
+          target=$(gh api repos/NixOS/nixpkgs/compare/nixos-unstable...nixpkgs-unstable --jq .merge_base_commit.sha)
+          status=$(gh api "repos/NixOS/nixpkgs/compare/$locked...$target" --jq .status)
+          if [ "$status" = ahead ]; then
+            nix flake lock --override-input nixpkgs "github:NixOS/nixpkgs/$target"
+            node=$(jq -r '.nodes.root.inputs.nixpkgs' flake.lock)
+            jq --arg n "$node" --argjson o "$original" '.nodes[$n].original = $o' flake.lock > flake.lock.new
+            mv flake.lock.new flake.lock
+            git -c user.name='github-actions[bot]' \
+              -c user.email='github-actions[bot]@users.noreply.github.com' \
+              commit -m "chore(flake): move nixpkgs to ${target:0:7}" \
+              -m "nixpkgs moves from ${locked:0:7} to ${target:0:7}, the newest commit that both nixos-unstable and nixpkgs-unstable have reached." \
+              flake.lock
+            pin="nixpkgs moved from ${locked:0:7} to ${target:0:7}, the newest commit both nixos-unstable and nixpkgs-unstable have reached."
+          else
+            pin="nixpkgs stays at ${locked:0:7}, since the newest commit both channels have reached is not ahead of it."
+          fi
+          echo "NIXPKGS_PIN=$pin" >> "$GITHUB_ENV"
+          others=$(jq -r '.nodes.root.inputs | keys[] | select(. != "nixpkgs")' flake.lock | paste -sd' ')
+          echo "others=$others" >> "$GITHUB_OUTPUT"
       - name: Mint an App token
         id: app-token
         if: env.HAS_DEDICATED_TOKEN == 'true'
@@ -79,7 +117,19 @@ jobs:
         uses: DeterminateSystems/update-flake-lock@da03c0f078bc4b2c37ee4f7e072d34bf8f188bb3 # v29
         with:
           token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          # Every root input but nixpkgs, which the step above moved.
+          inputs: ${{ steps.pin.outputs.others }}
           commit-msg: "chore(flake): update inputs"
+          # The body quotes the last commit only, so the nixpkgs move is
+          # stated on its own line.
+          pr-body: |
+            Automated changes by the [update-flake-lock](https://github.com/DeterminateSystems/update-flake-lock) GitHub Action.
+
+            {{ env.NIXPKGS_PIN }}
+
+            ```
+            {{ env.GIT_COMMIT_MESSAGE }}
+            ```
           pr-title: "chore(flake): update inputs"
           pr-labels: |
             automated

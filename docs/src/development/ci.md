@@ -211,7 +211,7 @@ text.
 | `build.yml` | **extended-darwin-ok** | Every PR/push: one status for the darwin matrix |
 | `pages.yml` | **build** + **deploy** | Builds this MdBook and publishes it to GitHub Pages on `main` (requires Pages enabled with Source = GitHub Actions) |
 | `flake-inputs.yml` | **flake-inputs** | Health check of the nixpkgs pins in the flake lock, which covers the branch they track, their age and whether the release is supported. It runs when `flake.{lock,nix}` change and weekly, and it does not scan for security advisories |
-| `update-inputs.yml` | **update** | Weekly `nix flake update`, opened as a `chore(flake)` pull request and never merged automatically |
+| `update-inputs.yml` | **update** | Weekly `nix flake update`, opened as a `chore(flake)` pull request and never merged automatically. `nixpkgs` moves only as far as the newest commit that both `nixos-unstable` and `nixpkgs-unstable` have reached, so `core-darwin` finds its binaries on `cache.nixos.org` |
 | `scorecard.yml` | **analysis** | OpenSSF Scorecard on `main`, weekly, and on branch protection changes. Publishes the score behind the README badge and uploads findings to code scanning |
 
 `.github/dependabot.yml` raises weekly PRs that move the sha pins of the actions

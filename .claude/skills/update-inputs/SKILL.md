@@ -4,7 +4,9 @@ description: Read a flake.lock update and its check results, find what an input 
 ---
 
 The weekly workflow opens a pull request from `update_flake_lock_action` with
-one unsigned commit. A maintainer signs it when landing it. Your work is to
+up to two unsigned commits. The first moves `nixpkgs` to the newest commit
+both `nixos-unstable` and `nixpkgs-unstable` have reached, and the second
+updates every other input. A maintainer signs both when landing them. Your work is to
 say whether it is safe and to fix what it breaks.
 
 1. **Read the bump.** `gh pr view <n>` lists each input with its old and new
