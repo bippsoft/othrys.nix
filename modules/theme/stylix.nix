@@ -234,6 +234,16 @@ in {
           stylix.targets.vicinae.enable = false;
         })
 
+        # Stylix's tmux theme sets window and border colours that the tmux
+        # module's status line does not, so a Stylix host would show a mix
+        # of the two. The tmux module colours tmux from the same palette, so
+        # the target is off while the module is on. The app tree is absent
+        # when this file is imported without it, so the read falls back to
+        # off.
+        (lib.optionalAttrs (config.othrys.apps.tmux.enable or false) {
+          stylix.targets.tmux.enable = false;
+        })
+
         # Stylix's own browser theme for the Floorp profile othrys creates.
         # The app tree is absent when this file is imported without it, so
         # the read falls back to off.
