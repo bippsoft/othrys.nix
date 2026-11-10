@@ -4,8 +4,8 @@
 # reaches the environment, a host that names a user and turns nothing on gets
 # no account settings at all, the home adapter hands the apps' user
 # configuration to Home Manager with the darwin packages and paths, and the
-# SSH, Tailscale, mosh, YubiKey and Ollama modules write what nix-darwin and Home
-# Manager run there and refuse what they cannot apply.
+# SSH, Tailscale, mosh, YubiKey, Ollama and T3 Code modules write what
+# nix-darwin and Home Manager run there and refuse what they cannot apply.
 {
   lib,
   darwinConfig,
@@ -128,6 +128,28 @@
   ollamaLan = (service "ollama" {othrys.apps.ai.ollama.host = "10.0.0.5";}).home-manager.users.alice;
   ollamaV6 = (service "ollama" {othrys.apps.ai.ollama.host = "fd00::5";}).home-manager.users.alice;
   ollamaAllV6 = (service "ollama" {othrys.apps.ai.ollama.host = "::";}).home-manager.users.alice;
+  # The app host runs T3 Code headless. A second host runs the desktop app
+  # with codex alone, which a Mac's graphical session admits.
+  t3Agent = home.launchd.agents.t3code;
+  t3Serve = apps.othrys.internal.t3code.serve;
+  t3Path = lib.splitString ":" t3Agent.config.EnvironmentVariables.PATH;
+  t3Desktop = darwinConfig [
+    darwinBase
+    darwinManagedBase
+    {
+      othrys.apps.ai = {
+        codex.enable = true;
+        t3code = {
+          enable = true;
+          mode = "desktop";
+        };
+      };
+    }
+  ];
+  t3DesktopHome = t3Desktop.home-manager.users.alice;
+  t3DesktopApp = t3Desktop.othrys.internal.t3code.desktop;
+  t3DesktopScript = (t3DesktopApp.drvAttrs.buildCommand or "") + (t3DesktopApp.drvAttrs.postBuild or "");
+  installedFor = h: pkg: builtins.any (p: (p.outPath or null) == pkg.outPath) h.home.packages;
 in
   mkExpectations "othrys-eval-darwin" {
     "a host with only a user named sets no primary user" = bare.system.primaryUser == null;
@@ -232,4 +254,24 @@ in
     "the Ollama package is the CPU build" = ollamaHome.services.ollama.package.drvPath == inputs.nixpkgs.legacyPackages.aarch64-darwin.ollama-cpu.drvPath;
     "a GPU Ollama build on darwin is refused" = rejectedWith "builds that package for Linux alone" (service "ollama" {othrys.apps.ai.ollama.acceleration = "vulkan";});
     "Ollama models to pull on darwin are refused" = rejectedWith "pulls no models" (service "ollama" {othrys.apps.ai.ollama.loadModels = ["llama3.1"];});
+
+    "T3 Code runs headless as the user's launchd agent" = t3Agent.enable;
+    "the T3 Code agent runs the serve script and nothing else" = t3Agent.config.ProgramArguments == ["${t3Serve}"];
+    "launchd starts the T3 Code agent again whenever it exits" = t3Agent.config.KeepAlive == true && t3Agent.config.RunAtLoad == true;
+    "the T3 Code agent's PATH holds the user's profile and /usr/bin" = builtins.head t3Path == "/etc/profiles/per-user/alice/bin" && builtins.elem "/usr/bin" t3Path;
+    # git comes ahead of /usr/bin, whose git is a stub without the Command
+    # Line Tools.
+    "the T3 Code agent's PATH holds git ahead of /usr/bin and /bin" = let
+      tail = lib.drop 2 t3Path;
+    in
+      builtins.length tail
+      == 3
+      && builtins.match "/nix/store/[a-z0-9]{32}-git-[0-9.]+/bin" (builtins.head tail) != null
+      && lib.drop 1 tail == ["/usr/bin" "/bin"];
+    "headless T3 Code on darwin installs t3 and no desktop app" = installedFor home apps.othrys.internal.t3code.cli && !(installedFor home apps.othrys.internal.t3code.desktop);
+    "desktop T3 Code on darwin installs the desktop app" = installedFor t3DesktopHome t3DesktopApp;
+    "desktop T3 Code on darwin runs no launchd agent" = !(t3DesktopHome.launchd.agents ? t3code);
+    "the darwin desktop wrapper points the app bundle at itself" = lib.hasInfix ''ln -s "$out/bin/t3code-desktop" "$macos/T3 Code (Beta)"'' t3DesktopScript && !(lib.hasInfix "T3CODE_DESKTOP_LAUNCHER_PATH" t3DesktopScript);
+    "the darwin desktop wrapper fails a build with no app bundle" = lib.hasInfix ''[ ! -L "$macos/T3 Code (Beta)" ]'' t3DesktopScript;
+    "the darwin desktop wrapper turns the app's self-update off" = lib.hasInfix "T3CODE_DISABLE_AUTO_UPDATE" t3DesktopScript;
   }

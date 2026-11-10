@@ -228,6 +228,10 @@
         ai.codex.enable = true;
         ai.claude-desktop.enable = true;
         ai.orca.enable = true;
+        ai.t3code = {
+          enable = true;
+          mode = "desktop";
+        };
         ai.mcp.context7.enable = true;
         ai.ollama.enable = true;
         comma.enable = true;
@@ -781,6 +785,10 @@
           codex.enable = true;
           mcp.context7.enable = true;
           ollama.enable = true;
+          t3code = {
+            enable = true;
+            mode = "headless";
+          };
         };
         comma.enable = true;
         gh.enable = true;
@@ -1715,6 +1723,11 @@
       claude-desktop-activation = import ./claude-desktop-activation.nix {inherit pkgs hostConfig functioningHost;};
       # What the orca module installs, persists and opens (see ./orca-eval.nix).
       eval-orca = import ./orca-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost inputs system;};
+      # What the t3code module installs, runs, opens and persists (see ./t3code-eval.nix).
+      eval-t3code = import ./t3code-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit hostConfig mkExpectations rejectedWith functioningHost accountNoHomeManager;
+      };
 
       # The committed Claude Code configuration, read as files, and the hook
       # program it runs. Every agent, skill and command carries a description

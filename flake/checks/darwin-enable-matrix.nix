@@ -94,6 +94,8 @@
   # Modules whose bare `enable = true` on darwin is refused by an assertion
   # of their own, with a fragment of the message each has to fail with.
   expectedFail = {
+    # No agent is on either, and that assertion fails beside this one.
+    "othrys.apps.ai.t3code.enable" = "othrys.apps.ai.t3code.mode is unset";
     "othrys.apps.idea.enable" = "othrys.apps.idea: requires othrys.apps.languages.java.enable";
     "othrys.apps.vscode.neovimIntegration.enable" = "neovimIntegration.enable requires othrys.apps.nixvim.enable";
     "othrys.system.nix.cachix.enable" = "othrys.system.nix.cachix: set name and publicKey";
