@@ -5,7 +5,8 @@
 # value that should be refused evaluates cleanly, and an option that is
 # declared and never passed on does too. Ollama's backend follows the GPU,
 # since a CUDA build on a host without an NVIDIA card evaluates and runs on
-# the CPU.
+# the CPU, and its address reaches both the server and the user's
+# OLLAMA_HOST.
 {
   hostConfig,
   impermanenceModules,
@@ -215,7 +216,35 @@
     hardware.graphics.enable = true;
   };
   ollamaHeadless = host ollamaOn;
+  # A server bound to every address on another port, and one bound to a
+  # single LAN address, for what the client on the host is told.
+  ollamaWide = host {
+    imports = [ollamaOn];
+    othrys.apps.ai.ollama = {
+      host = "0.0.0.0";
+      port = 11500;
+    };
+  };
+  ollamaLan = host {
+    imports = [ollamaOn];
+    othrys.apps.ai.ollama.host = "10.0.0.5";
+  };
+  ollamaV6 = host {
+    imports = [ollamaOn];
+    othrys.apps.ai.ollama.host = "fd00::5";
+  };
+  ollamaAllV6 = host {
+    imports = [ollamaOn];
+    othrys.apps.ai.ollama.host = "::";
+  };
+  # The upstream option set by the host itself, which the module's default
+  # loses to.
+  ollamaUpstream = host {
+    imports = [ollamaOn];
+    services.ollama.port = 11600;
+  };
   backendOf = cfg: cfg.othrys.apps.ai.ollama.acceleration;
+  ollamaClient = cfg: cfg.home-manager.users.alice.home.sessionVariables.OLLAMA_HOST;
 
   unbound = cfg: cfg.services.unbound.settings;
   resolver = cfg: cfg.services.traefik.staticConfigOptions.certificatesResolvers.letsencrypt.acme;
@@ -287,4 +316,12 @@ in
     "Ollama takes CUDA on an NVIDIA host" = backendOf ollamaNvidia == "cuda";
     "Ollama takes Vulkan on another host with graphics" = backendOf ollamaGraphics == "vulkan" && !ollamaGraphics.othrys.hardware.nvidia.enable;
     "Ollama takes the CPU build on a host without graphics" = backendOf ollamaHeadless == "cpu" && !ollamaHeadless.hardware.graphics.enable;
+    "the Ollama server listens on 127.0.0.1:11434 by default" = ollamaHeadless.services.ollama.host == "127.0.0.1" && ollamaHeadless.services.ollama.port == 11434;
+    "the user's OLLAMA_HOST points at the default server" = ollamaClient ollamaHeadless == "http://127.0.0.1:11434";
+    "the Ollama host and port reach the server" = ollamaWide.services.ollama.host == "0.0.0.0" && ollamaWide.services.ollama.port == 11500;
+    "a server on every address is reached on loopback" = ollamaClient ollamaWide == "http://127.0.0.1:11500";
+    "a server on one address is reached on that address" = ollamaClient ollamaLan == "http://10.0.0.5:11434";
+    "an IPv6 address is bracketed for the server and in OLLAMA_HOST" = ollamaV6.services.ollama.host == "[fd00::5]" && ollamaClient ollamaV6 == "http://[fd00::5]:11434";
+    "a server on every IPv6 address is reached on IPv6 loopback" = ollamaAllV6.services.ollama.host == "[::]" && ollamaClient ollamaAllV6 == "http://[::1]:11434";
+    "a host's own services.ollama.port wins and reaches the client" = ollamaUpstream.services.ollama.port == 11600 && ollamaClient ollamaUpstream == "http://127.0.0.1:11600";
   }

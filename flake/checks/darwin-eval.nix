@@ -115,6 +115,18 @@
   ollama = service "ollama" {};
   ollamaHome = ollama.home-manager.users.alice;
   ollamaAgent = ollamaHome.launchd.agents.ollama;
+  # An agent bound to every address on another port, and one bound to a
+  # single LAN address, for what the user's client is told.
+  ollamaWide =
+    (service "ollama" {
+      othrys.apps.ai.ollama = {
+        host = "0.0.0.0";
+        port = 11500;
+      };
+    }).home-manager.users.alice;
+  ollamaLan = (service "ollama" {othrys.apps.ai.ollama.host = "10.0.0.5";}).home-manager.users.alice;
+  ollamaV6 = (service "ollama" {othrys.apps.ai.ollama.host = "fd00::5";}).home-manager.users.alice;
+  ollamaAllV6 = (service "ollama" {othrys.apps.ai.ollama.host = "::";}).home-manager.users.alice;
 in
   mkExpectations "othrys-eval-darwin" {
     "a host with only a user named sets no primary user" = bare.system.primaryUser == null;
@@ -206,6 +218,11 @@ in
     "Ollama runs as the user's launchd agent" = ollamaAgent.enable && builtins.elem "serve" ollamaAgent.config.ProgramArguments;
     "the Ollama agent listens on 127.0.0.1:11434" = ollamaAgent.config.EnvironmentVariables.OLLAMA_HOST == "127.0.0.1:11434";
     "the user's OLLAMA_HOST points at the agent" = ollamaHome.home.sessionVariables.OLLAMA_HOST == "http://127.0.0.1:11434";
+    "the Ollama host and port reach the agent" = ollamaWide.launchd.agents.ollama.config.EnvironmentVariables.OLLAMA_HOST == "0.0.0.0:11500";
+    "an agent on every address is reached on loopback" = ollamaWide.home.sessionVariables.OLLAMA_HOST == "http://127.0.0.1:11500";
+    "an agent on one address is reached on that address" = ollamaLan.home.sessionVariables.OLLAMA_HOST == "http://10.0.0.5:11434";
+    "an IPv6 address reaches the agent in brackets" = ollamaV6.launchd.agents.ollama.config.EnvironmentVariables.OLLAMA_HOST == "[fd00::5]:11434" && ollamaV6.home.sessionVariables.OLLAMA_HOST == "http://[fd00::5]:11434";
+    "an agent on every IPv6 address is reached on IPv6 loopback" = ollamaAllV6.launchd.agents.ollama.config.EnvironmentVariables.OLLAMA_HOST == "[::]:11434" && ollamaAllV6.home.sessionVariables.OLLAMA_HOST == "http://[::1]:11434";
     "the Ollama package is the CPU build" = ollamaHome.services.ollama.package.drvPath == inputs.nixpkgs.legacyPackages.aarch64-darwin.ollama-cpu.drvPath;
     "a GPU Ollama build on darwin is refused" = rejectedWith "builds that package for Linux alone" (service "ollama" {othrys.apps.ai.ollama.acceleration = "vulkan";});
     "Ollama models to pull on darwin are refused" = rejectedWith "pulls no models" (service "ollama" {othrys.apps.ai.ollama.loadModels = ["llama3.1"];});
