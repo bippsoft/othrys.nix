@@ -57,6 +57,7 @@ in {
         daml.format = "\\[[$symbol($version)]($style)\\]";
         dart.format = "\\[[$symbol($version)]($style)\\]";
         deno.format = "\\[[$symbol($version)]($style)\\]";
+        directory.format = "\\[[$path]($style)[$read_only]($read_only_style)\\]";
         direnv.format = "\\[[$symbol$loaded/$allowed]($style)\\]";
         docker_context.format = "\\[[$symbol$context]($style)\\]";
         dotnet.format = "\\[[$symbol($version)(🎯 $tfm)]($style)\\]";
