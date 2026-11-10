@@ -27,6 +27,7 @@
 
     # Utilities
     ./localsend.nix
+    ./remmina.nix
     ./rustdesk.nix
 
     # Gaming
