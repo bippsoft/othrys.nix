@@ -29,6 +29,10 @@ in {
       settings = {
         "$schema" = "https://starship.rs/config-schema.json";
 
+        # $all leaves out the modules this line already names, so the rest
+        # keep starship's default order.
+        format = "(\\[$username$hostname\\])$all";
+
         # Time on right side
         right_format = "$time";
         time = {
@@ -82,7 +86,6 @@ in {
         haxe.format = "\\[[$symbol($version)]($style)\\]";
         helm.format = "\\[[$symbol($version)]($style)\\]";
         hg_branch.format = "\\[[$symbol$branch]($style)\\]";
-        hostname.format = "\\[[$ssh_symbol$hostname]($style)\\]";
         java.format = "\\[[$symbol($version)]($style)\\]";
         jobs.format = "\\[[$symbol$number]($style)\\]";
         julia.format = "\\[[$symbol($version)]($style)\\]";
@@ -121,7 +124,14 @@ in {
         sudo.format = "\\[[as $symbol]($style)\\]";
         swift.format = "\\[[$symbol($version)]($style)\\]";
         terraform.format = "\\[[$symbol$workspace]($style)\\]";
-        username.format = "\\[[$user]($style)\\]";
+        # The user and the host share the first segment, as [alice@host], on
+        # every host, local or over SSH. The top-level format owns the
+        # brackets, so the segment stays balanced when a host disables either
+        # module, and the group drops them when neither renders.
+        username.format = "[$user]($style)";
+        username.show_always = true;
+        hostname.format = "[@$hostname]($style)";
+        hostname.ssh_only = false;
         vagrant.format = "\\[[$symbol($version)]($style)\\]";
         vcsh.format = "\\[[vcsh $repo]($style)\\]";
         vlang.format = "\\[[$symbol($version)]($style)\\]";
