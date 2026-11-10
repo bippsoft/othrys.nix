@@ -37,4 +37,4 @@ The default editor behind `EDITOR`/`VISUAL`, git's `core.editor`, and the `v`/`v
 
 ## Starship
 
-Minimal, fast prompt with Git integration. Its colours come from `othrys.theme.palette`. On a host with no palette the layout is the same and each colour is an ANSI name, which the terminal resolves.
+Minimal, fast prompt with Git integration. Every segment the module formats, the directory included, sits in square brackets with no space between segments, so a prompt over SSH reads like `[alice][🌐 host][src][ main]`. The time sits in brackets on the right. Its colours come from `othrys.theme.palette`. On a host with no palette the layout is the same and each colour is an ANSI name, which the terminal resolves.
