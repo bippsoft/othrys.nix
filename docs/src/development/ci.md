@@ -93,6 +93,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-wallpaper` | The wallpaper daemon's configuration for each form of `othrys.theme.wallpaper.source`, the hosts that get no daemon, and the image the Stylix adapter is handed |
 | `eval-languages` | The binaries nixvim and VSCodium take from the language registry |
 | `eval-floorp`, `eval-rustdesk` | The Floorp and Discord settings, and what RustDesk persists and launches |
+| `eval-remmina` | Remmina's Home Manager service, the login service it leaves off unless a host turns it on, and the two directories it persists at 0700 |
 | `eval-chromium` | Chromium's user package, wrapper arguments, extension manifests, persistence, registry guards and typed refusals |
 | `eval-claude-code` | The settings, pre-approved tools, skills and context the AI modules hand Claude Code |
 | `eval-claude-desktop` | The package, the graphical and unfree refusals, what the module persists, and the local MCP servers its activation step merges into the app's config |

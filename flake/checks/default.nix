@@ -254,6 +254,7 @@
         obs.enable = true;
         picard.enable = true;
         plexamp.enable = true;
+        remmina.enable = true;
         rustdesk.enable = true;
         signal.enable = true;
         tmux.enable = true;
@@ -1774,6 +1775,9 @@
 
       # Which NVIDIA driver, kernel modules and container toolkit a host gets (see ./nvidia.nix).
       eval-nvidia = import ./nvidia.nix {inherit hostConfig mkExpectations functioningHost inputs;};
+
+      # What the Remmina module hands Home Manager and persists (see ./remmina.nix).
+      eval-remmina = import ./remmina.nix {inherit impermanenceModules hostConfig mkExpectations functioningHost;};
 
       # What the RustDesk module persists and launches (see ./rustdesk.nix).
       eval-rustdesk = import ./rustdesk.nix {inherit impermanenceModules hostConfig mkExpectations functioningHost;};
