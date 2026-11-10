@@ -154,6 +154,7 @@
       ../modules/apps/cli/ai/claude-code.nix
       ../modules/apps/cli/ai/codex.nix
       ../modules/apps/cli/ai/ollama.darwin.nix
+      ../modules/apps/cli/ai/t3code.darwin.nix
       ../modules/apps/languages
       ../modules/apps/gui/ghostty.darwin.nix
       ../modules/apps/gui/kitty.nix
