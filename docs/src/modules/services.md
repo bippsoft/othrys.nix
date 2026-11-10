@@ -166,6 +166,14 @@ launchd starts that sshd on port 22, so a `server.ports` other than `[22]`
 is refused. The firewall nix-darwin manages filters by application and
 takes no port list, so `server.openFirewall` has nothing to open on a Mac.
 
+A login from Ghostty or kitty sets `TERM` to `xterm-ghostty` or
+`xterm-kitty`, and the terminfo database macOS ships has neither entry, so
+the server also puts the terminfo output of `ghostty-bin` and `kitty` on the
+system path. nix-darwin adds that to `TERMINFO_DIRS`, so `clear`, backspace
+and full-screen programs work in the session. Another terminal's entry goes
+in `environment.systemPackages` the same way, or
+`environment.enableAllTerminfo` installs eleven of them at once.
+
 ## Router
 
 An L3 router firewall + NAT built on `networking.nftables`. It generates a
