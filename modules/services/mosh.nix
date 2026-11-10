@@ -1,6 +1,7 @@
 # modules/services/mosh.nix
 # Mosh, the mobile shell, which keeps a session through sleep and a change of network
 {lib, ...}: {
+  # ANCHOR: mosh-options
   options.othrys.services.mosh = {
     enable = lib.mkEnableOption "Mosh server and client";
 
@@ -15,4 +16,5 @@
       '';
     };
   };
+  # ANCHOR_END: mosh-options
 }

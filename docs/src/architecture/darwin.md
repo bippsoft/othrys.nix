@@ -11,8 +11,8 @@ declare it (see [Module Options](../reference/options.md)).
 
 A nix-darwin host imports `othrys.darwinModules.default`, the same set as
 `othrys.modules.darwin.default`. It holds the primary user, the account,
-Nix, git, the locale, the shell modules, the theme, SSH, Tailscale, the
-YubiKey and the apps that build for darwin, under the option names a NixOS
+Nix, git, the locale, the shell modules, the theme, SSH, Tailscale, Mosh,
+the YubiKey and the apps that build for darwin, under the option names a NixOS
 host uses. The apps are `gh`, `yazi`, `comma`, nixvim, Claude Code, Codex,
 Ollama and the MCP servers, the language registry, Ghostty, kitty, mpv,
 VSCodium, IntelliJ IDEA and Signal.
@@ -87,11 +87,13 @@ context leaves out the NixOS text there.
 SSH writes the known hosts and the client configuration as on NixOS, and
 `server.enable` turns on Remote Login with the hardened settings, on port 22
 alone. Tailscale runs tailscaled and refuses the options that only
-`tailscale up` and `tailscale set` apply, since nix-darwin runs neither. The
-YubiKey module keeps the GnuPG agent with `pinentry_mac` and refuses a U2F
-mapping. Ollama runs as the user's launchd agent through Home Manager, with
-nixpkgs' one darwin build. See [Services](../modules/services.md),
-[Security](../modules/security.md) and [AI](../modules/ai.md) for each.
+`tailscale up` and `tailscale set` apply, since nix-darwin runs neither.
+Mosh puts `mosh` on the system path, where sshd finds `mosh-server` for an
+account whose shell is zsh. The YubiKey module keeps the GnuPG agent with
+`pinentry_mac` and refuses a U2F mapping. Ollama runs as the user's launchd
+agent through Home Manager, with nixpkgs' one darwin build. See
+[Services](../modules/services.md), [Security](../modules/security.md) and
+[AI](../modules/ai.md) for each.
 
 
 ## Adapters
@@ -179,7 +181,7 @@ so a setting that macOS reads at activation or at run time is unchecked. See
 
 Disko, impermanence, the bootloader, the compositors and the rest of the
 desktop, the hardware modules and every service module other than SSH,
-Tailscale and the YubiKey are NixOS only. nix-darwin declares none of the
+Tailscale, Mosh and the YubiKey are NixOS only. nix-darwin declares none of the
 options they write, and a Mac has no ephemeral root, no Linux boot chain and
 no compositor for othrys to manage. The apps outside the list under
 [The Exports](#the-exports) stay on NixOS too, among them Picard, whose

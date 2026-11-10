@@ -1,6 +1,6 @@
 # Services
 
-**Platforms:** SSH and Tailscale run on NixOS and nix-darwin. Every other service is NixOS only. See [Darwin](../architecture/darwin.md).
+**Platforms:** SSH, Tailscale and Mosh run on NixOS and nix-darwin. Every other service is NixOS only. See [Darwin](../architecture/darwin.md).
 
 Service modules under `othrys.services.*`.
 
@@ -11,6 +11,7 @@ Service modules under `othrys.services.*`.
 | Docs | `othrys.services.docs` | MdBook documentation server (darkhttpd) |
 | SSH | `othrys.services.ssh` | OpenSSH server, client defaults and known hosts |
 | Tailscale | `othrys.services.tailscale` | VPN mesh network |
+| Mosh | `othrys.services.mosh` | Mobile shell server and client |
 | WireGuard | `othrys.services.wireguard` | Raw WireGuard interfaces (site-to-site, exit nodes) |
 | DDNS | `othrys.services.ddns` | Dynamic DNS updates (inadyn) |
 | Headscale | `othrys.services.headscale` | Self-hosted Tailscale control server |
@@ -563,6 +564,47 @@ othrys.services.tailscale = {
   authKeyFile = config.sops.secrets."tailscale/preauth".path;
   acceptDns = false;   # the host runs its own resolver
 };
+```
+
+## Mosh
+
+`othrys.services.mosh` installs [Mosh](https://mosh.org/), the mobile shell,
+which keeps a session open through sleep and a change of network. A client
+logs in over SSH and starts `mosh-server` on the remote host, and the session
+then runs over UDP. `enable` is the same on a server and on a client.
+
+```nix
+othrys.services.mosh.enable = true;
+```
+
+On NixOS the module turns on `programs.mosh`, and with `openFirewall`, which
+is on by default, it opens UDP 60000 to 61000 in the NixOS firewall. That is
+the range `mosh-server` picks its port from. The module turns on no SSH
+server. The client reaches `mosh-server` through SSH, so a server host also
+runs sshd, which `othrys.services.ssh.server.enable` provides.
+
+A client host enables the same option to get the `mosh` command, and then
+connects with `mosh alice@host.example.com`. A host that only connects out
+sets `openFirewall = false` and keeps the UDP range closed.
+
+### On nix-darwin
+
+`darwinModules.default` carries the module, and it puts `mosh` on the system
+path. sshd runs `mosh-server` through the account's shell with `-c`, a shell
+that is neither a login nor interactive. zsh reads nix-darwin's
+`/etc/zshenv` even then, and that file puts the system profile on `PATH`, so
+for an account whose shell is zsh nothing else runs on the Mac. A
+non-interactive bash reads no such file, so a client reaching an account
+with another shell passes
+`mosh --server=/run/current-system/sw/bin/mosh-server`. The firewall
+nix-darwin manages takes no port list, so `openFirewall` is unread there. A
+host that turns on the macOS application firewall allows `mosh-server`
+through it.
+
+### Options
+
+```nix
+{{#include ../../../modules/services/mosh.nix:mosh-options}}
 ```
 
 ## Headscale
