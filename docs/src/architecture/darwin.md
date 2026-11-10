@@ -14,7 +14,7 @@ A nix-darwin host imports `othrys.darwinModules.default`, the same set as
 Nix, git, the locale, the shell modules, the theme, SSH, Tailscale, Mosh,
 the YubiKey and the apps that build for darwin, under the option names a NixOS
 host uses. The apps are `gh`, tmux, `yazi`, `comma`, nixvim, Claude Code, Codex,
-Ollama and the MCP servers, the language registry, Ghostty, kitty, mpv,
+T3 Code, Ollama and the MCP servers, the language registry, Ghostty, kitty, mpv,
 VSCodium, IntelliJ IDEA and Signal.
 Picard is left out, since its `pyqt6` fails to build on darwin in the
 pinned nixpkgs. Most are the darwin implementations of split

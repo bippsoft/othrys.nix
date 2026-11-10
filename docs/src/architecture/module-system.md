@@ -43,7 +43,7 @@ repeats it.
 
 The split applies to the system modules `users`, `nix`, `git`, `locale` and
 `secrets`, the editor option and `zsh` under `system/shell`, `ssh`,
-`tailscale`, `mosh` and `yubikey`, the `development` and `ollama` apps, the Stylix
+`tailscale`, `mosh` and `yubikey`, the `development`, `ollama` and `t3code` apps, the Stylix
 adapter, the persistence registry, Floorp, Discord, Vesktop and Ghostty, and the graphical-session
 signal in `desktop/graphical.nix`, which a Mac sets on. Ghostty is split because
 its package differs on darwin. `apps/gui/chromium.nix` stays whole and Linux

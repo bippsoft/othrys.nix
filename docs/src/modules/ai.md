@@ -1,6 +1,6 @@
 # AI Assistants
 
-**Platforms:** Claude Code, Codex, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. See [Darwin](../architecture/darwin.md).
+**Platforms:** Claude Code, Codex, T3 Code in both its modes, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. See [Darwin](../architecture/darwin.md).
 
 AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`.
 
@@ -12,14 +12,15 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 | Codex | `othrys.apps.ai.codex` | OpenAI CLI assistant |
 | Claude Desktop | `othrys.apps.ai.claude-desktop` | Anthropic's desktop app, which also runs Claude Code sessions |
 | Orca | `othrys.apps.ai.orca` | Desktop app that runs coding agents side by side in git worktrees |
+| T3 Code | `othrys.apps.ai.t3code` | Web and desktop interface to Codex and Claude Code, served headless or run as a desktop app |
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server, with the backend chosen from the host's GPU |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
 ## Where the AI packages come from
 
 The packages of `othrys.apps.ai.claude-code`, `othrys.apps.ai.codex`,
-`othrys.apps.ai.claude-desktop` and `othrys.apps.ai.orca` default to the
-builds in the
+`othrys.apps.ai.claude-desktop`, `othrys.apps.ai.orca` and
+`othrys.apps.ai.t3code` default to the builds in the
 [llm-agents](https://github.com/numtide/llm-agents.nix) flake this library
 locks. That flake follows each vendor's releases within hours, while nixpkgs
 typically trails by days. It builds against its own nixpkgs, so its packages
@@ -141,6 +142,87 @@ Under impermanence the module persists `~/.config/orca`, `~/.orca` and
 `~/orca/workspaces`, each at mode `0700`. They hold the profiles and the
 permission setting above, the API key files, and the worktrees with the
 agents' uncommitted work.
+
+## T3 Code
+
+`othrys.apps.ai.t3code` installs T3 Code, a web and desktop interface that
+runs coding agents in threads. It installs `t3` for the user in both modes.
+The agents it drives are the host's own Codex and Claude Code packages, each
+one while its module is on, and the module refuses a host with neither.
+Upstream's default package instead bundles five agents ahead of the user's
+`PATH`, three of them unfree.
+
+`mode` has no default, and a host that leaves it unset is refused. With
+`"headless"` the module runs `t3 serve` as a systemd user unit on NixOS and
+as a launchd agent on nix-darwin, restarted whenever it exits. On a NixOS
+host where othrys manages the user with Home Manager, the user lingers, so
+the unit runs from boot with nobody logged in. A launchd agent runs only
+while the user is logged in, so a Mac that serves T3 Code logs the user in
+at boot. With `"desktop"` it installs the desktop app, which starts its own
+server while a window is open, and it refuses a host without a graphical
+session. Only one server can use `~/.t3`. A second one finds the first one's
+lock in `~/.t3/userdata/server-owner.sqlite` and exits, and the desktop app
+then quits with "This T3 home is unavailable". A workstation in desktop mode
+reaches a headless host by adding it in the app as a saved environment.
+
+```nix
+# A headless host on the tailnet
+othrys.services.tailscale.enable = true;
+othrys.apps.ai.codex.enable = true;
+othrys.apps.ai.t3code = {
+  enable = true;
+  mode = "headless";
+  listen = "tailscale";
+};
+
+# A workstation
+othrys.apps.ai.claude-code.enable = true;
+othrys.apps.ai.t3code = {
+  enable = true;
+  mode = "desktop";
+};
+```
+
+`listen` applies to the headless server alone, and desktop mode refuses any
+value but `"loopback"`. `"lan"` passes upstream's `--lan`, which binds every
+address and drops a peer outside loopback, the private ranges and the
+tailnet. On NixOS it opens `port` in the firewall. othrys controls no
+firewall on macOS, so there the peer filter and pairing are what protect the
+port. `"tailscale"` binds the tailnet IPv4 address that `tailscale ip -4`
+gives when the server starts. With no address the server exits, and the
+service starts it again ten seconds later until tailscaled has one. On NixOS
+it opens `port` on Tailscale's interface alone, and it refuses a host without
+`othrys.services.tailscale.enable`.
+Traffic is plain HTTP inside WireGuard. Upstream's `--tailscale-serve` is not
+used, since its HTTPS needs node certificates from the control server, which
+headscale 0.29 does not issue.
+
+Every mode but loopback asks a new client to pair. The server writes a
+pairing link at start, valid for five minutes, to the journal on NixOS and to
+`~/Library/Logs/t3code.log` on darwin. `t3 pair` mints a new one later.
+
+```console
+$ journalctl --user -u t3code
+$ t3 pair
+```
+
+`disableTelemetry`, on by default, starts `t3` and the desktop app with
+`T3CODE_TELEMETRY_ENABLED=false`. The desktop app also always starts with
+`T3CODE_DISABLE_AUTO_UPDATE=1`, since an app in the store cannot replace
+itself.
+
+Under impermanence the module persists `~/.t3` at mode `0700`, which holds
+the threads database, the server's secrets, the settings and the git
+worktrees with the agents' uncommitted work. Desktop mode also persists the
+Electron profile in `~/.config/t3code-v2` at `0700`. `~/.cache/t3code` is a
+compile cache and is not persisted. The agents' sign-ins live in `~/.codex`
+and `~/.claude`, which their own modules persist.
+
+### Options
+
+```nix
+{{#include ../../../modules/apps/cli/ai/t3code.nix:t3code-options}}
+```
 
 ## Claude Code's settings file
 

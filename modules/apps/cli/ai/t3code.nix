@@ -107,6 +107,7 @@
   };
   serve = pkgs.writeShellScript "t3code-serve" commands.${cfg.listen};
 in {
+  # ANCHOR: t3code-options
   options.othrys.apps.ai.t3code = {
     enable = lib.mkEnableOption "T3 Code, a control surface for coding agents";
 
@@ -169,6 +170,7 @@ in {
       '';
     };
   };
+  # ANCHOR_END: t3code-options
 
   options.othrys.internal.t3code = lib.mkOption {
     type = lib.types.attrsOf lib.types.package;
