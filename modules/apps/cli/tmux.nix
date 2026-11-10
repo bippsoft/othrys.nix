@@ -16,9 +16,11 @@
     then theme.colors.withHashtag.${base}
     else ansi;
 in {
+  # ANCHOR: tmux-options
   options.othrys.apps.tmux = {
     enable = lib.mkEnableOption "tmux terminal multiplexer";
   };
+  # ANCHOR_END: tmux-options
 
   config = lib.mkIf cfg.enable {
     othrys.internal.homeConfig."apps.tmux" = {

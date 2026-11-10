@@ -1,6 +1,6 @@
 # Applications
 
-**Platforms:** `gh`, `yazi`, `comma`, nixvim, the language registry, Ghostty, kitty, mpv, VSCodium, IntelliJ IDEA and Signal run on NixOS and nix-darwin. The rest are NixOS only. See [Darwin](../architecture/darwin.md).
+**Platforms:** `gh`, tmux, `yazi`, `comma`, nixvim, the language registry, Ghostty, kitty, mpv, VSCodium, IntelliJ IDEA and Signal run on NixOS and nix-darwin. The rest are NixOS only. See [Darwin](../architecture/darwin.md).
 
 Application modules under `othrys.apps.*`, split into CLI and GUI categories.
 
@@ -16,6 +16,7 @@ No desktop environment required, so these are usable on servers and headless sys
 | Languages | `othrys.apps.languages.<name>` | Per-language toolchains shared by the PATH and both editors |
 | Development | `othrys.apps.development` | Development tools bundle, direnv with its allow database persisted |
 | GitHub CLI | `othrys.apps.gh` | `gh` with its settings, the git credential helper, a token file for a headless host and read-only commands pre-approved for Claude Code and Codex |
+| tmux | `othrys.apps.tmux` | Terminal multiplexer |
 | Yazi | `othrys.apps.yazi` | Terminal file manager |
 | Comma | `othrys.apps.comma` | Run uninstalled programs with nix-index, whose `command-not-found` handler names the package for a missing command |
 
@@ -140,6 +141,41 @@ When `othrys.apps.ai.codex` is enabled, the same twelve commands become
 `allow` rules in Codex's `othrys-gh.rules`. Codex runs an allowed command
 outside its sandbox, which has no network, so this is what lets Codex read
 GitHub without asking. `codex.allowReadOnly = false` leaves the rules out.
+
+### tmux
+
+`othrys.apps.tmux` turns on Home Manager's `programs.tmux` for the primary
+user, so it takes effect only on a host that imports the `home` export. It
+sets the terminal to `tmux-256color`, which carries italics, the escape time
+to 10 ms in place of tmux's half second, which stalls modal editors after
+Escape, and the history limit to 50000 lines. All three are defaults, so a
+host sets its own under `programs.tmux` without `lib.mkForce`.
+
+```nix
+othrys.apps.tmux.enable = true;
+```
+
+The status line, the current window, the active pane border and the message
+line are coloured from `othrys.theme.palette`. On a host with no palette the
+backgrounds and the text keep the terminal's default colours and the current
+window and the active border are `blue`. The Stylix adapter turns its own
+tmux target off while this module is on, so the two themes never mix, and a
+host that wants the Stylix theme sets
+`stylix.targets.tmux.enable = lib.mkForce true`.
+
+On nix-darwin the module also installs the `tmux-256color` terminfo entry,
+since the database macOS ships has none and Apple's own programs inside tmux
+would not know the terminal.
+
+The module sets no key bindings, no prefix and no mouse mode, so tmux's
+defaults apply. A host sets those under `programs.tmux` in its own Home
+Manager configuration.
+
+#### Options
+
+```nix
+{{#include ../../../modules/apps/cli/tmux.nix:tmux-options}}
+```
 
 ### Kitty
 

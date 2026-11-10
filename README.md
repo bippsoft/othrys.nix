@@ -228,7 +228,7 @@ a typo'd input name used to surface much later as a missing sops file.
 | `othrys.desktop.*` | [Hyprland](https://hyprland.org) through [UWSM](https://github.com/Vladimir-csp/uwsm), [niri](https://github.com/YaLTeR/niri), the [ashell](https://github.com/MalpenZibo/ashell) status bar, the [Vicinae](https://github.com/vicinaehq/vicinae) launcher, greetd login, a Secret Service keyring, idle policy, night light |
 | `othrys.hardware.*` | CPU microcode and firmware, NVIDIA with PRIME offload and shader-cache tuning, PipeWire audio, WiFi and Bluetooth, laptop profiles, USB, webcam, pen tablets, ntsync, SMART, UPS, scanners |
 | `othrys.services.*` | Router stack (nftables router and NAT, [Suricata](https://suricata.io) IDS/IPS, Kea DHCP, Unbound DNS), CrowdSec, fail2ban, SSH, Mosh, Tailscale and Headscale, WireGuard, DDNS, VictoriaMetrics, VictoriaLogs, Grafana, vmalert, ntfy, restic, Traefik, Docker, Podman, k3s, mounts, printing |
-| `othrys.apps.*` | [Nixvim](https://github.com/nix-community/nixvim), VSCodium, IntelliJ IDEA, Floorp, Ghostty, Kitty, yazi, gh, Claude Code and MCP servers, media apps, Steam with GameMode and MangoHud |
+| `othrys.apps.*` | [Nixvim](https://github.com/nix-community/nixvim), VSCodium, IntelliJ IDEA, Floorp, Ghostty, Kitty, tmux, yazi, gh, Claude Code and MCP servers, media apps, Steam with GameMode and MangoHud |
 
 Every option is published in the [generated reference](https://bippsoft.github.io/othrys.nix/reference/options.html),
 built from the module tree so it cannot drift.

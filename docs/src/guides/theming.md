@@ -2,8 +2,8 @@
 
 Every othrys module that draws colour reads one place, `othrys.theme`. It holds a
 base16 palette, two fonts, window opacity, the polarity and the wallpaper. The
-compositors, the bar, the prompt, the browser, the game overlay and the editor
-dashboard take their colours from `othrys.theme.palette` and from nothing else.
+compositors, the bar, the prompt, tmux, the browser, the game overlay and the
+editor dashboard take their colours from `othrys.theme.palette` and from nothing else.
 
 Each value is nullable, and null has one meaning throughout. A module that finds
 a null value writes nothing for that setting, and the application keeps its own
@@ -288,7 +288,10 @@ With `othrys.system.stylix.enable` set, the adapter does four things.
   switched on for the profile the Floorp module creates. While
   `othrys.desktop.wallpaper` is on, Stylix's `hyprland.hyprpaper`, `hyprpaper`
   and `wpaperd` targets are switched off, since othrys draws the wallpaper
-  itself and two programs would draw over each other.
+  itself and two programs would draw over each other. While
+  `othrys.apps.tmux` is on, the `tmux` target is switched off, since the tmux
+  module colours tmux itself. A host that wants the Stylix theme there sets
+  `stylix.targets.tmux.enable = lib.mkForce true`.
 
 Stylix takes one image, so it is handed `primary` and never the list or the
 directory. The targets that show an image, such as the lock screen, show that
@@ -362,8 +365,8 @@ time of day, needs othrys to write no colour of its own. Setting
 `othrys.theme.scheme = null` leaves the palette null, and every module then
 omits its colours. The compositors keep their own border colours, the bar and
 the overlay keep their defaults, Floorp gets no stylesheet, and the editor
-dashboard falls back to fixed neutral colours. The prompt keeps its layout and
-names its colours by ANSI name, so it follows whatever the tool does to the
+dashboard falls back to fixed neutral colours. The prompt and the tmux status line keep their
+layout and name their colours by ANSI name, so it follows whatever the tool does to the
 terminal's palette. Everything that is not colour stays themed. The bar still
 reads `othrys.theme.fonts`, Floorp still follows `polarity` for its dark or
 light variant, and the wallpaper option is unchanged. The Stylix export cannot
