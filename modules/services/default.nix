@@ -5,6 +5,7 @@
     ./docs.nix
     ./ssh.nixos.nix
     ./tailscale.nixos.nix
+    ./mosh.nixos.nix
     ./headscale.nix
     ./monitoring.nix
     ./victoriametrics.nix

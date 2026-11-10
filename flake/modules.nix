@@ -138,6 +138,7 @@
       ../modules/theme
       ../modules/services/ssh.darwin.nix
       ../modules/services/tailscale.darwin.nix
+      ../modules/services/mosh.darwin.nix
       ../modules/services/security/yubikey.darwin.nix
 
       # The apps that build for darwin. They write the othrys registries and
@@ -317,6 +318,7 @@ in {
     printing = ../modules/services/printing.nix;
     ssh = ../modules/services/ssh.nixos.nix;
     tailscale = ../modules/services/tailscale.nixos.nix;
+    mosh = ../modules/services/mosh.nixos.nix;
     headscale = ../modules/services/headscale.nix;
     monitoring = ../modules/services/monitoring.nix;
     alerting = ../modules/services/alerting.nix;
