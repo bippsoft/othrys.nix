@@ -4,7 +4,7 @@
 # reaches the environment, a host that names a user and turns nothing on gets
 # no account settings at all, the home adapter hands the apps' user
 # configuration to Home Manager with the darwin packages and paths, and the
-# SSH, Tailscale, YubiKey and Ollama modules write what nix-darwin and Home
+# SSH, Tailscale, mosh, YubiKey and Ollama modules write what nix-darwin and Home
 # Manager run there and refuse what they cannot apply.
 {
   lib,
@@ -110,6 +110,7 @@
   sshClientOnly = darwinConfig [darwinBase darwinManagedBase {othrys.services.ssh.enable = true;}];
   onSystemPath = cfg: pkg: builtins.any (p: p.drvPath or null == pkg.drvPath) cfg.environment.systemPackages;
   tailscale = service "tailscale" {};
+  mosh = service "mosh" {};
   yubikey = service "yubikey" {};
   gpgAgent = yubikey.home-manager.users.alice.services.gpg-agent;
   ollama = service "ollama" {};
@@ -203,6 +204,9 @@ in
         ephemeral = true;
       };
     });
+
+    "the mosh module puts mosh on the system path" = builtins.any (p: lib.getName p == "mosh") mosh.environment.systemPackages;
+    "a host without the mosh module has no mosh on the system path" = !(builtins.any (p: lib.getName p == "mosh") tailscale.environment.systemPackages);
 
     "the gpg-agent runs as the user's launchd agent" = gpgAgent.enable && gpgAgent.enableSshSupport && yubikey.home-manager.users.alice.launchd.agents.gpg-agent.enable;
     "the PIN prompt is pinentry-mac" = lib.getName gpgAgent.pinentry.package == "pinentry-mac";

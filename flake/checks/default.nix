@@ -730,6 +730,7 @@
         knownHosts."nas.example.com".publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleExampleExampleExampleExampleExam";
       };
       tailscale.othrys.services.tailscale.enable = true;
+      mosh.othrys.services.mosh.enable = true;
       yubikey.othrys.services.security.yubikey.enable = true;
       ollama.othrys.apps.ai.ollama.enable = true;
     };

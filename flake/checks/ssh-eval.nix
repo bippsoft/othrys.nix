@@ -3,7 +3,9 @@
 # back from evaluated hosts. A server moved off port 22 has to open that port
 # and no other, the sshd jail has to name it, and every hardened setting has
 # to stay a default a host replaces with a plain assignment. A wrong port or a
-# misspelled directive evaluates cleanly.
+# misspelled directive evaluates cleanly. The mosh module, which rides on
+# sshd, is read here too, with its UDP range open by default and closed with
+# openFirewall off.
 {
   hostConfig,
   mkExpectations,
@@ -39,6 +41,20 @@
       AllowTcpForwarding = "yes";
     };
   };
+  # Mosh rides on sshd, which starts mosh-server for the client.
+  mosh = host {othrys.services.mosh.enable = true;};
+  moshClosed = host {
+    othrys.services.mosh = {
+      enable = true;
+      openFirewall = false;
+    };
+  };
+  moshRange = cfg:
+    builtins.elem {
+      from = 60000;
+      to = 61000;
+    }
+    cfg.networking.firewall.allowedUDPPortRanges;
   clientOnly = hostConfig [
     functioningHost
     {othrys.services.ssh.enable = true;}
@@ -103,5 +119,9 @@ in
       "an override leaves the other defaults in place" = (sshd loosened).LoginGraceTime == 30 && (sshd loosened).AllowAgentForwarding == "no";
       "the client alone starts no server" = !clientOnly.services.openssh.enable;
       "the client alone opens no port" = !builtins.elem 22 (opened clientOnly);
+      "the mosh module turns on programs.mosh" = mosh.programs.mosh.enable;
+      "the mosh module opens UDP 60000 to 61000" = moshRange mosh;
+      "mosh with openFirewall off opens no mosh ports" = moshClosed.programs.mosh.enable && !(moshRange moshClosed);
+      "a host without the mosh module has programs.mosh off" = !standard.programs.mosh.enable && !(moshRange standard);
     }
   )
