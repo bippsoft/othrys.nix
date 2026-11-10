@@ -11,6 +11,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }: let
   cfg = config.othrys.services.ssh;
@@ -44,5 +45,17 @@ in {
       # services.openssh.extraConfig, ahead of these with lib.mkBefore.
       extraConfig = sshd.render settings;
     };
+
+    # A login from Ghostty or kitty sets TERM to xterm-ghostty or
+    # xterm-kitty, and the terminfo database macOS ships has neither, so
+    # clear, backspace and full-screen programs break in the session.
+    # nix-darwin links share/terminfo from the system path and puts it on
+    # TERMINFO_DIRS. Only the two terminals othrys ships are named, since
+    # environment.enableAllTerminfo pulls the terminfo output of eleven
+    # terminals, several of which a Mac would otherwise build from source.
+    environment.systemPackages = [
+      pkgs.ghostty-bin.terminfo
+      pkgs.kitty.terminfo
+    ];
   };
 }
