@@ -31,6 +31,26 @@
       '';
     };
 
+    host = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1";
+      description = ''
+        Address the server listens on. The default keeps it to this host.
+        `"0.0.0.0"` or `"::"` serves every address, and Ollama asks for no
+        credentials, so anything that reaches the port can run models. On
+        NixOS the port stays closed while `networking.firewall.enable` is on,
+        until the host opens it. On nix-darwin nothing closes the port, so an
+        address other than loopback is reachable from the network at once.
+      '';
+      example = "0.0.0.0";
+    };
+
+    port = lib.mkOption {
+      type = lib.types.port;
+      default = 11434;
+      description = "Port the server listens on.";
+    };
+
     loadModels = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [];

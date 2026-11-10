@@ -3,8 +3,8 @@
 #
 # nix-darwin has no ollama service, so the server is Home Manager's
 # services.ollama, which runs it as the user's launchd agent and reaches the
-# user through darwinModules.home on Home Manager's default address,
-# 127.0.0.1:11434. The cuda, rocm and vulkan variants are Linux only, so
+# user through darwinModules.home on the address othrys.apps.ai.ollama.host
+# and .port name. The cuda, rocm and vulkan variants are Linux only, so
 # "cpu" names nixpkgs' one darwin build, and Home Manager's module pulls no
 # models.
 {
@@ -14,6 +14,8 @@
   ...
 }: let
   cfg = config.othrys.apps.ai.ollama;
+  address = import ../../../lib/ollama.nix {inherit lib;};
+  net = import ../../../lib/net.nix {inherit lib;};
 in {
   imports = [./ollama.nix];
 
@@ -29,12 +31,17 @@ in {
       }
     ];
 
-    othrys.internal.homeConfig."apps.ai.ollama" = {
+    # A function, so the client reads the agent's merged values from the
+    # user's own configuration, and a host that sets Home Manager's options
+    # itself still points the client at the agent.
+    othrys.internal.homeConfig."apps.ai.ollama" = {config, ...}: {
       services.ollama = {
         enable = true;
         package = pkgs.ollama-cpu;
+        host = lib.mkDefault (address.serverHost cfg.host);
+        port = lib.mkDefault cfg.port;
       };
-      home.sessionVariables.OLLAMA_HOST = "http://127.0.0.1:11434";
+      home.sessionVariables.OLLAMA_HOST = "http://${net.local config.services.ollama.host}:${toString config.services.ollama.port}";
     };
   };
 }
