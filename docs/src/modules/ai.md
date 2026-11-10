@@ -210,8 +210,9 @@ lines, which follow that text. `context.text` is the rendered result.
 
 ## Ollama
 
-`othrys.apps.ai.ollama` runs the Ollama server on `127.0.0.1:11434`, pulls the
-models in `loadModels` at start, and persists them. `acceleration` picks the
+`othrys.apps.ai.ollama` runs the Ollama server on the address in `host` and
+the port in `port`, `127.0.0.1` and `11434` by default. It pulls the models in
+`loadModels` at start and persists them. `acceleration` picks the
 package, and its default follows the host. An `othrys.hardware.nvidia` host
 gets `ollama-cuda`, any other host with `hardware.graphics.enable` gets
 `ollama-vulkan`, which runs on AMD and Intel cards, and a host without graphics
@@ -219,9 +220,35 @@ gets `ollama-cpu`. An AMD host that wants ROCm sets `acceleration = "rocm"`.
 The CUDA build is unfree and pulls the CUDA toolkit, so a host without an
 NVIDIA card never gets it by default.
 
+`host = "0.0.0.0"` or `host = "::"` serves every address. Ollama asks for no
+credentials, so anything that reaches the port can run models. On NixOS the
+module opens no port in the firewall, so while `networking.firewall.enable`
+is on the host opens it where it wants clients, for example with
+`networking.firewall.interfaces.<name>.allowedTCPPorts`. On nix-darwin nothing
+closes the port, so an address other than loopback is reachable from the
+network as soon as the agent starts.
+
+```nix
+othrys.apps.ai.ollama = {
+  enable = true;
+  host = "0.0.0.0";
+};
+networking.firewall.interfaces.eth0.allowedTCPPorts = [11434];
+```
+
+The module sets `OLLAMA_HOST` for the user, so the `ollama` client finds the
+server. When the server binds every address, the variable points at the
+loopback of that family, `127.0.0.1` for `0.0.0.0` and `[::1]` for `::`, and
+otherwise at the address the server binds. An IPv6 address is put in
+brackets for the server and the client alike, since both upstream modules
+join the host and the port with a bare colon. The module hands the server
+both values as defaults, and the variable is read from the server's merged
+values, so a host that sets `services.ollama.host` or `services.ollama.port`
+itself still points the client at the server.
+
 On nix-darwin, which has no Ollama service, the server is Home Manager's
-`services.ollama`. It runs as the user's launchd agent on `127.0.0.1:11434`
-and reaches the user through `darwinModules.home`, so a host without a
+`services.ollama`. It runs as the user's launchd agent on the same `host` and
+`port` and reaches the user through `darwinModules.home`, so a host without a
 managed account gets no server. The CUDA, ROCm and Vulkan variants are
 Linux only, so `acceleration` defaults to `"cpu"` there, which names
 nixpkgs' one darwin build, and any other value is refused.
