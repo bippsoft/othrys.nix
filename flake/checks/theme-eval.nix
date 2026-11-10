@@ -128,6 +128,7 @@ in
     "the default palette is oxocarbon dark" = themed.othrys.theme.palette == oxocarbon.dark;
     "the compositor border reads the palette" = (borders themed)."col.active_border" == "rgb(${oxocarbon.dark.base06})" && (borders themed)."col.inactive_border" == "rgb(${oxocarbon.dark.base01})";
     "the prompt reads the palette" = (prompt themed).directory.style == "#${oxocarbon.dark.base0D}" && (prompt themed).character.success_symbol == "[❯](bold #${oxocarbon.dark.base0B})";
+    "the directory segment is bracketed" = (prompt themed).directory.format == "\\[[$path]($style)[$read_only]($read_only_style)\\]";
     "the bar reads the palette" = lib.hasInfix "\nbase = \"#${oxocarbon.dark.base00}\"\n" (ashellToml themed);
     "the bar names no font when the theme has none" = !lib.hasInfix "font_name" (ashellToml themed);
     "the browser reads the palette" = lib.hasInfix "--theme-bg: #${oxocarbon.dark.base00} !important;" (floorp themed).profiles.default.userChrome && lib.hasInfix "rgba(22, 22, 22, 0.85)" (floorp themed).profiles.default.userChrome;
