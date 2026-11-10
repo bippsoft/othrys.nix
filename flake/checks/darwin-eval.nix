@@ -106,6 +106,9 @@
   sshHome = ssh.home-manager.users.alice;
   sshdConfig = ssh.environment.etc."ssh/sshd_config.d/100-nix-darwin.conf".text;
   knownHosts = ssh.environment.etc."ssh/ssh_known_hosts".text;
+  darwinPkgs = inputs.nixpkgs.legacyPackages.aarch64-darwin;
+  sshClientOnly = darwinConfig [darwinBase darwinManagedBase {othrys.services.ssh.enable = true;}];
+  onSystemPath = cfg: pkg: builtins.any (p: p.drvPath or null == pkg.drvPath) cfg.environment.systemPackages;
   tailscale = service "tailscale" {};
   yubikey = service "yubikey" {};
   gpgAgent = yubikey.home-manager.users.alice.services.gpg-agent;
@@ -163,10 +166,12 @@ in
     "the SSH module turns Remote Login on" = ssh.services.openssh.enable == true;
     "the hardened sshd settings reach the darwin sshd" = lib.hasInfix "PasswordAuthentication no" sshdConfig && lib.hasInfix "PermitRootLogin no" sshdConfig && lib.hasInfix "AllowAgentForwarding no" sshdConfig;
     "the darwin sshd is offered no key exchange older releases refuse" = lib.hasInfix "KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256" sshdConfig && !(lib.hasInfix "mlkem" sshdConfig);
+    "an SSH server on a Mac carries the Ghostty and kitty terminfo" = onSystemPath ssh darwinPkgs.ghostty-bin.terminfo && onSystemPath ssh darwinPkgs.kitty.terminfo && builtins.elem "/share/terminfo" ssh.environment.pathsToLink;
+    "the SSH client alone carries neither terminfo" = !(onSystemPath sshClientOnly darwinPkgs.ghostty-bin.terminfo) && !(onSystemPath sshClientOnly darwinPkgs.kitty.terminfo);
     "the forge keys and the host's own known host are trusted" = lib.hasInfix "github.com ssh-ed25519" knownHosts && lib.hasInfix "nas.example.com ssh-ed25519" knownHosts;
     "the SSH client configuration reaches the darwin user" = sshHome.programs.ssh.enable && sshHome.programs.ssh.settings."*".data.StrictHostKeyChecking == "ask";
     "a darwin SSH port other than 22 is refused" = rejectedWith "listens on port 22 alone" (service "ssh" {othrys.services.ssh.server.ports = [2222];});
-    "the SSH client alone leaves Remote Login to macOS" = (darwinConfig [darwinBase darwinManagedBase {othrys.services.ssh.enable = true;}]).services.openssh.enable == null;
+    "the SSH client alone leaves Remote Login to macOS" = sshClientOnly.services.openssh.enable == null;
 
     "the Tailscale module runs tailscaled" = tailscale.services.tailscale.enable;
     "a Tailscale host with the defaults is accepted" = !(rejectedWith "nix-darwin runs no" tailscale);
