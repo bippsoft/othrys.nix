@@ -47,13 +47,14 @@
     };
   };
 
-  # The five modules that draw colour, on a graphical host.
+  # The six modules that draw colour, on a graphical host.
   graphical = {
     othrys.system.shell.starship.enable = true;
     othrys.desktop.compositors.hyprland.enable = true;
     othrys.desktop.ashell.enable = true;
     othrys.apps.floorp.enable = true;
     othrys.apps.gaming.mangohud.enable = true;
+    othrys.apps.tmux.enable = true;
   };
   # The compositor and the prompt alone, for the hosts that vary the theme
   # and read nothing else.
@@ -95,6 +96,10 @@
     othrys.system.stylix.enable = true;
   };
   withStylix = host {imports = [adapter];};
+  withStylixTmux = host {
+    imports = [adapter];
+    othrys.apps.tmux.enable = true;
+  };
   withStylixLight = host {
     imports = [adapter];
     othrys.theme.polarity = "light";
@@ -120,6 +125,7 @@
   ashellToml = cfg: (home cfg).home.file.".config/ashell/config.toml".text;
   floorp = cfg: (home cfg).programs.floorp;
   overlay = cfg: (home cfg).programs.mangohud.settings;
+  tmux = cfg: (home cfg).programs.tmux;
   evaluates = cfg: cfg.system.build.toplevel.drvPath != null;
   renameWarning = name: cfg: builtins.any (lib.hasInfix "othrys.system.stylix.${name}") cfg.warnings;
 in
@@ -134,6 +140,11 @@ in
     "the bar names no font when the theme has none" = !lib.hasInfix "font_name" (ashellToml themed);
     "the browser reads the palette" = lib.hasInfix "--theme-bg: #${oxocarbon.dark.base00} !important;" (floorp themed).profiles.default.userChrome && lib.hasInfix "rgba(22, 22, 22, 0.85)" (floorp themed).profiles.default.userChrome;
     "the overlay reads the palette" = (overlay themed).text_color == oxocarbon.dark.base05;
+    "tmux is enabled for the primary user with tmux-256color" = (tmux themed).enable && (tmux themed).terminal == "tmux-256color";
+    "tmux waits 10 ms after Escape and keeps 50000 lines" = (tmux themed).escapeTime == 10 && (tmux themed).historyLimit == 50000;
+    "the tmux status line reads the palette" = lib.hasInfix "set -g status-style \"bg=#${oxocarbon.dark.base01},fg=#${oxocarbon.dark.base05}\"" (tmux themed).extraConfig && lib.hasInfix "set -g window-status-current-style \"fg=#${oxocarbon.dark.base0D},bold\"" (tmux themed).extraConfig && lib.hasInfix "set -g pane-active-border-style \"fg=#${oxocarbon.dark.base0D}\"" (tmux themed).extraConfig && lib.hasInfix "set -g message-style \"bg=#${oxocarbon.dark.base02},fg=#${oxocarbon.dark.base05}\"" (tmux themed).extraConfig;
+    "Stylix leaves tmux to the tmux module" = !(home withStylixTmux).stylix.targets.tmux.enable && (home withStylix).stylix.targets.tmux.enable;
+    "a host without the tmux option gets no tmux" = !(tmux light).enable;
 
     "the same host evaluates with no palette" = evaluates unthemed && unthemed.othrys.theme.palette == null && unthemed.othrys.theme.colors == null;
     "without a palette the prompt uses ANSI names" = (prompt unthemed).directory.style == "blue" && (prompt unthemed).git_branch.style == "green" && (prompt unthemed).hostname.style == "purple" && (prompt unthemed).character.error_symbol == "[❯](bold red)";
@@ -142,6 +153,7 @@ in
     "without a palette the bar still renders, with no colour" = lib.hasInfix "\n[appearance.bar]\n" (ashellToml unthemed) && !lib.hasInfix "background_color" (ashellToml unthemed) && !lib.hasInfix "workspace_colors" (ashellToml unthemed);
     "without a palette the browser keeps its policies and gets no stylesheet" = (floorp unthemed).policies.ExtensionSettings."*".installation_mode == "blocked" && (floorp unthemed).profiles.default.userChrome == "" && !((floorp unthemed).profiles.default.settings ? "browser.display.background_color");
     "without a palette the overlay keeps its layout and gets no colour" = (overlay unthemed).position == "top-right" && !((overlay unthemed) ? text_color);
+    "without a palette the tmux status line uses ANSI names" = (tmux unthemed).enable && lib.hasInfix "set -g status-style \"bg=default,fg=default\"" (tmux unthemed).extraConfig && lib.hasInfix "set -g window-status-current-style \"fg=blue,bold\"" (tmux unthemed).extraConfig && lib.hasInfix "set -g pane-active-border-style \"fg=blue\"" (tmux unthemed).extraConfig && !lib.hasInfix "#" (tmux unthemed).extraConfig;
 
     "a scheme the host defines is picked up" = ownScheme.othrys.theme.palette == example && (prompt ownScheme).directory.style == "#${example.base0D}";
     "a host scheme leaves oxocarbon in the table" = ownScheme.othrys.theme.schemes ? oxocarbon;

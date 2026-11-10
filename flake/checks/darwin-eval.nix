@@ -173,6 +173,8 @@ in
     "kitty's control socket sits in the per-user TMPDIR" = lib.hasPrefix "unix:\${TMPDIR}/" home.programs.kitty.settings.listen_on;
     "VSCodium finds nixvim under the darwin key" = home.programs.vscodium.profiles.default.userSettings ? "vscode-neovim.neovimExecutablePaths.darwin";
     "the assistants are not told they run on NixOS" = !apps.othrys.apps.ai.context.nixos.enable && !(lib.hasInfix "NixOS" apps.othrys.apps.ai.context.text);
+    "tmux reaches the darwin user with tmux-256color" = home.programs.tmux.enable && home.programs.tmux.terminal == "tmux-256color";
+    "tmux brings its terminfo entry to a Mac" = builtins.any (p: lib.hasSuffix "-terminfo" (p.name or "")) home.home.packages;
     "yazi pulls no Wayland clipboard on a Mac" = !(builtins.any (p: lib.getName p == "wl-clipboard") home.home.packages);
     "an account with Home Manager on and no home adapter is refused" = rejectedWith "darwinModules.home is not imported" withHomeManager;
 

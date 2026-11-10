@@ -256,6 +256,7 @@
         plexamp.enable = true;
         rustdesk.enable = true;
         signal.enable = true;
+        tmux.enable = true;
         vesktop.enable = true;
         vscode.enable = true;
       };
@@ -791,6 +792,7 @@
         kitty.enable = true;
         mpv.enable = true;
         signal.enable = true;
+        tmux.enable = true;
         vscode.enable = true;
         languages = {
           bash.enable = true;
