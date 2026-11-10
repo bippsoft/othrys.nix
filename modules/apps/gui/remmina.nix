@@ -7,9 +7,11 @@
 }: let
   cfg = config.othrys.apps.remmina;
 in {
+  # ANCHOR: remmina-options
   options.othrys.apps.remmina = {
     enable = lib.mkEnableOption "Remmina remote desktop client";
   };
+  # ANCHOR_END: remmina-options
 
   config = lib.mkIf cfg.enable {
     # Profiles live in ~/.local/share/remmina and the preferences in

@@ -58,6 +58,7 @@ Require a desktop environment.
 | Picard | `othrys.apps.picard` | MusicBrainz tagger. NixOS only, since its `pyqt6` fails to build on darwin |
 | Plexamp | `othrys.apps.plexamp` | Plex music player |
 | RustDesk | `othrys.apps.rustdesk` | Remote desktop client. Persists `~/.config/rustdesk`, and `forceX11` starts the launcher through XWayland |
+| Remmina | `othrys.apps.remmina` | Remote desktop client for VNC, RDP, SPICE and SSH. Persists `~/.config/remmina` and `~/.local/share/remmina` at mode `0700`, and starts nothing at login |
 | LocalSend | `othrys.apps.localsend` | Local file sharing |
 | MPV | `othrys.apps.mpv` | Media player |
 
@@ -225,6 +226,49 @@ config file is flat.
 
 `settings` is written to Vesktop's `settings.json` over the module defaults
 and accepts any JSON value.
+
+### Remmina
+
+`othrys.apps.remmina` installs Remmina for the primary user through Home
+Manager's `services.remmina`. Remmina connects to VNC, RDP, SPICE and SSH
+servers. The darwin export does not include it yet, since it has not been
+run there. macOS ships Screen Sharing.app, which covers VNC alone.
+
+```nix
+othrys.apps.remmina.enable = true;
+```
+
+Home Manager would start `remmina --icon` as a user service at every login,
+which keeps a tray icon and a process running. The module sets
+`systemdService.enable` to `false` with `mkDefault`, so Remmina runs only when
+it is opened. A host that wants the login service back sets it for the user.
+
+```nix
+home-manager.users.alice.services.remmina.systemdService.enable = true;
+```
+
+Connection profiles live in `~/.local/share/remmina` and the preferences in
+`~/.config/remmina/remmina.pref`. Where a saved password goes depends on the
+host. With a Secret Service running, which
+[`othrys.desktop.keyring`](./desktop.md#keyring) provides on a graphical host,
+Remmina stores each password in the keyring and the profile keeps a
+placeholder. Without one it encrypts the password into the profile file with
+3DES, keyed by the `secret` in `remmina.pref`. Losing that file makes every
+saved password unreadable, and anyone who can read both directories can
+decrypt them. Under impermanence both directories are persisted at mode 0700
+for that reason.
+
+Remmina's VNC client can connect to macOS Screen Sharing. It answers Apple's
+authentication, security type 30, with the macOS account's username and
+password, so the Mac needs no separate VNC password. Classic VNC is not
+encrypted. Connect over a private network, or turn on the SSH tunnel in the
+connection's SSH settings.
+
+#### Options
+
+```nix
+{{#include ../../../modules/apps/gui/remmina.nix:remmina-options}}
+```
 
 ## Floorp
 
