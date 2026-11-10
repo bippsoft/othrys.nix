@@ -11,6 +11,7 @@
 
     # Utilities
     ./comma.nix
+    ./tmux.nix
     ./yazi.nix
 
     # AI Assistants
