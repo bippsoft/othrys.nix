@@ -17,6 +17,10 @@
 # it configures, or imports neither. `default` on its own writes into no
 # upstream namespace, so a host built from it alone imports nothing else.
 #
+# `wsl` is a sixth export of that kind, which hands a host to NixOS-WSL. It
+# stays out of `full` as well, since a WSL distro and a host booted from its
+# own disk exclude each other.
+#
 # `full` is `default` with all five, and with the five upstream modules from
 # this flake's own lock. A host that wants everything imports that one module.
 #
@@ -263,6 +267,11 @@ in {
     # `system` group declares.
     disko = ../modules/system/disko.nix;
     secrets = withArgs ../modules/system/secrets.nixos.nix;
+
+    # The NixOS-WSL adapter, left out of `default`, `system` and `full`. A
+    # host that runs as a WSL distro imports this and the NixOS-WSL module
+    # together. It reads options the `system` group declares.
+    wsl = ../modules/system/wsl.nix;
 
     # The impermanence adapter, left out of `default` and `system` on the same
     # terms. A host with an ephemeral root imports this and the impermanence

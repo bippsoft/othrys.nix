@@ -81,6 +81,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # NixOS-WSL, the module a host running as a WSL distro is built with,
+    # written into by the optional nixosModules.wsl export. Its flake-compat
+    # input is a plain source tree that no output reads.
+    nixos-wsl = {
+      url = "github:nix-community/NixOS-WSL";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Nix-index database, a prebuilt index for comma and nix-locate
     nix-index-database = {
       url = "github:nix-community/nix-index-database";

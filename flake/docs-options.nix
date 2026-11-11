@@ -33,6 +33,11 @@
         inputs.disko.nixosModules.disko
         inputs.self.nixosModules.secrets
         inputs.sops-nix.nixosModules.sops
+        # The WSL adapter declares othrys.system.wsl. NixOS-WSL writes
+        # nothing until wsl.enable is set, so the bootable host below stays
+        # what it is.
+        inputs.self.nixosModules.wsl
+        inputs.nixos-wsl.nixosModules.default
         {
           boot.loader.grub = {
             enable = true;
