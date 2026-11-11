@@ -62,6 +62,16 @@
       ];
     };
 
+    # The NixOS-WSL module and the othrys WSL adapter, on the same terms. A
+    # fixture that sets othrys.system.wsl lists this module among its own,
+    # and leaves bootCore out, since NixOS-WSL turns the bootloader off.
+    wslModules = {
+      imports = [
+        inputs.nixos-wsl.nixosModules.default
+        inputs.self.nixosModules.wsl
+      ];
+    };
+
     # The sops-nix module and the othrys secrets plumbing, on the same terms.
     # A fixture that sets othrys.system.secrets lists this module among its
     # own.
@@ -1149,6 +1159,7 @@
       "eval-traefik"
       "eval-ssh"
       "eval-dev-shells"
+      "eval-wsl"
     ];
 
     # aarch64-darwin keeps the checks that evaluate no NixOS host, since
@@ -1727,6 +1738,11 @@
       eval-t3code = import ./t3code-eval.nix {
         inherit (inputs.nixpkgs) lib;
         inherit hostConfig mkExpectations rejectedWith functioningHost accountNoHomeManager;
+      };
+      # What the WSL adapter hands NixOS-WSL and which modules it refuses
+      # beside it (see ./wsl-eval.nix).
+      eval-wsl = import ./wsl-eval.nix {
+        inherit inputs hostEval mkExpectations rejectedWith wslModules diskoModules impermanenceModules;
       };
 
       # The committed Claude Code configuration, read as files, and the hook
