@@ -20,6 +20,7 @@ ______________________________________________________________________
 - [Impermanence](./system/impermanence.md)
 - [Bootloader & Secure Boot](./system/bootloader.md)
 - [Secrets Management](./system/secrets.md)
+- [WSL](./system/wsl.md)
 
 # Module Reference
 

@@ -30,6 +30,7 @@
     "othrys.system.networking.enable" = config.othrys.system.networking.enable;
   };
 in {
+  # ANCHOR: wsl-options
   options.othrys.system.wsl = {
     enable = lib.mkEnableOption "running the host as a NixOS-WSL distro";
 
@@ -85,6 +86,7 @@ in {
       description = "Add a Windows Start menu shortcut for each GUI application the host installs.";
     };
   };
+  # ANCHOR_END: wsl-options
 
   config = lib.mkIf cfg.enable {
     assertions =
