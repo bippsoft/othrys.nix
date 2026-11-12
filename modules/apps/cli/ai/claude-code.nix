@@ -146,7 +146,7 @@ in {
         enable = true;
         # At default priority, so a host that sets Home Manager's own option
         # still wins over it.
-        package = lib.mkDefault cfg.package;
+        package = lib.mkDefault config.othrys.internal.agents.claude-code;
         enableMcpIntegration = true;
         # The declared settings are merged into a writable settings.json at
         # each activation, and declared values win. Claude Code and the

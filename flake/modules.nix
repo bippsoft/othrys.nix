@@ -154,6 +154,7 @@
       ../modules/apps/cli/comma.nix
       ../modules/apps/cli/nixvim
       ../modules/apps/cli/ai/shared.nix
+      ../modules/apps/cli/ai/project-environment.nix
       ../modules/apps/cli/ai/mcp
       ../modules/apps/cli/ai/claude-code.nix
       ../modules/apps/cli/ai/codex.nix

@@ -19,8 +19,8 @@
   # The agents T3 Code drives are the host's own, so it runs the builds those
   # modules configured and nothing the host did not turn on.
   providers =
-    lib.optional aiCfg.codex.enable aiCfg.codex.package
-    ++ lib.optional aiCfg.claude-code.enable aiCfg.claude-code.package;
+    lib.optional aiCfg.codex.enable config.othrys.internal.agents.codex
+    ++ lib.optional aiCfg.claude-code.enable config.othrys.internal.agents.claude-code;
 
   # Wraps one program of one output. A build that finds no program fails, so
   # a renamed binary cannot drop the flags unnoticed.

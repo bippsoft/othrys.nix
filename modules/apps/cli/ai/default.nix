@@ -3,6 +3,7 @@
 {lib, ...}: {
   imports = [
     ./shared.nix # Skills and context every assistant receives
+    ./project-environment.nix # Starts each agent in its project's direnv environment
     ./mcp # MCP server definitions
     ./claude-code.nix
     ./codex.nix

@@ -121,7 +121,7 @@ in {
     othrys.internal.homeConfig."apps.ai.codex" = {
       programs.codex = {
         enable = true;
-        inherit (cfg) package;
+        package = lib.mkDefault config.othrys.internal.agents.codex;
         enableMcpIntegration = true;
         # The declared settings are merged into a writable config.toml at
         # each activation, and declared values win. Codex records trusted
