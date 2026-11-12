@@ -40,14 +40,21 @@
     })
   ];
   off = hostConfig [functioningHost];
+  llmCodex = inputs.llm-agents.packages.${system}.codex;
+  installed = hm.programs.codex.package;
+  # The same host with the project-environment launcher turned off.
+  unwrapped = host {othrys.apps.ai.projectEnvironment.enable = false;};
   accepting = (hmOf (host {othrys.apps.ai.codex.permissions.mode = "acceptEdits";})).programs.codex.settings;
   withRule = (hmOf (host {othrys.apps.ai.codex.permissions.extraRules = ''prefix_rule(pattern = ["cargo", "test"], decision = "allow")'';})).programs.codex.rules.othrys;
   rules = hm.programs.codex.rules.othrys;
   profile = settings.permissions.othrys;
 in
   mkExpectations "othrys-eval-codex" {
-    "the package is llm-agents' codex" = same hm.programs.codex.package inputs.llm-agents.packages.${system}.codex;
-    "a host can set the package" = (hmOf swapped).programs.codex.package.pname == "hello";
+    "the package is the project-environment launcher around llm-agents' codex" = same installed.passthru.unwrapped llmCodex && !(same installed llmCodex);
+    "the launcher is the package every module reads" = same installed plain.othrys.internal.agents.codex;
+    "the launcher keeps codex as its program" = installed.meta.mainProgram == "codex";
+    "a host can set the package" = (hmOf swapped).programs.codex.package.passthru.unwrapped.pname == "hello";
+    "with the launcher off the package is llm-agents' codex itself" = same (hmOf unwrapped).programs.codex.package llmCodex && same unwrapped.othrys.internal.agents.codex llmCodex;
     "analytics, the metrics exporter, feedback and the update check are off" = !settings.analytics.enabled && settings.otel.metrics_exporter == "none" && !settings.feedback.enabled && !settings.check_for_update_on_startup;
     "telemetry can be left on" = !(telemetryOn ? analytics) && !(telemetryOn ? check_for_update_on_startup);
     "a host's settings win over the module's" = overridden.analytics.enabled && !overridden.feedback.enabled;

@@ -93,7 +93,16 @@
   unit = h: (hmOf h).systemd.user.services.t3code;
   drvPaths = map (p: p.drvPath);
   providersOf = h: drvPaths (h.othrys.apps.ai.t3code.package.providerPackages or []);
-  agent = h: name: h.othrys.apps.ai.${name}.package;
+  agent = h: name: h.othrys.internal.agents.${name};
+  bare = h: name: h.othrys.apps.ai.${name}.package;
+  # The headless host with the project-environment launcher turned off.
+  unwrappedHost = host {
+    othrys.apps.ai.projectEnvironment.enable = false;
+    othrys.apps.ai.t3code = {
+      enable = true;
+      mode = "headless";
+    };
+  };
 
   headlessPath = builtins.head (unit headless).Service.Environment;
   pathEntries = lib.splitString ":" (lib.removePrefix "PATH=" headlessPath);
@@ -110,8 +119,12 @@
   refusedByT3code = h: builtins.any (a: !a.assertion && lib.hasInfix "othrys.apps.ai.t3code" a.message) h.assertions;
 in
   mkExpectations "othrys-eval-t3code" {
-    "T3 Code is handed the codex and claude-code packages, in that order" =
-      providersOf headless == drvPaths [(agent headless "codex") (agent headless "claude-code")];
+    "T3 Code is handed the codex and claude-code launchers, in that order" =
+      providersOf headless
+      == drvPaths [(agent headless "codex") (agent headless "claude-code")]
+      && providersOf headless != drvPaths [(bare headless "codex") (bare headless "claude-code")];
+    "with the launcher off T3 Code is handed the bare packages" =
+      providersOf unwrappedHost == drvPaths [(bare unwrappedHost "codex") (bare unwrappedHost "claude-code")];
     "a host with codex alone hands T3 Code the codex package alone" =
       providersOf codexOnly == drvPaths [(agent codexOnly "codex")];
 

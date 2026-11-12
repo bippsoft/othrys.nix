@@ -1166,9 +1166,11 @@
     # nixosSystem cannot evaluate for a darwin system. They are the darwin
     # hosts, built here as systems, their read-back, the darwin enable
     # matrix, which the darwin leg of the extended tier builds, the commit
-    # hooks, the secret scan, the documentation links, the dev shells and the
-    # agent hook, which a session on a Mac runs as well. comment-hygiene and
-    # contract-guards stay out, as pre-commit-check runs both.
+    # hooks, the secret scan, the documentation links, the dev shells, the
+    # agent hook, which a session on a Mac runs as well, and the
+    # project-environment launcher, which runs there around a darwin host's
+    # stand-in agent. comment-hygiene and contract-guards stay out, as
+    # pre-commit-check runs both.
     darwinChecks = [
       "eval-darwin-host-min"
       "eval-darwin-host-user"
@@ -1183,6 +1185,7 @@
       "docs-includes"
       "eval-dev-shells"
       "agent-config"
+      "project-environment-launcher"
     ];
 
     checksBySystem = {
@@ -1732,6 +1735,11 @@
       eval-claude-desktop = import ./claude-desktop-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost inputs system;};
       # The claude-desktop activation step, run against fixture files (see ./claude-desktop-activation.nix).
       claude-desktop-activation = import ./claude-desktop-activation.nix {inherit pkgs hostConfig functioningHost;};
+      # The project-environment launcher, run around a stand-in agent in
+      # temporary projects with and without an .envrc and in git worktrees
+      # (see ./project-environment-launcher.nix). It builds the launcher for
+      # the system it runs on, so a Mac runs it too.
+      project-environment-launcher = import ./project-environment-launcher.nix {inherit pkgs hostConfig darwinConfig bootBase darwinBase;};
       # What the orca module installs, persists and opens (see ./orca-eval.nix).
       eval-orca = import ./orca-eval.nix {inherit hostConfig mkExpectations rejectedWith functioningHost inputs system;};
       # What the t3code module installs, runs, opens and persists (see ./t3code-eval.nix).

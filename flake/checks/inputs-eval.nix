@@ -75,7 +75,9 @@ in
     "the user's profile installs the locked ashell" = installs bare locked.ashell;
     "nixvim's Home Manager module is imported" = (home bare).programs.nixvim.enable;
     "nixvim imports nixpkgs from the source of the host's package set" = toString (home bare).programs.nixvim.nixpkgs.source == toString (pkgsOf bare).path;
-    "Home Manager configures the locked claude-code" = same (home bare).programs.claude-code.package locked.claude-code;
+    # The project-environment launcher wraps the agents, and keeps the
+    # package it wraps as passthru.unwrapped.
+    "Home Manager configures the locked claude-code" = same (home bare).programs.claude-code.package.passthru.unwrapped locked.claude-code;
     "nix-index-database's Home Manager module is imported" = (home bare).programs.nix-index-database.comma.enable && (home bare).programs.nix-index.enable;
 
     "no secrets input reads as an empty set" = withSecrets.config.othrys.system.secrets.secretFiles == {};
@@ -86,6 +88,6 @@ in
     "a host can set the Hyprland portal package" = same (passed swapped "portalPackage") (pkgsOf swapped).xdg-desktop-portal-hyprland;
     "Home Manager configures the package the host set" = same (home swapped).wayland.windowManager.hyprland.package (pkgsOf swapped).hyprland;
     "a host can set the ashell package" = barCommand swapped == "${(pkgsOf swapped).ashell}/bin/ashell" && installs swapped (pkgsOf swapped).ashell;
-    "a host can set the claude-code package" = same (home swapped).programs.claude-code.package (pkgsOf swapped).claude-code;
+    "a host can set the claude-code package" = same (home swapped).programs.claude-code.package.passthru.unwrapped (pkgsOf swapped).claude-code;
     "the package a host set is not the locked one" = !same (passed swapped "package") locked.hyprland;
   }

@@ -106,6 +106,12 @@
   allowlisted = with' {nixpkgs.config.allowUnfreePredicate = pkg: (pkg.pname or "") == "claude-code";};
   listed = with' {nixpkgs.config.allowUnfreePackages = ["claude-code"];};
   packageOf = h: h.home-manager.users.${h.othrys.system.user.name}.programs.claude-code.package;
+  quietClaude = llmAgents.claude-code.override {disableTelemetry = true;};
+  # The host below with the project-environment launcher turned off.
+  unwrapped = with' {
+    othrys.system.nix.allowUnfree = true;
+    othrys.apps.ai.projectEnvironment.enable = false;
+  };
   user = host.othrys.system.user.name;
   hm = host.home-manager.users.${user};
   settings = hm.programs.claude-code.settings;
@@ -146,9 +152,12 @@ in
     "a shared skill and a skill for the tool both reach Claude Code" = claudeSkills ? shared-skill && claudeSkills ? claude-only;
     "a skill for the tool replaces a shared one of the same name" = inputs.nixpkgs.lib.hasInfix "from the tool" claudeSkills.both;
     "a shared skill whose name the format refuses is rejected" = rejectedWith "cannot name a skill" (withSkills {othrys.apps.ai.skills.Bad_Name = "x";});
-    "the package is llm-agents' claude-code built without telemetry" = same hm.programs.claude-code.package (llmAgents.claude-code.override {disableTelemetry = true;});
+    "the package is the project-environment launcher around llm-agents' claude-code built without telemetry" = same hm.programs.claude-code.package.passthru.unwrapped quietClaude && !(same hm.programs.claude-code.package quietClaude);
+    "the launcher is the package every module reads" = same hm.programs.claude-code.package host.othrys.internal.agents.claude-code;
+    "the launcher keeps claude as its program" = hm.programs.claude-code.package.meta.mainProgram == "claude";
+    "with the launcher off the package is llm-agents' claude-code itself" = same (packageOf unwrapped) quietClaude && same unwrapped.othrys.internal.agents.claude-code quietClaude;
     "the settings file stays writable and declared values win" = hm.programs.claude-code.mutableSettings;
-    "telemetry can be left on" = same (packageOf telemetryOn) (llmAgents.claude-code.override {disableTelemetry = false;});
+    "telemetry can be left on" = same (packageOf telemetryOn).passthru.unwrapped (llmAgents.claude-code.override {disableTelemetry = false;});
     "the host trusts the cache the package comes from" = builtins.elem "https://cache.numtide.com" host.nix.settings.substituters;
     "a host that admits no unfree software is refused" = rejectedWith "marks it free so nixpkgs never checks" unfreeOff;
     "a host's own allowlist admits it" = !rejectedWith "marks it free so nixpkgs never checks" allowlisted;

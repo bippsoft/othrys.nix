@@ -6,6 +6,8 @@
 # configuration to Home Manager with the darwin packages and paths, and the
 # SSH, Tailscale, mosh, YubiKey, Ollama and T3 Code modules write what
 # nix-darwin and Home Manager run there and refuse what they cannot apply.
+# codex and Claude Code reach Home Manager and T3 Code through the
+# project-environment launcher, and as themselves with it off.
 {
   lib,
   darwinConfig,
@@ -150,6 +152,40 @@
   t3DesktopApp = t3Desktop.othrys.internal.t3code.desktop;
   t3DesktopScript = (t3DesktopApp.drvAttrs.buildCommand or "") + (t3DesktopApp.drvAttrs.postBuild or "");
   installedFor = h: pkg: builtins.any (p: (p.outPath or null) == pkg.outPath) h.home.packages;
+
+  # The app host starts both agents through the project-environment
+  # launcher, which is on by default. A second host has codex and Claude
+  # Code with the launcher off, and a third keeps the launcher while it
+  # leaves new worktrees blocked.
+  same = a: b: a.outPath == b.outPath;
+  drvPaths = map (p: p.drvPath);
+  darwinAgents = inputs.llm-agents.packages.aarch64-darwin;
+  quietClaude = darwinAgents.claude-code.override {disableTelemetry = true;};
+  agents = apps.othrys.internal.agents;
+  unwrapped = darwinConfig [
+    darwinBase
+    darwinManagedBase
+    {
+      othrys.system.nix.allowUnfree = true;
+      othrys.apps.ai = {
+        claude-code.enable = true;
+        codex.enable = true;
+        projectEnvironment.enable = false;
+      };
+    }
+  ];
+  unwrappedHome = unwrapped.home-manager.users.alice;
+  untrusting = darwinConfig [
+    darwinBase
+    darwinManagedBase
+    {
+      othrys.apps.ai = {
+        codex.enable = true;
+        projectEnvironment.trustWorktrees = false;
+      };
+    }
+  ];
+  launcherText = agent: agent.passthru.launcher.drvAttrs.text or "";
 in
   mkExpectations "othrys-eval-darwin" {
     "a host with only a user named sets no primary user" = bare.system.primaryUser == null;
@@ -274,4 +310,20 @@ in
     "the darwin desktop wrapper points the app bundle at itself" = lib.hasInfix ''ln -s "$out/bin/t3code-desktop" "$macos/T3 Code (Beta)"'' t3DesktopScript && !(lib.hasInfix "T3CODE_DESKTOP_LAUNCHER_PATH" t3DesktopScript);
     "the darwin desktop wrapper fails a build with no app bundle" = lib.hasInfix ''[ ! -L "$macos/T3 Code (Beta)" ]'' t3DesktopScript;
     "the darwin desktop wrapper turns the app's self-update off" = lib.hasInfix "T3CODE_DISABLE_AUTO_UPDATE" t3DesktopScript;
+
+    "the launcher on a Mac wraps llm-agents' codex" = same agents.codex.passthru.unwrapped darwinAgents.codex && !(same agents.codex darwinAgents.codex);
+    "the launcher on a Mac wraps llm-agents' claude-code built without telemetry" = same agents.claude-code.passthru.unwrapped quietClaude && !(same agents.claude-code quietClaude);
+    "the launchers on a Mac keep codex and claude as their programs" = agents.codex.meta.mainProgram == "codex" && agents.claude-code.meta.mainProgram == "claude";
+    "the launcher fails a build with no codex program" = lib.hasInfix ''[ ! -e "$out/bin/codex" ]'' ((agents.codex.drvAttrs.buildCommand or "") + (agents.codex.drvAttrs.postBuild or ""));
+    "the launcher allows a new worktree's identical .envrc by default" = lib.hasInfix ''"$direnv" allow'' (launcherText agents.codex);
+    "with trustWorktrees off the launcher never runs direnv allow" =
+      lib.hasInfix "direnv\" exec" (launcherText untrusting.othrys.internal.agents.codex)
+      && !(lib.hasInfix ''"$direnv" allow'' (launcherText untrusting.othrys.internal.agents.codex));
+    "Home Manager on a Mac installs the launchers" = same home.programs.codex.package agents.codex && same home.programs.claude-code.package agents.claude-code;
+    "T3 Code on a Mac is handed the launchers, codex first" = drvPaths (apps.othrys.apps.ai.t3code.package.providerPackages or []) == drvPaths [agents.codex agents.claude-code];
+    "with the launcher off a Mac installs the agents themselves" =
+      same unwrappedHome.programs.codex.package darwinAgents.codex
+      && same unwrappedHome.programs.claude-code.package quietClaude
+      && same unwrapped.othrys.internal.agents.codex darwinAgents.codex
+      && same unwrapped.othrys.internal.agents.claude-code quietClaude;
   }
