@@ -1,6 +1,6 @@
 # AI Assistants
 
-**Platforms:** Claude Code, Codex, T3 Code in both its modes, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. See [Darwin](../architecture/darwin.md).
+**Platforms:** Claude Code, Codex, the project environment, T3 Code in both its modes, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. See [Darwin](../architecture/darwin.md).
 
 AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`.
 
@@ -10,6 +10,7 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 |--------|--------|-------------|
 | Claude Code | `othrys.apps.ai.claude-code` | Anthropic CLI assistant |
 | Codex | `othrys.apps.ai.codex` | OpenAI CLI assistant |
+| Project environment | `othrys.apps.ai.projectEnvironment` | Starts Claude Code and Codex in the direnv environment of the directory they start in |
 | Claude Desktop | `othrys.apps.ai.claude-desktop` | Anthropic's desktop app, which also runs Claude Code sessions |
 | Orca | `othrys.apps.ai.orca` | Desktop app that runs coding agents side by side in git worktrees |
 | T3 Code | `othrys.apps.ai.t3code` | Web and desktop interface to Codex and Claude Code, served headless or run as a desktop app |
@@ -32,11 +33,81 @@ The default is built with `disableTelemetry`, which turns off telemetry and
 non-essential traffic, and `othrys.apps.ai.claude-code.disableTelemetry =
 false` builds it without. A package set by hand is used as given.
 
+Every module that installs or runs Claude Code or Codex, T3 Code among them,
+receives the package wrapped by the launcher that
+[the project environment](#the-project-environment) describes, whether it is
+the default or one set by hand. A host that sets Home Manager's
+`programs.claude-code.package` or `programs.codex.package` itself replaces the
+wrapped package for that user.
+
 llm-agents marks its unfree packages as free, so nixpkgs never asks whether
 the host admits them. Claude Code and Claude Desktop are unfree, so their
 modules refuse a host that admits no unfree software, through
 `othrys.system.nix.allowUnfree` or the host's own `allowUnfreePredicate` or
 `allowUnfreePackages`.
+
+## The project environment
+
+An agent inherits the environment of whatever started it, such as a daemon,
+an editor or a shell outside the project. A project whose agent hooks or
+tools live in its dev shell then fails. In othrys.nix itself,
+`.claude/settings.json` refuses every write when `othrys-agent-hook` is not on
+`PATH`. `othrys.apps.ai.projectEnvironment`, on by default, replaces the
+`claude` and `codex` programs of their packages with a launcher. When the
+directory the agent starts in has an allowed `.envrc`, the launcher runs the
+agent through `direnv exec`, so it gets the environment a shell in that
+directory would have, and variables direnv unsets are unset as usual.
+
+The launcher leaves the agent unchanged in a directory without an `.envrc`,
+and when `DIRENV_DIR` names the directory of the `.envrc` direnv finds from
+there, since direnv has loaded that environment already. An environment
+loaded for a parent project does not count when the directory has an
+`.envrc` of its own. In an interactive shell inside the project
+it therefore does nothing beyond what direnv's own hook did. It runs direnv,
+jq, git, coreutils and diffutils from the store, so a host without direnv in its profile
+still runs it, while no `.envrc` is allowed until the user runs `direnv allow`.
+
+A blocked `.envrc` makes `direnv exec` refuse to run the command at all. The
+launcher then starts the agent without the environment and prints one line
+to stderr naming the file. `direnv allow` in that directory loads it from the
+next start.
+
+direnv trusts an `.envrc` by its path, so every new git worktree starts
+blocked. The launcher allows a worktree's `.envrc` when it is byte-identical
+to the `.envrc` at the same relative path in the main checkout and that file
+is allowed, which extends trust only to text the user already approved. A
+worktree whose `.envrc` differs stays blocked until `direnv allow`. The main
+checkout is found through `git rev-parse --git-common-dir`, so a worktree of
+a bare repository or of a submodule is not covered and starts blocked. A
+worktree the user denied with `direnv deny` stays denied.
+
+The allow is written to the user's direnv allow store under
+`$XDG_DATA_HOME/direnv/allow`, so it outlasts the agent, and a shell that
+enters the worktree later loads the file without a prompt. Removing the
+worktree leaves the entry until `direnv prune` runs. A host that wants new
+worktrees to stay blocked until the user allows them sets
+`othrys.apps.ai.projectEnvironment.trustWorktrees = false`, and the launcher
+then never runs `direnv allow`.
+
+The trust is direnv's own model, and direnv hashes `.envrc` alone. Under
+`use flake`, a branch that changes `flake.nix` or the dev shell loads without
+a prompt, in the main checkout and in a worktree that inherited the trust
+alike.
+
+The environment belongs to the process and is chosen by the directory the
+agent starts in. A program that runs one agent process for several
+directories, or starts the process in its own directory rather than the
+project's, gets the environment of that directory only. Such launchers need
+their own support.
+
+`othrys.apps.ai.projectEnvironment.enable = false` gives every module the
+packages as they are set.
+
+### Options
+
+```nix
+{{#include ../../../modules/apps/cli/ai/project-environment.nix:project-environment-options}}
+```
 
 ## Codex
 

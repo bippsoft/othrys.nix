@@ -114,6 +114,7 @@
     then wrap base
     else base;
 in {
+  # ANCHOR: project-environment-options
   options.othrys.apps.ai.projectEnvironment = {
     enable = lib.mkOption {
       type = lib.types.bool;
@@ -141,6 +142,7 @@ in {
       '';
     };
   };
+  # ANCHOR_END: project-environment-options
 
   options.othrys.internal.agents = lib.mkOption {
     type = lib.types.attrsOf lib.types.package;
