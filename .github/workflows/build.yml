@@ -143,6 +143,8 @@ jobs:
             '.#checks.x86_64-linux.project-environment-launcher' \
             '.#checks.x86_64-linux.eval-orca' \
             '.#checks.x86_64-linux.eval-t3code' \
+            '.#checks.x86_64-linux.eval-paseo' \
+            '.#checks.x86_64-linux.paseo-serve' \
             '.#checks.x86_64-linux.eval-wsl' \
             '.#checks.x86_64-linux.agent-config' \
             '.#checks.x86_64-linux.eval-gh' \
@@ -278,6 +280,7 @@ jobs:
             '.#checks.aarch64-darwin.eval-dev-shells' \
             '.#checks.aarch64-darwin.agent-config' \
             '.#checks.aarch64-darwin.project-environment-launcher' \
+            '.#checks.aarch64-darwin.paseo-serve' \
             '.#checks.aarch64-darwin.treefmt' \
             '.#devShells.aarch64-darwin.default' \
             '.#devShells.aarch64-darwin.consumer' \

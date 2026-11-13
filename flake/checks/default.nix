@@ -242,6 +242,11 @@
           enable = true;
           mode = "desktop";
         };
+        ai.paseo = {
+          enable = true;
+          service.enable = true;
+          desktop.enable = true;
+        };
         ai.mcp.context7.enable = true;
         ai.ollama.enable = true;
         comma.enable = true;
@@ -799,6 +804,10 @@
             enable = true;
             mode = "headless";
           };
+          paseo = {
+            enable = true;
+            service.enable = true;
+          };
         };
         comma.enable = true;
         gh.enable = true;
@@ -1167,10 +1176,11 @@
     # hosts, built here as systems, their read-back, the darwin enable
     # matrix, which the darwin leg of the extended tier builds, the commit
     # hooks, the secret scan, the documentation links, the dev shells, the
-    # agent hook, which a session on a Mac runs as well, and the
+    # agent hook, which a session on a Mac runs as well, the
     # project-environment launcher, which runs there around a darwin host's
-    # stand-in agent. comment-hygiene and contract-guards stay out, as
-    # pre-commit-check runs both.
+    # stand-in agent, and the paseo serve script, which runs there around a
+    # darwin host's stand-in daemon. comment-hygiene and contract-guards stay
+    # out, as pre-commit-check runs both.
     darwinChecks = [
       "eval-darwin-host-min"
       "eval-darwin-host-user"
@@ -1186,6 +1196,7 @@
       "eval-dev-shells"
       "agent-config"
       "project-environment-launcher"
+      "paseo-serve"
     ];
 
     checksBySystem = {
@@ -1747,6 +1758,16 @@
         inherit (inputs.nixpkgs) lib;
         inherit hostConfig mkExpectations rejectedWith functioningHost accountNoHomeManager;
       };
+      # What the paseo module installs, runs, opens and persists, and the
+      # serve script's lines for each setting (see ./paseo-eval.nix).
+      eval-paseo = import ./paseo-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit hostConfig hostEval mkExpectations rejectedWith functioningHost accountNoHomeManager inputs system;
+      };
+      # The paseo serve script, run around a stand-in paseo-server against
+      # fixture config.json files (see ./paseo-serve.nix). It builds the
+      # script for the system it runs on, so a Mac runs it too.
+      paseo-serve = import ./paseo-serve.nix {inherit pkgs hostConfig darwinConfig bootBase darwinBase;};
       # What the WSL adapter hands NixOS-WSL and which modules it refuses
       # beside it (see ./wsl-eval.nix).
       eval-wsl = import ./wsl-eval.nix {

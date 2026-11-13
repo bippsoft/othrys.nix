@@ -127,6 +127,8 @@ in
     "Orca's profile directory is persisted at 0700" = userMode ".config/orca" == "0700";
     "T3 Code's state directory is persisted at 0700" = userMode ".t3" == "0700";
     "T3 Code's desktop profile is persisted at 0700" = userMode ".config/t3code-v2" == "0700";
+    "Paseo's state directory is persisted at 0700" = userMode ".paseo" == "0700";
+    "Paseo's desktop profile is persisted at 0700" = userMode ".config/Paseo" == "0700";
     "OBS is persisted at 0700" = userMode ".config/obs-studio" == "0700";
     "the bluetooth tree is persisted at 0700" = modeOf systemDirs "/var/lib/bluetooth" == "0700";
 

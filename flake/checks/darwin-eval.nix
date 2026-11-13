@@ -4,8 +4,9 @@
 # reaches the environment, a host that names a user and turns nothing on gets
 # no account settings at all, the home adapter hands the apps' user
 # configuration to Home Manager with the darwin packages and paths, and the
-# SSH, Tailscale, mosh, YubiKey, Ollama and T3 Code modules write what
-# nix-darwin and Home Manager run there and refuse what they cannot apply.
+# SSH, Tailscale, mosh, YubiKey, Ollama, T3 Code and Paseo modules write
+# what nix-darwin and Home Manager run there and refuse what they cannot
+# apply.
 # codex and Claude Code reach Home Manager and T3 Code through the
 # project-environment launcher, and as themselves with it off.
 {
@@ -186,6 +187,29 @@
     }
   ];
   launcherText = agent: agent.passthru.launcher.drvAttrs.text or "";
+
+  # Paseo with its daemon over the managed account, with codex for the agent
+  # it drives. The plugin is a stand-in directory, so no expectation here
+  # reads the paseo-direnv input.
+  paseoHost = extra:
+    darwinConfig [
+      darwinBase
+      darwinManagedBase
+      ({pkgs, ...}: {
+        othrys.apps.ai = {
+          codex.enable = true;
+          paseo = {
+            enable = true;
+            direnv.package = pkgs.runCommand "paseo-direnv-standin" {} "mkdir -p \"$out\"";
+          };
+        };
+      })
+      extra
+    ];
+  paseoServed = paseoHost {othrys.apps.ai.paseo.service.enable = true;};
+  paseoAgent = paseoServed.home-manager.users.alice.launchd.agents.paseo;
+  paseoPlain = paseoHost {};
+  paseoDesktop = paseoHost {othrys.apps.ai.paseo.desktop.enable = true;};
 in
   mkExpectations "othrys-eval-darwin" {
     "a host with only a user named sets no primary user" = bare.system.primaryUser == null;
@@ -310,6 +334,21 @@ in
     "the darwin desktop wrapper points the app bundle at itself" = lib.hasInfix ''ln -s "$out/bin/t3code-desktop" "$macos/T3 Code (Beta)"'' t3DesktopScript && !(lib.hasInfix "T3CODE_DESKTOP_LAUNCHER_PATH" t3DesktopScript);
     "the darwin desktop wrapper fails a build with no app bundle" = lib.hasInfix ''[ ! -L "$macos/T3 Code (Beta)" ]'' t3DesktopScript;
     "the darwin desktop wrapper turns the app's self-update off" = lib.hasInfix "T3CODE_DISABLE_AUTO_UPDATE" t3DesktopScript;
+
+    "the Paseo service runs as the user's launchd agent" = paseoAgent.enable;
+    "the Paseo agent runs the serve script and nothing else" = paseoAgent.config.ProgramArguments == ["${paseoServed.othrys.internal.paseo.serve}"];
+    "launchd starts the Paseo agent at login and again whenever it exits" = paseoAgent.config.KeepAlive == true && paseoAgent.config.RunAtLoad == true;
+    "launchd starts the Paseo agent no sooner than ten seconds apart" = paseoAgent.config.ThrottleInterval == 10;
+    "the Paseo agent's PATH holds the user's profile, git and the system tools" =
+      paseoAgent.config.EnvironmentVariables.PATH
+      == "/etc/profiles/per-user/alice/bin:/run/current-system/sw/bin:${darwinPkgs.git}/bin:/usr/bin:/bin";
+    "the Paseo agent logs to ~/Library/Logs/paseo.log" =
+      paseoAgent.config.StandardOutPath
+      == "/Users/alice/Library/Logs/paseo.log"
+      && paseoAgent.config.StandardErrorPath == "/Users/alice/Library/Logs/paseo.log";
+    "a Mac with codex and the Paseo service passes every paseo assertion" = !(builtins.any (a: !a.assertion && lib.hasInfix "othrys.apps.ai.paseo" a.message) paseoServed.assertions);
+    "Paseo without the service runs no launchd agent on a Mac" = !(paseoPlain.home-manager.users.alice.launchd.agents ? paseo);
+    "the Paseo desktop app on a Mac is refused" = rejectedWith "othrys.apps.ai.paseo.desktop.enable is set on darwin" paseoDesktop;
 
     "the launcher on a Mac wraps llm-agents' codex" = same agents.codex.passthru.unwrapped darwinAgents.codex && !(same agents.codex darwinAgents.codex);
     "the launcher on a Mac wraps llm-agents' claude-code built without telemetry" = same agents.claude-code.passthru.unwrapped quietClaude && !(same agents.claude-code quietClaude);

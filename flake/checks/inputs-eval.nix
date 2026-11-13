@@ -6,6 +6,8 @@
 # all, which is the shape that failed on a missing `inputs` argument, and it
 # enables a module for each. The packages are read back and compared with the lock, and a
 # second host sets each `package` option and is read back the same way.
+# paseo-direnv reaches the modules the same way, and eval-paseo reads its
+# package back.
 {
   inputs,
   system,

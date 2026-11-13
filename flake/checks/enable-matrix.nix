@@ -128,6 +128,9 @@
     "othrys.apps.ai.orca.tailscale.enable" = "needs othrys.services.tailscale.enable";
     # No agent is on either, and that assertion fails beside this one.
     "othrys.apps.ai.t3code.enable" = "othrys.apps.ai.t3code.mode is unset";
+    # Its nested enables are walked with it off, since it is listed here,
+    # and so they evaluate. ./paseo-eval.nix reads them with an agent on.
+    "othrys.apps.ai.paseo.enable" = "neither othrys.apps.ai.codex.enable nor othrys.apps.ai.claude-code.enable is set";
     "othrys.apps.gaming.r2modman.enable" = "othrys.apps.gaming.r2modman requires othrys.apps.gaming.steam.enable";
     "othrys.apps.idea.enable" = "othrys.apps.idea: requires othrys.apps.languages.java.enable";
     "othrys.desktop.nightLight.enable" = "othrys.desktop.nightLight needs a location";
