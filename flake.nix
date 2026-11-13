@@ -62,6 +62,16 @@
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
+    # The Paseo plugin that loads each agent's direnv environment, the
+    # default of othrys.apps.ai.paseo.direnv.package. Its package is the
+    # plugin's TypeScript source, which Paseo compiles when it loads it, so
+    # following our nixpkgs costs no cache hit. Only a host with Paseo and
+    # its direnv option on reads it, and no other host fetches it.
+    paseo-direnv = {
+      url = "github:MatthewDeSouza/paseo-direnv";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Niri compositor, packages plus the typed programs.niri.settings module
     # (build-time-validated KDL config). Self-contained, since the compositor
     # module imports its NixOS module directly, and its auto-cache is disabled in

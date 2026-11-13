@@ -962,6 +962,26 @@
         "type": "github"
       }
     },
+    "paseo-direnv": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794597850,
+        "narHash": "sha256-xUH6GG677oq7llYqMxs6xfWOezGerA3QPgJIuYvu6cg=",
+        "owner": "MatthewDeSouza",
+        "repo": "paseo-direnv",
+        "rev": "63f92dc30fb07fba3fcab4b339e745c8293bc137",
+        "type": "github"
+      },
+      "original": {
+        "owner": "MatthewDeSouza",
+        "repo": "paseo-direnv",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "ashell": "ashell",
@@ -979,6 +999,7 @@
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_3",
         "nixvim": "nixvim",
+        "paseo-direnv": "paseo-direnv",
         "sops-nix": "sops-nix",
         "stylix": "stylix",
         "treefmt-nix": "treefmt-nix"

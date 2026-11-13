@@ -10,6 +10,7 @@
     ./claude-desktop.nix
     ./orca.nix
     ./t3code.nixos.nix
+    ./paseo.nixos.nix
     ./ollama.nixos.nix
     (lib.mkRemovedOptionModule ["othrys" "apps" "ai" "opencode"] "othrys no longer supports OpenCode. Enable othrys.apps.ai.claude-code, which receives the same othrys.apps.ai.skills, othrys.apps.ai.context and MCP servers.")
   ];

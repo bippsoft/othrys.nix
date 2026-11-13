@@ -61,9 +61,9 @@
   # What the modules take from this flake's own lock, as module arguments.
   # A module can only reach flake inputs through an argument, and reading them
   # from the consumer's `inputs` made every consuming flake declare an input
-  # named `ashell`, `hyprland`, `nixvim`, `nix-index-database` and
-  # `llm-agents`. Only the five the modules use are named, so a module cannot
-  # grow a dependency on another input unnoticed.
+  # named `ashell`, `hyprland`, `nixvim`, `nix-index-database`, `llm-agents`
+  # and `paseo-direnv`. Only the six the modules use are named, so a module
+  # cannot grow a dependency on another input unnoticed.
   #
   # `inputs` is given an empty default beside them. modules/system/nix.nixos.nix
   # reads the consumer's `inputs.nixpkgs` and modules/system/secrets.nix the
@@ -77,7 +77,7 @@
   args = {
     key = "othrys.nix/flake/modules.nix#args";
     _module.args = {
-      othrysInputs = {inherit (inputs) ashell hyprland nixvim nix-index-database llm-agents;};
+      othrysInputs = {inherit (inputs) ashell hyprland nixvim nix-index-database llm-agents paseo-direnv;};
       inputs = inputs.nixpkgs.lib.mkDefault {};
     };
   };
@@ -160,6 +160,7 @@
       ../modules/apps/cli/ai/codex.nix
       ../modules/apps/cli/ai/ollama.darwin.nix
       ../modules/apps/cli/ai/t3code.darwin.nix
+      ../modules/apps/cli/ai/paseo.darwin.nix
       ../modules/apps/languages
       ../modules/apps/gui/ghostty.darwin.nix
       ../modules/apps/gui/kitty.nix
