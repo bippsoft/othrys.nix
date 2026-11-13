@@ -142,12 +142,13 @@ revision the host is built from, which the registry pin has to match, and
 a host that passes no specialArgs evaluates.
 
 Every other flake a module builds on comes from this flake's own lock.
-`flake/modules.nix` hands ashell, Hyprland, nixvim and nix-index-database to the
-modules as the `othrysInputs` argument, and imports niri-flake's module itself,
-since a module argument cannot be read in `imports`. A consumer who wants
-another build sets the module's `package` option, or makes this flake's input
-follow their own. The `eval-inputs` check evaluates a host that is handed no
-specialArgs with all four modules on.
+`flake/modules.nix` hands ashell, Hyprland, nixvim, nix-index-database,
+llm-agents and paseo-direnv to the modules as the `othrysInputs` argument, and
+imports niri-flake's module itself, since a module argument cannot be read in
+`imports`. A consumer who wants another build sets the module's `package`
+option, or makes this flake's input follow their own. The `eval-inputs` check
+evaluates a host that is handed no specialArgs with a module on for each of the
+first five, and `eval-paseo` reads the paseo-direnv default back.
 
 ## Module Pattern
 

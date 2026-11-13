@@ -1,6 +1,6 @@
 # AI Assistants
 
-**Platforms:** Claude Code, Codex, the project environment, T3 Code in both its modes, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. See [Darwin](../architecture/darwin.md).
+**Platforms:** Claude Code, Codex, the project environment, T3 Code in both its modes, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. Paseo's CLI and daemon run on NixOS and on aarch64-darwin, and its desktop app is NixOS only. See [Darwin](../architecture/darwin.md).
 
 AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`.
 
@@ -14,14 +14,15 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 | Claude Desktop | `othrys.apps.ai.claude-desktop` | Anthropic's desktop app, which also runs Claude Code sessions |
 | Orca | `othrys.apps.ai.orca` | Desktop app that runs coding agents side by side in git worktrees |
 | T3 Code | `othrys.apps.ai.t3code` | Web and desktop interface to Codex and Claude Code, served headless or run as a desktop app |
+| Paseo | `othrys.apps.ai.paseo` | Daemon, CLI and desktop app that run Codex and Claude Code agents, with a direnv plugin |
 | Ollama | `othrys.apps.ai.ollama` | Local LLM inference server, with the backend chosen from the host's GPU |
 | MCP Context7 | `othrys.apps.ai.mcp.context7` | Context7 documentation MCP server |
 
 ## Where the AI packages come from
 
 The packages of `othrys.apps.ai.claude-code`, `othrys.apps.ai.codex`,
-`othrys.apps.ai.claude-desktop`, `othrys.apps.ai.orca` and
-`othrys.apps.ai.t3code` default to the builds in the
+`othrys.apps.ai.claude-desktop`, `othrys.apps.ai.orca`,
+`othrys.apps.ai.t3code` and `othrys.apps.ai.paseo` default to the builds in the
 [llm-agents](https://github.com/numtide/llm-agents.nix) flake this library
 locks. That flake follows each vendor's releases within hours, while nixpkgs
 typically trails by days. It builds against its own nixpkgs, so its packages
@@ -33,7 +34,7 @@ The default is built with `disableTelemetry`, which turns off telemetry and
 non-essential traffic, and `othrys.apps.ai.claude-code.disableTelemetry =
 false` builds it without. A package set by hand is used as given.
 
-Every module that installs or runs Claude Code or Codex, T3 Code among them,
+Every module that installs or runs Claude Code or Codex, T3 Code and Paseo among them,
 receives the package wrapped by the launcher that
 [the project environment](#the-project-environment) describes, whether it is
 the default or one set by hand. A host that sets Home Manager's
@@ -293,6 +294,112 @@ and `~/.claude`, which their own modules persist.
 
 ```nix
 {{#include ../../../modules/apps/cli/ai/t3code.nix:t3code-options}}
+```
+
+## Paseo
+
+`othrys.apps.ai.paseo` installs Paseo's `paseo` CLI for the user, and
+`desktop.enable` adds its desktop app on Linux. The agents it drives are the
+host's own Codex and Claude Code, which it finds on the daemon's `PATH` as the
+launchers of [the project environment](#the-project-environment), each one
+while its module is on. The module refuses a host with neither. T3 Code and Paseo can be
+enabled on one host, and they share no state or port.
+
+Without `service.enable` the module runs no daemon. The desktop app then
+starts a daemon of its own, which reads none of the module's daemon options,
+so the module refuses `listen`, `relay.enable`, `passwordFile` and
+`direnv.enable` without the service. With `service.enable` the daemon runs as
+a systemd user unit on NixOS, restarted ten seconds after it exits, and as a
+launchd agent on nix-darwin, started again no sooner than ten seconds after
+its last start. The desktop app attaches to it. On a NixOS
+host where othrys manages the user with Home Manager, the user lingers, so
+the unit runs from boot with nobody logged in. The launchd agent runs while
+the user is logged in. The service runs `paseo-server` directly, since
+`paseo daemon start` drops every `PASEO_*` variable the module sets. The log
+is in the journal on NixOS and in `~/Library/Logs/paseo.log` on darwin.
+
+```nix
+othrys.services.tailscale.enable = true;
+othrys.apps.ai.codex.enable = true;
+othrys.apps.ai.paseo = {
+  enable = true;
+  service.enable = true;
+  listen = "tailscale";
+  passwordFile = "/run/secrets/paseo-password";
+};
+```
+
+`"lan"` binds every address and on NixOS opens `port` in the firewall.
+`"tailscale"` binds the tailnet IPv4 address and admits the host's MagicDNS
+name, read when the daemon starts. With no address the daemon exits and the
+service starts it again until tailscaled has one. On NixOS it opens `port` on
+Tailscale's interface alone, and it refuses a host without
+`othrys.services.tailscale.enable`. othrys controls no firewall on macOS.
+Outside loopback, any peer that reaches the port controls the host's agents
+unless the daemon has a password, and the module warns while `passwordFile`
+is unset. A password set with `paseo daemon set-password` also counts, while
+`passwordFile` wins over it. A password file the daemon cannot read stops it.
+
+The hosted relay at relay.paseo.sh stays off unless `relay.enable` is set.
+The setting is passed as `PASEO_RELAY_ENABLED` at every start, so a
+`config.json` that omits it does not turn the relay on.
+
+`webUi.enable` makes the daemon serve Paseo's browser UI on its own port,
+beside the API and the WebSocket, and the setting is passed as
+`PASEO_WEB_UI_ENABLED` at every start, so `config.json` cannot turn it on.
+The page loads without the password, while the API behind it asks for one.
+The daemon refuses a request whose Host header is neither one of its
+addresses nor a listed name, which guards against DNS rebinding, so a reverse
+proxy's name goes in `hostnames`. The proxy must pass the Host header through
+unchanged and forward the WebSocket upgrade at `/ws`.
+
+```nix
+othrys.apps.ai.paseo = {
+  enable = true;
+  service.enable = true;
+  listen = "tailscale";
+  webUi.enable = true;
+  hostnames = ["paseo.example.com"];
+  passwordFile = "/run/secrets/paseo-password";
+};
+```
+
+`direnv.enable` defaults to on while the service and
+`othrys.apps.ai.projectEnvironment.enable` are both on. It loads the
+paseo-direnv plugin, which loads the direnv environment of each agent's
+directory before the agent starts. It is on by default because it is the
+project environment's counterpart inside Paseo. Without it, a Codex agent
+the daemon starts misses the environment that the launcher gives the same
+agent started from a shell. The plugin runs unsandboxed with the user's
+access, so a host that does not want it sets `direnv.enable = false`. That covers Codex agents, whose process
+Paseo starts with no working directory, and the app offers to allow or deny
+a blocked `.envrc`. The plugin comes from its own flake input, which only a
+host with the option on fetches. Paseo enables plugins only through
+`~/.paseo/config.json`, so the start script sets `pluginsEnabled` and the
+plugin's own entry there at every start. While the option is off, each Home
+Manager switch and each start remove an entry that points into the store,
+which an earlier generation wrote, so a daemon othrys does not start, such as
+the desktop app's own, loads no collected store path. An entry pointed at a
+checkout of the user's own stays. The file is rewritten only when the entry changes, and
+nothing else in it is touched. A `config.json` that jq cannot read, an empty
+one included, stops the daemon and is left as it is. Turning
+`othrys.apps.ai.paseo.enable` off removes nothing, so delete the
+`paseo-direnv` entry by hand if Paseo still runs outside othrys. A new worktree
+inherits trust as `othrys.apps.ai.projectEnvironment.trustWorktrees` says,
+passed as `PASEO_DIRENV_TRUST_WORKTREES`. The variable wins over the plugin's
+toggle under **Settings → Plugins → direnv → Worktrees**, which shows the
+value disabled.
+
+Under impermanence the module persists `~/.paseo` at mode `0700`, which holds
+`config.json` with the password hash, the daemon's key pair, the plugins'
+settings, the agents' state and the git worktrees with their uncommitted
+work. With `desktop.enable` it also persists the app's profile in
+`~/.config/Paseo` at `0700`.
+
+### Options
+
+```nix
+{{#include ../../../modules/apps/cli/ai/paseo.nix:paseo-options}}
 ```
 
 ## Claude Code's settings file

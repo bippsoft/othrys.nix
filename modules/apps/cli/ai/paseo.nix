@@ -154,6 +154,7 @@
       exec ${cfg.package}/bin/paseo-server
     '');
 in {
+  # ANCHOR: paseo-options
   options.othrys.apps.ai.paseo = {
     enable = lib.mkEnableOption "Paseo, a self-hosted daemon and CLI for orchestrating coding agents";
 
@@ -268,6 +269,7 @@ in {
       };
     };
   };
+  # ANCHOR_END: paseo-options
 
   options.othrys.internal.paseo = lib.mkOption {
     type = lib.types.attrsOf lib.types.package;
