@@ -1,6 +1,6 @@
 # AI Assistants
 
-**Platforms:** Claude Code, Codex, the project environment, T3 Code in both its modes, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. Paseo's CLI and daemon run on NixOS and on aarch64-darwin, and its desktop app is NixOS only. See [Darwin](../architecture/darwin.md).
+**Platforms:** Claude Code, Codex, the project environment, T3 Code in both its modes, Ollama, the shared context and the MCP servers run on NixOS and nix-darwin, and Claude Desktop and Orca are NixOS only. Paseo's CLI, daemon and desktop app run on NixOS and on aarch64-darwin. See [Darwin](../architecture/darwin.md).
 
 AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`.
 
@@ -21,14 +21,16 @@ AI assistant modules under `othrys.apps.ai.*`. Located in `modules/apps/cli/ai/`
 ## Where the AI packages come from
 
 The packages of `othrys.apps.ai.claude-code`, `othrys.apps.ai.codex`,
-`othrys.apps.ai.claude-desktop`, `othrys.apps.ai.orca`,
-`othrys.apps.ai.t3code` and `othrys.apps.ai.paseo` default to the builds in the
+`othrys.apps.ai.claude-desktop`, `othrys.apps.ai.orca` and
+`othrys.apps.ai.t3code` default to the builds in the
 [llm-agents](https://github.com/numtide/llm-agents.nix) flake this library
 locks. That flake follows each vendor's releases within hours, while nixpkgs
 typically trails by days. It builds against its own nixpkgs, so its packages
 come prebuilt from `cache.numtide.com`, and a host trusts that cache and its
 key only while such a module is on. `package` takes any other build, such as
-`pkgs.claude-code`.
+`pkgs.claude-code`. `othrys.apps.ai.paseo` is the exception and defaults to
+nixpkgs' `paseo`, since the llm-agents build leaves out the web UI the daemon
+serves (numtide/llm-agents.nix#12308).
 
 The default is built with `disableTelemetry`, which turns off telemetry and
 non-essential traffic, and `othrys.apps.ai.claude-code.disableTelemetry =
@@ -299,7 +301,10 @@ and `~/.claude`, which their own modules persist.
 ## Paseo
 
 `othrys.apps.ai.paseo` installs Paseo's `paseo` CLI for the user, and
-`desktop.enable` adds its desktop app on Linux. The agents it drives are the
+`desktop.enable` adds its desktop app. On darwin, Home Manager links
+`Paseo.app` into `~/Applications/Home Manager Apps`, not `/Applications`.
+nixpkgs' build turns the app's self-update off, since a store path cannot
+change. The agents it drives are the
 host's own Codex and Claude Code, which it finds on the daemon's `PATH` as the
 launchers of [the project environment](#the-project-environment), each one
 while its module is on. The module refuses a host with neither. T3 Code and Paseo can be
