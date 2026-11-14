@@ -14,8 +14,6 @@
   cfg = config.othrys.apps.ai.paseo;
   aiCfg = config.othrys.apps.ai;
   envCfg = aiCfg.projectEnvironment;
-  llmAgents = import ./llm-agents.nix {inherit lib pkgs othrysInputs;};
-  inherit (pkgs.stdenv.hostPlatform) isDarwin;
   jq = "${pkgs.jq}/bin/jq";
 
   # Paseo finds each agent on PATH and wraps none of them, so the daemon's
@@ -160,12 +158,11 @@ in {
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = llmAgents.package "paseo";
-      defaultText = lib.literalMD "the `paseo` package of the llm-agents flake this library locks";
+      default = pkgs.paseo;
+      defaultText = lib.literalExpression "pkgs.paseo";
       description = ''
-        The Paseo package, which holds the `paseo` CLI and the `paseo-server`
-        daemon. The default comes from cache.numtide.com, which the host then
-        trusts.
+        The Paseo package, which holds the `paseo` CLI, the `paseo-server`
+        daemon and the web UI the daemon serves.
       '';
     };
 
@@ -176,16 +173,15 @@ in {
 
     desktop = {
       enable = lib.mkEnableOption ''
-        the Paseo desktop app, on Linux only. Without `service.enable` the app
+        the Paseo desktop app. Without `service.enable` the app
         starts a daemon of its own, which reads none of the options below'';
 
       package = lib.mkOption {
         type = lib.types.package;
-        default = llmAgents.package "paseo-desktop";
-        defaultText = lib.literalMD "the `paseo-desktop` package of the llm-agents flake this library locks";
+        default = pkgs.paseo.desktop;
+        defaultText = lib.literalExpression "pkgs.paseo.desktop";
         description = ''
-          The Paseo desktop package. The default comes from cache.numtide.com,
-          which the host then trusts.
+          The Paseo desktop package, which holds `Paseo.app` on darwin.
         '';
       };
     };
@@ -287,10 +283,6 @@ in {
         message = "othrys.apps.ai.paseo drives the host's own agents, and neither othrys.apps.ai.codex.enable nor othrys.apps.ai.claude-code.enable is set. Enable either one.";
       }
       {
-        assertion = !cfg.desktop.enable || !isDarwin;
-        message = "othrys.apps.ai.paseo.desktop.enable is set on darwin, and the llm-agents input builds the desktop app for Linux only. Unset it and use othrys.apps.ai.paseo.service.enable.";
-      }
-      {
         assertion = !cfg.desktop.enable || config.othrys.desktop.graphical;
         message = "othrys.apps.ai.paseo.desktop.enable requires a graphical session: enable othrys.desktop.compositors.hyprland or othrys.desktop.compositors.niri, or set othrys.desktop.graphical.";
       }
@@ -306,12 +298,11 @@ in {
 
     warnings = lib.optional (cfg.service.enable && cfg.listen != "loopback" && cfg.passwordFile == null) "othrys.apps.ai.paseo.listen is \"${cfg.listen}\" and othrys.apps.ai.paseo.passwordFile is unset, so any peer that reaches port ${toString cfg.port} controls the host's agents unless `paseo daemon set-password` has stored a password in ~/.paseo/config.json.";
 
-    othrys.internal.llmAgentsCache = true;
-
     # ~/.paseo holds config.json with the password hash, the daemon's key
     # pair, the plugins' settings, the agents' state and the git worktrees
     # with their uncommitted work. ~/.config/Paseo is the desktop app's
-    # Electron profile, the name app.setName gives it on Linux.
+    # Electron profile, the name app.setName gives it on Linux. Persistence
+    # applies on NixOS alone.
     othrys.internal.persist."apps.ai.paseo" = {
       user.directories = map (directory: {
         inherit directory;
