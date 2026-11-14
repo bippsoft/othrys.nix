@@ -348,7 +348,9 @@ in
       && paseoAgent.config.StandardErrorPath == "/Users/alice/Library/Logs/paseo.log";
     "a Mac with codex and the Paseo service passes every paseo assertion" = !(builtins.any (a: !a.assertion && lib.hasInfix "othrys.apps.ai.paseo" a.message) paseoServed.assertions);
     "Paseo without the service runs no launchd agent on a Mac" = !(paseoPlain.home-manager.users.alice.launchd.agents ? paseo);
-    "the Paseo desktop app on a Mac is refused" = rejectedWith "othrys.apps.ai.paseo.desktop.enable is set on darwin" paseoDesktop;
+    "the Paseo desktop app on a Mac is accepted and installs nixpkgs' paseo.desktop" =
+      !(builtins.any (a: !a.assertion && lib.hasInfix "othrys.apps.ai.paseo" a.message) paseoDesktop.assertions)
+      && builtins.any (p: (p.outPath or null) == darwinPkgs.paseo.desktop.outPath) paseoDesktop.home-manager.users.alice.home.packages;
 
     "the launcher on a Mac wraps llm-agents' codex" = same agents.codex.passthru.unwrapped darwinAgents.codex && !(same agents.codex darwinAgents.codex);
     "the launcher on a Mac wraps llm-agents' claude-code built without telemetry" = same agents.claude-code.passthru.unwrapped quietClaude && !(same agents.claude-code quietClaude);

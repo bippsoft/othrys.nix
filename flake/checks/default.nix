@@ -807,6 +807,7 @@
           paseo = {
             enable = true;
             service.enable = true;
+            desktop.enable = true;
           };
         };
         comma.enable = true;

@@ -148,13 +148,12 @@
   setsCache = evaluation: builtins.any (d: lib.hasSuffix "/modules/apps/cli/ai/paseo.nix" (toString d.file)) evaluation.options.othrys.internal.llmAgentsCache.definitionsWithLocations;
 in
   mkExpectations "othrys-eval-paseo" {
-    "the user's profile installs the llm-agents paseo" = installed plain llmAgents.paseo;
-    "without the desktop option the desktop app is not installed" = !(installed plain llmAgents.paseo-desktop);
-    "the desktop option installs the llm-agents desktop app beside paseo" = installed desktop llmAgents.paseo-desktop && installed desktop llmAgents.paseo;
+    "the user's profile installs nixpkgs' paseo" = installed plain nixpkgs.paseo;
+    "without the desktop option the desktop app is not installed" = !(installed plain nixpkgs.paseo.desktop);
+    "the desktop option installs nixpkgs' desktop app beside paseo" = installed desktop nixpkgs.paseo.desktop && installed desktop nixpkgs.paseo;
     "paseo persists ~/.paseo at 0700 and nothing else" = persisted plain == dirs [".paseo"];
     "the desktop app also persists its Electron profile at 0700" = persisted desktop == dirs [".paseo" ".config/Paseo"];
-    "paseo itself marks the host as trusting the llm-agents cache" = plain.othrys.internal.llmAgentsCache && setsCache plainEval;
-    "a host without paseo leaves the cache flag to other modules" = !(setsCache offEval);
+    "paseo leaves the llm-agents cache flag to the agent modules" = !(setsCache plainEval);
 
     "the service runs the daemon as a systemd user unit" = (hmOf service).systemd.user.services ? paseo;
     # Home Manager stores each unit setting as a list.
@@ -164,7 +163,7 @@ in
     "the unit's PATH holds the setuid wrappers, the user's profile and git" =
       (unit service).Service.Environment
       == ["PATH=/run/wrappers/bin:/etc/profiles/per-user/${user service}/bin:/run/current-system/sw/bin:${nixpkgs.git}/bin"];
-    "desktop.package is the desktop app installed" = installed desktopOwn ownDesktop && !(installed desktopOwn llmAgents.paseo-desktop);
+    "desktop.package is the desktop app installed" = installed desktopOwn ownDesktop && !(installed desktopOwn nixpkgs.paseo.desktop);
     "the unit starts with the user's manager" = (unit service).Install.WantedBy == ["default.target"];
     "the service lets the user linger, so the daemon runs from boot" = service.users.users.alice.linger;
     "an account without Home Manager does not linger" = (noHome.users.users.${user noHome}.linger or null) != true;
@@ -194,7 +193,7 @@ in
     "relay.enable turns the hosted relay on" = has "export PASEO_RELAY_ENABLED=true\n" relay && !(has "PASEO_RELAY_ENABLED=false" relay);
     "the password file is read when the daemon starts" = has "/run/secrets/paseo-password" lanPassword && has "export PASEO_PASSWORD\n" lanPassword;
     "without a password file no password is exported" = !(has "PASEO_PASSWORD" lan) && !(has "PASEO_PASSWORD" service);
-    "the script runs the llm-agents paseo-server" = has "exec ${llmAgents.paseo}/bin/paseo-server" service;
+    "the script runs nixpkgs' paseo-server" = has "exec ${nixpkgs.paseo}/bin/paseo-server" service;
     "the script keeps the daemon's files under ~/.paseo" = has "export PASEO_HOME=\"$HOME/.paseo\"\n" service;
     "the serve script runs the config.json script" = has "${pluginConfig service}\n" service;
     "the config.json script creates files private to the user" = hasConfig "umask 077\n" service;

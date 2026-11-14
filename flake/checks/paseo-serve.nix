@@ -7,7 +7,8 @@
 # taken from an evaluated host whose paseo package is a stand-in that prints
 # its environment and exits 0, whose plugin is a stand-in directory and
 # whose codex is a stand-in program. Other hosts turn the plugin off, set a
-# password file or serve the web UI under listed hostnames. The host is a NixOS host on Linux and a nix-darwin host
+# password file or serve the web UI under listed hostnames, and a last one
+# keeps the default package to show it holds the web UI. The host is a NixOS host on Linux and a nix-darwin host
 # on a Mac, so the script is built for the system that runs it.
 {
   pkgs,
@@ -56,6 +57,14 @@
     then darwinConfig ([darwinBase standIn paseoOn] ++ modules)
     else hostConfig ([bootBase standIn paseoOn] ++ modules);
   on = host [];
+  # The package a host gets by default, with no stand-in, so the check holds
+  # the web UI that webUi.enable serves to its source.
+  defaultPackage =
+    (
+      if pkgs.stdenv.hostPlatform.isDarwin
+      then darwinConfig [darwinBase paseoOn]
+      else hostConfig [bootBase paseoOn]
+    ).othrys.apps.ai.paseo.package;
   off = host [direnvOff];
   readable = host [(password "${pkgs.writeText "paseo-password" "example"}")];
   unreadable = host [(password "/var/empty/missing")];
@@ -274,6 +283,10 @@ in
     run "$home" "$serveProxied"
     expect "webUi.enable turns the web UI on" printed "PASEO_WEB_UI_ENABLED=true"
     expect "hostnames reach the daemon comma separated" printed "PASEO_HOSTNAMES=paseo.example.com,code.example.com"
+
+    # l. The default package carries the web UI the daemon serves.
+    expect "the default paseo package holds the daemon web UI" \
+      test -f ${defaultPackage}/lib/paseo/packages/server/dist/server/web-ui/index.html
 
     [ "$fail" = 0 ] || exit 1
     touch "$out"
