@@ -969,11 +969,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794597850,
-        "narHash": "sha256-xUH6GG677oq7llYqMxs6xfWOezGerA3QPgJIuYvu6cg=",
+        "lastModified": 1794631001,
+        "narHash": "sha256-NjYMNvMfe3NwVOBY2IHw5qrqN/M5Q0kqjBe3HxvhkU0=",
         "owner": "MatthewDeSouza",
         "repo": "paseo-direnv",
-        "rev": "63f92dc30fb07fba3fcab4b339e745c8293bc137",
+        "rev": "0d22e04d54e7e4b6c4968c59f3005c6e33b5ea2a",
         "type": "github"
       },
       "original": {
