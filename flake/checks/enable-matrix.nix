@@ -147,6 +147,7 @@
     # reads nothing but options with defaults.
     "othrys.services.headscale.enable" = "requires baseDomain";
     "othrys.services.kea.enable" = "othrys.services.kea: dhcp4.interfaces must list at least one interface";
+    "othrys.services.soju.traefik.enable" = "othrys.services.soju: traefik.enable needs traefik.domain";
     "othrys.services.notify.enable" = "othrys.services.notify: set url";
     "othrys.system.autoUpgrade.enable" = "othrys.system.autoUpgrade: set exactly one upgrade source";
     # The disko layout is imported and off, so nothing names the device.

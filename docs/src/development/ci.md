@@ -32,7 +32,7 @@ tier reports early while the whole suite still gates what lands:
   enabled with defaults), and the runtime VM tests (`restic-test`,
   `headscale-test`, `auto-upgrade-test`, `crowdsec-test`, `router-test`, `router-ips-test`,
   `integration-test`, `listeners-test`, `impermanence-reboot-test`,
-  `impermanence-wipe-test`, `wallpaper-test`, `keyring-test`,
+  `impermanence-wipe-test`, `wallpaper-test`, `keyring-test`, `soju-test`,
   `yubikey-onboard-dry-run`).
 - **Extended verdict** (`extended-ok` job) turns the matrix into one status
   that branch protection can require. It passes only when every matrix leg
@@ -77,6 +77,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-ssh`, `eval-ssh-settings` | The known hosts and client defaults, the server's ports, firewall, jail and hardened defaults, and the mosh module's `programs.mosh` and UDP 60000 to 61000 with `openFirewall` on and off |
 | `eval-pam` | Which PAM services take the YubiKey, and with what control |
 | `eval-traefik` | The Traefik TLS floor, header defaults and TCP routers |
+| `eval-soju` | soju's loopback listeners, message store, TLS credentials, firewall port and Traefik TCP router, the state directory it persists, the config it generates, and its five refusals |
 | `eval-router`, `eval-router-services` | The router's rendered ruleset, and the start-up defaults of Suricata and CrowdSec |
 | `eval-headscale`, `eval-tailscale` | What the two modules render, pass to the daemon and refuse |
 | `eval-exposure` | What ntfy, Scrutiny and the two Victoria stores expose and persist |
@@ -152,6 +153,7 @@ Mac.
 | `impermanence-reboot-test`, `impermanence-wipe-test` | Host identity across a reboot with an empty root, and the wipe unit booted from a btrfs root |
 | `wallpaper-test` | The wallpaper daemon's unit, its rendered configuration and the directory built from a list of images, on a booted machine |
 | `keyring-test` | A secret stored and read back through the Secret Service on two booted machines, one with a gnome-keyring store that has no password and one with `pass` and a software OpenPGP key |
+| `soju-test` | soju started behind Traefik, an account made with `sojuctl`, registration in plaintext on loopback and over TLS through Traefik, the client address soju takes from the PROXY header, and a trusted peer that sends no header still registering |
 | `yubikey-onboard-dry-run` | The packaged onboarding script's dry run as an unprivileged user, which must take the `unshare -Urm` path, exit 0, write nothing, and name a summary directory outside the working directory |
 
 Unchanged derivations are pulled from the cache and not rebuilt.

@@ -1850,6 +1850,13 @@
       # The Traefik TLS floor, header defaults and TCP routers (see ./traefik.nix).
       eval-traefik = import ./traefik.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
 
+      # What the soju module hands services.soju, Traefik and the firewall,
+      # what it persists and what it refuses (see ./soju-eval.nix).
+      eval-soju = import ./soju-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase;
+      };
+
       # EXTENDED. The ashell bar config for a desktop and a laptop (see ./ashell.nix).
       eval-ashell = import ./ashell.nix {
         inherit (inputs.nixpkgs) lib;
@@ -1874,6 +1881,7 @@
       auto-upgrade-test = import ./auto-upgrade.nix {inherit pkgs inputs;};
       wallpaper-test = import ./wallpaper.nix {inherit pkgs inputs;};
       keyring-test = import ./keyring.nix {inherit pkgs inputs;};
+      soju-test = import ./soju.nix {inherit pkgs inputs;};
 
       # EXTENDED. The onboarding script's dry run in a VM (see ./yubikey-onboard.nix).
       yubikey-onboard-dry-run = import ./yubikey-onboard.nix {
