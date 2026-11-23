@@ -1847,8 +1847,8 @@
       # The SSH server's ports, firewall, jail and hardened defaults (see ./ssh-eval.nix).
       eval-ssh-settings = import ./ssh-eval.nix {inherit hostConfig mkExpectations functioningHost;};
 
-      # The Traefik TLS floor and header defaults (see ./traefik.nix).
-      eval-traefik = import ./traefik.nix {inherit hostConfig mkExpectations bootBase;};
+      # The Traefik TLS floor, header defaults and TCP routers (see ./traefik.nix).
+      eval-traefik = import ./traefik.nix {inherit hostConfig mkExpectations rejectedWith bootBase;};
 
       # EXTENDED. The ashell bar config for a desktop and a laptop (see ./ashell.nix).
       eval-ashell = import ./ashell.nix {

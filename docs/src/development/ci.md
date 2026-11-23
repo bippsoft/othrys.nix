@@ -76,7 +76,7 @@ tier reports early while the whole suite still gates what lands:
 | `eval-auto-upgrade` | The evaluation-time rules of the auto-upgrade verify gate |
 | `eval-ssh`, `eval-ssh-settings` | The known hosts and client defaults, the server's ports, firewall, jail and hardened defaults, and the mosh module's `programs.mosh` and UDP 60000 to 61000 with `openFirewall` on and off |
 | `eval-pam` | Which PAM services take the YubiKey, and with what control |
-| `eval-traefik` | The Traefik TLS floor and header defaults |
+| `eval-traefik` | The Traefik TLS floor, header defaults and TCP routers |
 | `eval-router`, `eval-router-services` | The router's rendered ruleset, and the start-up defaults of Suricata and CrowdSec |
 | `eval-headscale`, `eval-tailscale` | What the two modules render, pass to the daemon and refuse |
 | `eval-exposure` | What ntfy, Scrutiny and the two Victoria stores expose and persist |
