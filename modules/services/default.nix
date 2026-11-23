@@ -27,6 +27,7 @@
     ./unbound.nix
     ./restic.nix
     ./traefik.nix
+    ./soju.nix
     ./security
     ./containerization
     ./mounts

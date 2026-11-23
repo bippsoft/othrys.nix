@@ -350,6 +350,7 @@ in {
     unbound = ../modules/services/unbound.nix;
     restic = ../modules/services/restic.nix;
     traefik = ../modules/services/traefik.nix;
+    soju = ../modules/services/soju.nix;
     docs = ../modules/services/docs.nix;
     virtualcamera = ../modules/services/virtualcamera.nix;
     automount = ../modules/services/automount.nix;
