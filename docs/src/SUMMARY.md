@@ -44,6 +44,7 @@ ______________________________________________________________________
 - [Theming](./guides/theming.md)
 - [YubiKey Onboarding](./guides/yubikey-onboard.md)
 - [Secure Boot](./guides/secure-boot.md)
+- [IRC with soju and senpai](./guides/irc.md)
 
 # Development
 
