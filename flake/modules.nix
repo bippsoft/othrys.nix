@@ -149,6 +149,7 @@
       # options nix-darwin declares as well, such as assertions.
       # Their Home Manager configuration reaches the user through `home`.
       ../modules/apps/cli/gh.nix
+      ../modules/apps/cli/senpai.nix
       ../modules/apps/cli/tmux.nix
       ../modules/apps/cli/yazi.nix
       ../modules/apps/cli/comma.nix

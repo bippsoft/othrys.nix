@@ -13,6 +13,7 @@
     ./comma.nix
     ./tmux.nix
     ./yazi.nix
+    ./senpai.nix
 
     # AI Assistants
     ./ai
