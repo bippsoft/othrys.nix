@@ -99,6 +99,7 @@
     # Its nested enables are walked with it off, since it is listed here,
     # and so they evaluate.
     "othrys.apps.ai.paseo.enable" = "neither othrys.apps.ai.codex.enable nor othrys.apps.ai.claude-code.enable is set";
+    "othrys.apps.senpai.enable" = "othrys.apps.senpai: address is unset";
     "othrys.apps.idea.enable" = "othrys.apps.idea: requires othrys.apps.languages.java.enable";
     "othrys.apps.vscode.neovimIntegration.enable" = "neovimIntegration.enable requires othrys.apps.nixvim.enable";
     "othrys.system.nix.cachix.enable" = "othrys.system.nix.cachix: set name and publicKey";

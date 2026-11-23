@@ -4,9 +4,9 @@
 # reaches the environment, a host that names a user and turns nothing on gets
 # no account settings at all, the home adapter hands the apps' user
 # configuration to Home Manager with the darwin packages and paths, and the
-# SSH, Tailscale, mosh, YubiKey, Ollama, T3 Code and Paseo modules write
-# what nix-darwin and Home Manager run there and refuse what they cannot
-# apply.
+# SSH, Tailscale, mosh, YubiKey, Ollama, T3 Code, Paseo and senpai modules
+# write what nix-darwin and Home Manager run there and refuse what they
+# cannot apply.
 # codex and Claude Code reach Home Manager and T3 Code through the
 # project-environment launcher, and as themselves with it off.
 {
@@ -210,6 +210,22 @@
   paseoAgent = paseoServed.home-manager.users.alice.launchd.agents.paseo;
   paseoPlain = paseoHost {};
   paseoDesktop = paseoHost {othrys.apps.ai.paseo.desktop.enable = true;};
+
+  # senpai over the managed account. nix-darwin has no othrys.services.soju,
+  # so a host without an address shows the module's lookup falls back.
+  senpaiHost = settings: darwinConfig [darwinBase darwinManagedBase {othrys.apps.senpai = {enable = true;} // settings;}];
+  senpaiDirect = {
+    address = "irc.example.com:6697";
+    nickname = "alice";
+  };
+  senpaiPlain = senpaiHost senpaiDirect;
+  senpaiFile = senpaiHost (senpaiDirect // {passwordFile = "/run/secrets/senpai-password";});
+  senpaiNoAddress = senpaiHost {nickname = "alice";};
+  senpaiOf = h: h.home-manager.users.alice.programs.senpai;
+  # Home Manager writes the file under Library/Application Support on a
+  # Mac, relative to the home.
+  senpaiLines = h: lib.splitString "\n" (h.home-manager.users.alice.home.file."Library/Application Support/senpai/senpai.scfg".text or "");
+  senpaiPasswordLine = h: builtins.any (l: lib.hasPrefix "password " l || l == "password") (senpaiLines h);
 in
   mkExpectations "othrys-eval-darwin" {
     "a host with only a user named sets no primary user" = bare.system.primaryUser == null;
@@ -351,6 +367,30 @@ in
     "the Paseo desktop app on a Mac is accepted and installs nixpkgs' paseo.desktop" =
       !(builtins.any (a: !a.assertion && lib.hasInfix "othrys.apps.ai.paseo" a.message) paseoDesktop.assertions)
       && builtins.any (p: (p.outPath or null) == darwinPkgs.paseo.desktop.outPath) paseoDesktop.home-manager.users.alice.home.packages;
+
+    "senpai on a Mac with an address and a nickname trips no senpai assertion" = !(rejectedWith "othrys.apps.senpai" senpaiPlain);
+    "senpai on a Mac hands Home Manager the address, the nickname and no password" =
+      (senpaiOf senpaiPlain).enable
+      && (senpaiOf senpaiPlain).config
+      == {
+        address = "irc.example.com:6697";
+        nickname = "alice";
+        password = null;
+        password-cmd = null;
+      };
+    "senpai.scfg on a Mac names the address and the nickname" = builtins.elem "address irc.example.com:6697" (senpaiLines senpaiPlain) && builtins.elem "nickname alice" (senpaiLines senpaiPlain);
+    "senpai.scfg on a Mac carries no password line without a password file" =
+      !(senpaiPasswordLine senpaiPlain)
+      && !(builtins.any (lib.hasPrefix "password-cmd") (senpaiLines senpaiPlain));
+    "a password file on a Mac is read by the darwin coreutils' cat" =
+      (senpaiOf senpaiFile).config.password-cmd
+      == ["${darwinPkgs.coreutils}/bin/cat" "/run/secrets/senpai-password"]
+      && builtins.elem "password-cmd ${darwinPkgs.coreutils}/bin/cat /run/secrets/senpai-password" (senpaiLines senpaiFile)
+      && !(senpaiPasswordLine senpaiFile);
+    "senpai on a Mac without an address is refused, as no soju default exists there" = rejectedWith "othrys.apps.senpai: address is unset" senpaiNoAddress;
+    "senpai on a Mac without an address writes nothing to Home Manager" =
+      !(senpaiNoAddress.othrys.internal.homeConfig ? "apps.senpai")
+      && !(senpaiOf senpaiNoAddress).enable;
 
     "the launcher on a Mac wraps llm-agents' codex" = same agents.codex.passthru.unwrapped darwinAgents.codex && !(same agents.codex darwinAgents.codex);
     "the launcher on a Mac wraps llm-agents' claude-code built without telemetry" = same agents.claude-code.passthru.unwrapped quietClaude && !(same agents.claude-code quietClaude);

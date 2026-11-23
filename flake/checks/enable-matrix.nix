@@ -132,6 +132,7 @@
     # and so they evaluate. ./paseo-eval.nix reads them with an agent on.
     "othrys.apps.ai.paseo.enable" = "neither othrys.apps.ai.codex.enable nor othrys.apps.ai.claude-code.enable is set";
     "othrys.apps.gaming.r2modman.enable" = "othrys.apps.gaming.r2modman requires othrys.apps.gaming.steam.enable";
+    "othrys.apps.senpai.enable" = "othrys.apps.senpai: address is unset";
     "othrys.apps.idea.enable" = "othrys.apps.idea: requires othrys.apps.languages.java.enable";
     "othrys.desktop.nightLight.enable" = "othrys.desktop.nightLight needs a location";
     "othrys.desktop.wallpaper.enable" = "othrys.desktop.wallpaper: no wallpaper is declared";

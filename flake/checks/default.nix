@@ -1857,6 +1857,14 @@
         inherit impermanenceModules hostConfig mkExpectations rejectedWith bootBase;
       };
 
+      # What the senpai module hands Home Manager on NixOS, what it persists
+      # and what it refuses (see ./senpai-eval.nix). eval-darwin reads the
+      # darwin half.
+      eval-senpai = import ./senpai-eval.nix {
+        inherit (inputs.nixpkgs) lib;
+        inherit impermanenceModules hostConfig mkExpectations rejectedWith functioningHost inputs system;
+      };
+
       # EXTENDED. The ashell bar config for a desktop and a laptop (see ./ashell.nix).
       eval-ashell = import ./ashell.nix {
         inherit (inputs.nixpkgs) lib;
