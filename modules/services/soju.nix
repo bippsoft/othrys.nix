@@ -19,6 +19,7 @@
   # at the next restart and not at a reload.
   credentials = "/run/credentials/soju.service";
 in {
+  # ANCHOR: soju-options
   options.othrys.services.soju = {
     enable = lib.mkEnableOption "the soju IRC bouncer";
 
@@ -119,6 +120,7 @@ in {
       description = "Lines appended to `soju.conf`. See {manpage}`soju(1)` for the directives.";
     };
   };
+  # ANCHOR_END: soju-options
 
   config = lib.mkIf cfg.enable {
     assertions = [

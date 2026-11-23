@@ -30,6 +30,7 @@ Service modules under `othrys.services.*`.
 | Kea | `othrys.services.kea` | Kea DHCPv4/DHCPv6 server |
 | Unbound | `othrys.services.unbound` | Recursive DNS (DoT upstream, RPZ blocklists) |
 | Traefik | `othrys.services.traefik` | Reverse proxy with DNS-01 ACME, a TLS floor, security headers and TCP routers |
+| soju | `othrys.services.soju` | IRC bouncer on loopback, reached over its own TLS or through Traefik |
 | Restic | `othrys.services.restic` | Scheduled restic backups (secrets via file paths) |
 | Virtual Camera | `othrys.services.virtualcamera` | v4l2loopback devices, numbered from `videoNr`, enabled by `othrys.apps.obs` |
 | Printing | `othrys.services.printing` | CUPS printing |
@@ -1237,6 +1238,95 @@ othrys.services.traefik = {
 
 ```nix
 {{#include ../../../modules/services/traefik.nix:traefik-options}}
+```
+
+## soju
+
+[soju](https://soju.im/) is an IRC bouncer, and the module is a wrapper over
+`services.soju`. soju holds the connections to the upstream networks and keeps
+their history while clients come and go. Clients reach it over TLS in one of
+two ways, through a [Traefik](#traefik) TCP router or through soju's own TLS
+listener. [senpai](./apps.md#senpai) is the client module, and
+[IRC with soju and senpai](../guides/irc.md) sets up both.
+
+```nix
+othrys.services.soju = {
+  enable = true;
+  traefik = {
+    enable = true;
+    domain = "irc.example.com";
+  };
+};
+```
+
+Upstream's default `listen` is `:6697`, which soju reads as `ircs`, and soju
+exits with `missing TLS configuration` when no certificate is set. The module
+listens on `irc+insecure://127.0.0.1:6667` instead, at `port`, and never opens
+that port in the firewall.
+
+Both TLS paths serve port 6697, so the module refuses `traefik.enable` beside
+`tls.certificateFile`.
+
+**Through Traefik.** `traefik.enable` writes
+`othrys.services.traefik.tcpRouters.soju`, an entrypoint named `ircs` at
+`:6697` that forwards to `[::1]:<port>` with a PROXY protocol version 2 header.
+It needs `traefik.domain`, and Traefik with ACME on. soju trusts a PROXY header
+by the peer's address, on every listener at once, and accepts a trusted peer
+that sends none. The module adds a second plaintext listener on `[::1]` for
+Traefik to dial, and `::1/128` is the only trusted range, so a header sent from
+`127.0.0.1`, where a local client connects, is not read. `networking.enableIPv6 = false` removes `::1` from
+`lo`, and the module refuses it beside `traefik.enable`. The port Traefik
+listens on is opened by `othrys.services.traefik.tcpRouters.soju.openFirewall`
+and not by soju's own `openFirewall`.
+
+**Direct TLS.** `tls.certificateFile` and `tls.keyFile` are set together and
+add an `ircs://:6697` listener, which `openFirewall` opens. The service runs
+under `DynamicUser` and cannot read a certificate another user owns, so both
+files reach it through `LoadCredential`. systemd reads them as root when the
+service starts, and the ACME files can stay owned by the `acme` user. The copy
+is taken once per start, so a renewed certificate is read at the next restart
+of `soju.service` and not at a reload. `security.acme.certs.<name>.reloadServices`
+runs `systemctl try-reload-or-restart`, and the upstream unit answers a reload
+with SIGHUP, so soju would reload against the stale copy. A host using
+`security.acme` restarts the service after renewal instead.
+
+```nix
+security.acme.certs."irc.example.com".postRun = "systemctl restart soju.service";
+
+othrys.services.soju = {
+  enable = true;
+  tls = {
+    certificateFile = "/var/lib/acme/irc.example.com/fullchain.pem";
+    keyFile = "/var/lib/acme/irc.example.com/key.pem";
+  };
+  openFirewall = true;
+};
+```
+
+The module declares no accounts. An account is created on the host, and
+`sojuctl` takes the password only as an argument, so the password is visible in
+the process list while the command runs. A declarative account would put it
+there at every activation.
+
+```bash
+sudo sojuctl user create -username alice -password 'change-me' -admin true
+```
+
+`messageStore` defaults to `db`, which is soju's own default and differs from
+the `fs` that upstream NixOS sets. History then sits in `soju.db` beside the
+accounts and the passwords soju sends to the networks it joins. The state
+directory is persisted at `/var/lib/private/soju`, where a `DynamicUser`
+service keeps it, and `/var/lib/soju` is systemd's symlink to it.
+
+`hostName` is the name soju gives itself as an IRC server. It follows
+`traefik.domain` while `traefik.enable` is on, and `networking.hostName`
+otherwise. soju warns at start when the name has no dot, and it never compares
+the name with the TLS name a client uses.
+
+### Options
+
+```nix
+{{#include ../../../modules/services/soju.nix:soju-options}}
 ```
 
 ## DDNS
