@@ -29,7 +29,7 @@ Service modules under `othrys.services.*`.
 | Suricata | `othrys.services.suricata` | IDS/IPS (NFQUEUE or AF_PACKET inline) |
 | Kea | `othrys.services.kea` | Kea DHCPv4/DHCPv6 server |
 | Unbound | `othrys.services.unbound` | Recursive DNS (DoT upstream, RPZ blocklists) |
-| Traefik | `othrys.services.traefik` | Reverse proxy with DNS-01 ACME, a TLS floor and security headers |
+| Traefik | `othrys.services.traefik` | Reverse proxy with DNS-01 ACME, a TLS floor, security headers and TCP routers |
 | Restic | `othrys.services.restic` | Scheduled restic backups (secrets via file paths) |
 | Virtual Camera | `othrys.services.virtualcamera` | v4l2loopback devices, numbered from `videoNr`, enabled by `othrys.apps.obs` |
 | Printing | `othrys.services.printing` | CUPS printing |
@@ -1170,6 +1170,53 @@ othrys.services.traefik = {
   };
 };
 ```
+
+### TCP routers
+
+`tcpRouters` puts a TCP service behind Traefik and routes it by the TLS server
+name the client sends. Each entry writes an entrypoint, a router and a service
+under its own name, and a servers transport as well when `proxyProtocol` is
+set. The entrypoint is named after the entry unless `entryPoint.name` says
+otherwise, and its port is opened when the entry's `openFirewall` is on, which
+follows the module's own `openFirewall`.
+
+```nix
+othrys.services.traefik.tcpRouters.soju = {
+  entryPoint.address = ":6697";
+  domain = "irc.example.com";
+  backend = "[::1]:6667";
+  proxyProtocol = 2;
+};
+```
+
+Every entry has an entrypoint of its own, so the module refuses two entries on
+one port or with one entrypoint name. It also refuses the entrypoint names
+`web`, `websecure` and `traefik`, ports 80 and 443, and port 8080 while the
+insecure dashboard is on and the host has not moved the `traefik` entrypoint.
+
+The rule is a strict `` HostSNI(`<domain>`) ``. A client that sends no server
+name matches nothing, and Traefik closes the TCP connection before any
+handshake, with no TLS alert. The wildcard rule `` HostSNI(`*`) `` does not
+help such a client. Under `tls.sniStrict` it is refused all the same, and with
+`sniStrict` off it is answered with Traefik's self-signed default certificate.
+Serving the ACME certificate as the default takes `defaultGeneratedCert`, which
+changes the default certificate for every HTTPS router too.
+
+A router terminates TLS by default, with the certificate the ACME resolver
+issues, and the module refuses a terminating router while `acme.enable` is off.
+It uses the `default` TLS options, so `tls.sniStrict` and `tls.minVersion` apply
+to it as they do to the HTTPS routers. The router names its domain in
+`tls.domains`, and that list decides what the resolver requests.
+`passthrough = true` forwards the TLS stream unopened to a backend that
+terminates TLS itself. Traefik reads only the server name from the client's
+hello, and the router needs no ACME.
+
+`proxyProtocol` sends a PROXY protocol header, so the backend sees the client's
+address and not Traefik's. The header goes on a servers transport named after
+the entry, since `loadBalancer.proxyProtocol` has been deprecated since Traefik
+3.5.2. A backend has to trust the header from Traefik's address alone, because
+a peer it trusts can state any client address. [soju](#soju) is the worked
+example.
 
 ### Switches
 
