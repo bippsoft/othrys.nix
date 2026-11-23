@@ -31,29 +31,31 @@
   # staticConfigOptions (merged on top).
   generatedStatic =
     {
-      entryPoints = {
-        web =
-          {address = ":80";}
-          // trustedProxies
-          // lib.optionalAttrs cfg.httpsRedirect {
-            http.redirections.entryPoint = {
-              to = "websecure";
-              scheme = "https";
-            };
-          };
-        websecure =
-          lib.recursiveUpdate (
-            {address = ":443";}
+      entryPoints =
+        {
+          web =
+            {address = ":80";}
             // trustedProxies
-            // lib.optionalAttrs cfg.acme.enable {
-              http.tls.certResolver = cfg.acme.resolver;
-            }
-          ) (lib.optionalAttrs headersOn {
-            # Attached at the entrypoint so every router behind it gets the
-            # headers without naming the middleware itself.
-            http.middlewares = ["${headersMiddleware}@file"];
-          });
-      };
+            // lib.optionalAttrs cfg.httpsRedirect {
+              http.redirections.entryPoint = {
+                to = "websecure";
+                scheme = "https";
+              };
+            };
+          websecure =
+            lib.recursiveUpdate (
+              {address = ":443";}
+              // trustedProxies
+              // lib.optionalAttrs cfg.acme.enable {
+                http.tls.certResolver = cfg.acme.resolver;
+              }
+            ) (lib.optionalAttrs headersOn {
+              # Attached at the entrypoint so every router behind it gets the
+              # headers without naming the middleware itself.
+              http.middlewares = ["${headersMiddleware}@file"];
+            });
+        }
+        // tcpEntryPoints;
     }
     // lib.optionalAttrs (cfg.logLevel != null) {
       log.level = cfg.logLevel;
@@ -105,7 +107,60 @@
     }
     // lib.optionalAttrs headersOn {
       http.middlewares.${headersMiddleware}.headers = headers;
+    }
+    // lib.optionalAttrs (cfg.tcpRouters != {}) {tcp = generatedTcp;};
+
+  routers = lib.attrValues cfg.tcpRouters;
+  portOf = address: lib.toInt (lib.last (lib.splitString ":" address));
+  reservedEntryPoints = ["web" "websecure" "traefik"];
+  reservedPorts = [80 443] ++ lib.optional dashboardOn8080 8080;
+  terminating = lib.filter (r: !r.passthrough) routers;
+  # Every router has an entrypoint of its own, so a repeated entrypoint name
+  # or port is two routers that would collapse into one entrypoint or fail
+  # to bind.
+  repeated = f: let
+    values = map f routers;
+  in
+    lib.filter (v: lib.count (x: x == v) values > 1) (lib.unique values);
+  sharedPorts = repeated (r: portOf r.entryPoint.address);
+  sharedNames = repeated (r: r.entryPoint.name);
+
+  # A terminating router names its domain in tls.domains as well as in the
+  # rule, so the resolver asks for exactly that name. The rule is strict, so a
+  # client that sends no SNI matches nothing and the connection is closed. The
+  # wildcard rule would instead route every name with a certificate in the
+  # store to this backend, and under sniStrict it refuses a client with no SNI
+  # all the same. The PROXY header is set on a servers transport, since
+  # loadBalancer.proxyProtocol is deprecated from Traefik 3.5.2.
+  generatedTcp =
+    {
+      routers =
+        lib.mapAttrs (name: r: {
+          entryPoints = [r.entryPoint.name];
+          rule = "HostSNI(`${r.domain}`)";
+          service = name;
+          tls =
+            if r.passthrough
+            then {passthrough = true;}
+            else {
+              certResolver = cfg.acme.resolver;
+              domains = [{main = r.domain;}];
+            };
+        })
+        cfg.tcpRouters;
+      services =
+        lib.mapAttrs (name: r: {
+          loadBalancer =
+            {servers = [{address = r.backend;}];}
+            // lib.optionalAttrs (r.proxyProtocol != null) {serversTransport = name;};
+        })
+        cfg.tcpRouters;
+    }
+    // lib.optionalAttrs (lib.any (r: r.proxyProtocol != null) routers) {
+      serversTransports = lib.mapAttrs (_: r: {proxyProtocol.version = r.proxyProtocol;}) (lib.filterAttrs (_: r: r.proxyProtocol != null) cfg.tcpRouters);
     };
+
+  tcpEntryPoints = lib.listToAttrs (map (r: lib.nameValuePair r.entryPoint.name {inherit (r.entryPoint) address;}) routers);
 in {
   # ANCHOR: traefik-options
   options.othrys.services.traefik = {
@@ -295,7 +350,7 @@ in {
     openFirewall = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Open the web (:80) and websecure (:443) ports. The API and dashboard port, :8080, is never opened here, since the insecure dashboard carries no authentication.";
+      description = "Open the web (:80) and websecure (:443) ports. It is also the default of tcpRouters.<name>.openFirewall. The API and dashboard port, :8080, is never opened here, since the insecure dashboard carries no authentication.";
     };
 
     staticConfigOptions = lib.mkOption {
@@ -309,42 +364,159 @@ in {
       default = {};
       description = "Dynamic configuration (routers, services, middlewares, TLS), merged on top of the generated TLS options and headers middleware.";
     };
+
+    tcpRouters = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.submodule ({name, ...}: {
+        options = {
+          entryPoint = {
+            name = lib.mkOption {
+              type = lib.types.str;
+              default = name;
+              defaultText = lib.literalExpression "<router name>";
+              example = "ircs";
+              description = "Name of the entrypoint the router listens on. Each router gets its own.";
+            };
+
+            address = lib.mkOption {
+              type = lib.types.strMatching ".*:[0-9]+";
+              example = ":6697";
+              description = ''
+                Address of the entrypoint, `:<port>` for every address or
+                `<address>:<port>` for one. Ports 80 and 443 belong to `web`
+                and `websecure`, and 8080 to the insecure dashboard.
+              '';
+            };
+          };
+
+          domain = lib.mkOption {
+            type = lib.types.str;
+            example = "irc.example.com";
+            description = ''
+              Name the router answers to, matched as `HostSNI` against the
+              name the client sends. A client that sends no name is not
+              routed. A terminating router asks the ACME resolver for a
+              certificate for this name.
+            '';
+          };
+
+          backend = lib.mkOption {
+            type = lib.types.str;
+            example = "[::1]:6667";
+            description = "Address and port Traefik forwards the connection to.";
+          };
+
+          proxyProtocol = lib.mkOption {
+            type = lib.types.nullOr (lib.types.enum [1 2]);
+            default = null;
+            example = 2;
+            description = ''
+              Version of the PROXY protocol header Traefik sends to the
+              backend, so the backend sees the client's address. Null sends
+              none. The backend has to expect the header from Traefik's
+              address and from no other peer.
+            '';
+          };
+
+          passthrough = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = ''
+              Forward the TLS stream unopened to a backend that terminates TLS
+              itself. Traefik reads only the name from the client's hello, and
+              requests no certificate. Off by default, so Traefik terminates TLS
+              with the certificate `acme.resolver` issues.
+            '';
+          };
+
+          openFirewall = lib.mkOption {
+            type = lib.types.bool;
+            default = cfg.openFirewall;
+            defaultText = lib.literalExpression "config.othrys.services.traefik.openFirewall";
+            description = "Open the entrypoint's port in the NixOS firewall.";
+          };
+        };
+      }));
+      default = {};
+      example = lib.literalExpression ''
+        {
+          soju = {
+            entryPoint.address = ":6697";
+            domain = "irc.example.com";
+            backend = "[::1]:6667";
+            proxyProtocol = 2;
+          };
+        }
+      '';
+      description = ''
+        TCP services behind Traefik, each on an entrypoint of its own and
+        reached by the TLS server name. Each entry writes an entrypoint, a
+        router, a service and, with `proxyProtocol`, a servers transport,
+        under its own name. A terminating router uses the default TLS
+        options, so `tls.sniStrict` and `tls.minVersion` apply to it as they
+        do to the HTTPS routers.
+      '';
+    };
   };
 
   # ANCHOR_END: traefik-options
 
   config = lib.mkIf cfg.enable {
-    assertions = [
-      {
-        assertion = !cfg.acme.enable || (cfg.acme.email != "" && cfg.acme.dnsProvider != "");
-        message = "othrys.services.traefik: acme.enable requires acme.email and acme.dnsProvider.";
-      }
-      {
-        assertion = !cfg.acme.enable || cfg.environmentFiles != [];
-        message = "othrys.services.traefik: DNS-01 ACME needs the provider credential via environmentFiles (e.g. a sops secret exporting the DNS API token).";
-      }
-      # dataDir is the one directory this module persists under impermanence.
-      # An acme.json anywhere else is lost at reboot, and every certificate is
-      # ordered again until the CA rate limit refuses the host.
-      {
-        assertion = !cfg.acme.enable || lib.hasPrefix "${toString cfg.dataDir}/" acmeStorage;
-        message = "othrys.services.traefik: acme.storage (${acmeStorage}) must be under dataDir (${toString cfg.dataDir}), the directory persisted under impermanence.";
-      }
-      # Scrutiny, Headscale and the CrowdSec local API default to 8080 as
-      # well, and whichever starts second fails to bind.
-      {
-        assertion = !(dashboardOn8080 && scrutiny.enable && scrutiny.port == 8080);
-        message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is also othrys.services.scrutiny.port. Give Scrutiny another port, or move the dashboard through staticConfigOptions.entryPoints.traefik.address.";
-      }
-      {
-        assertion = !(dashboardOn8080 && headscale.enable && headscale.port == 8080);
-        message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is also othrys.services.headscale.port. Give Headscale another port, or move the dashboard through staticConfigOptions.entryPoints.traefik.address.";
-      }
-      {
-        assertion = !(dashboardOn8080 && crowdsec.enable);
-        message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is where the CrowdSec local API listens on this host. Move the dashboard through staticConfigOptions.entryPoints.traefik.address, or serve it through a router to api@internal.";
-      }
-    ];
+    assertions =
+      [
+        {
+          assertion = !cfg.acme.enable || (cfg.acme.email != "" && cfg.acme.dnsProvider != "");
+          message = "othrys.services.traefik: acme.enable requires acme.email and acme.dnsProvider.";
+        }
+        {
+          assertion = !cfg.acme.enable || cfg.environmentFiles != [];
+          message = "othrys.services.traefik: DNS-01 ACME needs the provider credential via environmentFiles (e.g. a sops secret exporting the DNS API token).";
+        }
+        # dataDir is the one directory this module persists under impermanence.
+        # An acme.json anywhere else is lost at reboot, and every certificate is
+        # ordered again until the CA rate limit refuses the host.
+        {
+          assertion = !cfg.acme.enable || lib.hasPrefix "${toString cfg.dataDir}/" acmeStorage;
+          message = "othrys.services.traefik: acme.storage (${acmeStorage}) must be under dataDir (${toString cfg.dataDir}), the directory persisted under impermanence.";
+        }
+        # Scrutiny, Headscale and the CrowdSec local API default to 8080 as
+        # well, and whichever starts second fails to bind.
+        {
+          assertion = !(dashboardOn8080 && scrutiny.enable && scrutiny.port == 8080);
+          message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is also othrys.services.scrutiny.port. Give Scrutiny another port, or move the dashboard through staticConfigOptions.entryPoints.traefik.address.";
+        }
+        {
+          assertion = !(dashboardOn8080 && headscale.enable && headscale.port == 8080);
+          message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is also othrys.services.headscale.port. Give Headscale another port, or move the dashboard through staticConfigOptions.entryPoints.traefik.address.";
+        }
+        {
+          assertion = !(dashboardOn8080 && crowdsec.enable);
+          message = "othrys.services.traefik: dashboard.insecure serves the dashboard on port 8080, which is where the CrowdSec local API listens on this host. Move the dashboard through staticConfigOptions.entryPoints.traefik.address, or serve it through a router to api@internal.";
+        }
+        # A TCP router always terminates with the ACME resolver, and Traefik
+        # serves its self-signed default certificate when no resolver exists.
+        {
+          assertion = terminating == [] || cfg.acme.enable;
+          message = "othrys.services.traefik: tcpRouters ${lib.concatMapStringsSep ", " (r: r.domain) terminating} terminate TLS with the ACME resolver, so acme.enable must be on. Set tcpRouters.<name>.passthrough for a backend that terminates TLS itself.";
+        }
+        {
+          assertion = sharedPorts == [];
+          message = "othrys.services.traefik: more than one entry in tcpRouters listens on port ${lib.concatMapStringsSep ", " toString sharedPorts}. Give each tcpRouters.<name>.entryPoint.address its own port.";
+        }
+        {
+          assertion = sharedNames == [];
+          message = "othrys.services.traefik: more than one entry in tcpRouters uses the entrypoint ${lib.concatStringsSep ", " sharedNames}. Give each tcpRouters.<name>.entryPoint.name its own value.";
+        }
+      ]
+      ++ lib.mapAttrsToList (name: r: {
+        assertion = !(lib.elem r.entryPoint.name reservedEntryPoints);
+        message = "othrys.services.traefik: tcpRouters.${name}.entryPoint.name is ${r.entryPoint.name}, which this module uses for its own entrypoint. Choose another name.";
+      })
+      cfg.tcpRouters
+      ++ lib.mapAttrsToList (name: r: {
+        assertion = !(lib.elem (portOf r.entryPoint.address) reservedPorts);
+        message = "othrys.services.traefik: tcpRouters.${name}.entryPoint.address (${r.entryPoint.address}) takes port ${toString (portOf r.entryPoint.address)}, which the web, websecure or insecure dashboard entrypoint already binds. Choose another port.";
+      })
+      cfg.tcpRouters;
 
     services.traefik = {
       enable = true;
@@ -355,9 +527,9 @@ in {
 
     # The insecure dashboard answers on :8080 with no authentication, so the
     # port is left closed and a host that wants it reachable opens it itself.
-    networking.firewall = lib.mkIf cfg.openFirewall {
-      allowedTCPPorts = [80 443];
-    };
+    networking.firewall.allowedTCPPorts =
+      lib.optionals cfg.openFirewall [80 443]
+      ++ map (r: portOf r.entryPoint.address) (lib.filter (r: r.openFirewall) routers);
 
     # Certificates (acme.json) must survive reboots under impermanence.
     othrys.internal.persist."services.traefik" = {
