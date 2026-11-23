@@ -1,6 +1,6 @@
 # Applications
 
-**Platforms:** `gh`, tmux, `yazi`, `comma`, nixvim, the language registry, Ghostty, kitty, mpv, VSCodium, IntelliJ IDEA and Signal run on NixOS and nix-darwin. The rest are NixOS only. See [Darwin](../architecture/darwin.md).
+**Platforms:** `gh`, senpai, tmux, `yazi`, `comma`, nixvim, the language registry, Ghostty, kitty, mpv, VSCodium, IntelliJ IDEA and Signal run on NixOS and nix-darwin. The rest are NixOS only. See [Darwin](../architecture/darwin.md).
 
 Application modules under `othrys.apps.*`, split into CLI and GUI categories.
 
@@ -16,6 +16,7 @@ No desktop environment required, so these are usable on servers and headless sys
 | Languages | `othrys.apps.languages.<name>` | Per-language toolchains shared by the PATH and both editors |
 | Development | `othrys.apps.development` | Development tools bundle, direnv with its allow database persisted |
 | GitHub CLI | `othrys.apps.gh` | `gh` with its settings, the git credential helper, a token file for a headless host and read-only commands pre-approved for Claude Code and Codex |
+| senpai | `othrys.apps.senpai` | Terminal IRC client for a bouncer, with the password read from a file at connect time |
 | tmux | `othrys.apps.tmux` | Terminal multiplexer |
 | Yazi | `othrys.apps.yazi` | Terminal file manager |
 | Comma | `othrys.apps.comma` | Run uninstalled programs with nix-index, whose `command-not-found` handler names the package for a missing command |
@@ -176,6 +177,51 @@ Manager configuration.
 
 ```nix
 {{#include ../../../modules/apps/cli/tmux.nix:tmux-options}}
+```
+
+### senpai
+
+`othrys.apps.senpai` configures [senpai](https://sr.ht/~delthas/senpai/), a
+terminal IRC client built for a bouncer, through Home Manager's
+`programs.senpai` for the primary user. It runs on NixOS and nix-darwin, and on
+darwin Home Manager writes the configuration to
+`~/Library/Application Support/senpai`. [soju](./services.md#soju) is the
+bouncer module, and [IRC with soju and senpai](../guides/irc.md) sets up both.
+
+```nix
+othrys.apps.senpai = {
+  enable = true;
+  address = "irc.example.com";
+  nickname = "alice";
+  passwordFile = "/run/secrets/senpai-password";
+};
+```
+
+`address` defaults to soju's loopback listener,
+`irc+insecure://127.0.0.1:<port>`, when `othrys.services.soju` is on the same
+host, and has no default otherwise. A bare host name connects with TLS on port
+6697. `nickname` never has a default. The module refuses either one unset and
+names the option in its message.
+
+`passwordFile` becomes `password-cmd`, a `cat` of the file. senpai runs the
+command without a shell and reads its first line each time it connects, so the
+password stays out of the Nix store and the configuration file, and the file
+has to be readable by the primary user. `settings.password` and
+`settings.password-cmd` are refused.
+
+senpai uses `nickname` as the SASL user name unless `settings.username` is
+set. On a soju bouncer that user name is the soju account, so a nickname that
+differs from the account name needs `settings.username`. `settings` takes any
+other `senpai.scfg` directive and is merged over what the module writes.
+
+`~/.cache/senpai` is persisted, since it holds the last open buffer and the
+read marker, `lastbuffer-*.txt` and `laststamp-*.txt`. The configuration is a
+Home Manager link and is not persisted.
+
+#### Options
+
+```nix
+{{#include ../../../modules/apps/cli/senpai.nix:senpai-options}}
 ```
 
 ### Kitty

@@ -14,6 +14,7 @@
 
   ready = cfg.address != null && cfg.nickname != null;
 in {
+  # ANCHOR: senpai-options
   options.othrys.apps.senpai = {
     enable = lib.mkEnableOption "the senpai IRC client";
 
@@ -72,6 +73,7 @@ in {
       '';
     };
   };
+  # ANCHOR_END: senpai-options
 
   config = lib.mkIf cfg.enable {
     assertions = [
