@@ -327,8 +327,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Reclaim disk space
-        uses: wimpysworld/nothing-but-nix@b2574ec1cf1462bee0a34de0fb6ff11ad3c43cb2 # v12
+      # The swap is replaced before the disk is reclaimed. nothing-but-nix
+      # leaves / its safe haven and hands every other free byte to /nix,
+      # first at once and then in the background while the job runs. A
+      # swapfile allocated after it competes with that growth for the haven,
+      # and runners died with no space left on /. Allocated first, the
+      # swapfile is already used space when the action measures /.
       - name: Grow swap to 8G
         run: |
           # The runner image already runs swap on /swapfile; replace it.
@@ -339,6 +343,13 @@ jobs:
           sudo mkswap /swapfile
           sudo swapon /swapfile
           swapon --show
+          df -h /
+      - name: Reclaim disk space
+        uses: wimpysworld/nothing-but-nix@b2574ec1cf1462bee0a34de0fb6ff11ad3c43cb2 # v12
+        with:
+          # v12 resolves auto to 6144MB for cleave. The runner's own logs, the
+          # checkout and the Nix evaluation caches stay on /.
+          root-safe-haven: 10240
       - name: Install Nix
         uses: DeterminateSystems/determinate-nix-action@16f94ba7aae399b9f9077c254b6719ec6de7e3e3 # v3
         with:

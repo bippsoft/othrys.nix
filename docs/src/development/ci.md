@@ -225,6 +225,16 @@ these workflows use. Nix inputs are left to `update-inputs.yml`.
 
 The `core` and `extended` jobs use [nothing-but-nix](https://github.com/wimpysworld/nothing-but-nix) to reclaim ~115GB of disk space on GitHub runners, replacing the default ~20GB limit.
 
+On the `ubuntu-26.04` runners `/` and `/mnt` share one filesystem. The action
+keeps a safe haven on `/` and gives every other free byte to `/nix`, at once
+and then in the background while the job runs. The `extended` job replaces the
+runner's swap with an 8G swapfile on `/` before the action runs, so the
+swapfile is already used space when the action measures `/`. Allocated after
+the action, the swapfile competed with that growth, and runners died with no
+space left on `/` within seconds of starting. The job also raises
+`root-safe-haven` to 10240MB, above the 6144MB that v12 resolves `auto` to for
+`cleave`.
+
 ## Cachix
 
 CI pushes to `othrys-nix.cachix.org`, which exists to make this repository's own
