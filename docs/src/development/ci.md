@@ -220,6 +220,7 @@ text.
 | `flake-inputs.yml` | **flake-inputs** | Health check of the nixpkgs pins in the flake lock, which covers the branch they track, their age and whether the release is supported. It runs when `flake.{lock,nix}` change and weekly, and it does not scan for security advisories |
 | `update-inputs.yml` | **update** | Weekly `nix flake update`, opened as a `chore(flake)` pull request and never merged automatically. `nixpkgs` moves only as far as the newest commit that both `nixos-unstable` and `nixpkgs-unstable` have reached, so `core-darwin` finds its binaries on `cache.nixos.org` |
 | `scorecard.yml` | **analysis** | OpenSSF Scorecard on `main`, weekly, and on branch protection changes. Publishes the score behind the README badge and uploads findings to code scanning |
+| `codeql.yml` | **analyze** | Every PR, push to `main` and weekly: CodeQL with the `security-extended` queries over the workflows (`actions`) and the scripts under `flake/checks/` (`python`), one leg each, uploaded to code scanning. Nix has no CodeQL extractor and stays with statix, deadnix and gitleaks |
 
 `.github/dependabot.yml` raises weekly PRs that move the sha pins of the actions
 these workflows use. Nix inputs are left to `update-inputs.yml`.
