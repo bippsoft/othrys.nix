@@ -91,7 +91,9 @@
   };
   wiped = host [impermanent (sojuWith {})];
   wipedOff = host [impermanent];
-  entriesOf = cfg: cfg.environment.persistence.${cfg.othrys.system.impermanence.persistRoot}.directories;
+  # A host on which no module persists anything declares no persist root at
+  # all, so a missing root reads as an empty list.
+  entriesOf = cfg: cfg.environment.persistence.${cfg.othrys.system.impermanence.persistRoot}.directories or [];
   pathOf = entry: entry.dirPath or entry.directory;
   persisted = path: cfg: builtins.any (entry: pathOf entry == path) (entriesOf cfg);
   ownedBy = path: cfg:
